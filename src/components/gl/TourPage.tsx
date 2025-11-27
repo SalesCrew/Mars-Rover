@@ -276,6 +276,7 @@ export const TourPage: React.FC<TourPageProps> = ({ route, user, onBack }) => {
   };
 
   const handleEndTour = () => {
+    console.log('handleEndTour called, showCompletionModal will be set to true');
     setShowCompletionModal(true);
   };
 

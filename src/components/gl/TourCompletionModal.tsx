@@ -25,10 +25,13 @@ export const TourCompletionModal: React.FC<TourCompletionModalProps> = ({
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
+    console.log('TourCompletionModal isOpen:', isOpen);
     if (isOpen) {
       setIsAnimating(true);
     }
   }, [isOpen]);
+
+  console.log('TourCompletionModal render - isOpen:', isOpen, 'isAnimating:', isAnimating);
 
   if (!isOpen) return null;
 
