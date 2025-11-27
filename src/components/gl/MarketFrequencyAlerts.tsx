@@ -40,7 +40,7 @@ export const MarketFrequencyAlerts: React.FC<MarketFrequencyAlertsProps> = ({
         displayScrollbar={false}
         className={styles.animatedListContainer}
       >
-        {(item, index) => {
+        {(_item, index) => {
           const alert = alerts[index];
           return (
             <button

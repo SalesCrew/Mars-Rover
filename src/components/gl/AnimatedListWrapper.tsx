@@ -1,4 +1,5 @@
-import React, { ReactElement, Children } from 'react';
+import React, { Children } from 'react';
+import type { ReactElement } from 'react';
 import { motion } from 'motion/react';
 
 interface AnimatedListWrapperProps {

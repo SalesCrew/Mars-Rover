@@ -1,4 +1,4 @@
-import type { Market, TourRoute, RouteSegment } from '../types/gl-types';
+import type { Market, TourRoute } from '../types/market-types';
 
 /**
  * Mock route calculation function
@@ -8,76 +8,49 @@ export function calculateOptimalRoute(markets: Market[]): TourRoute {
   if (markets.length === 0) {
     return {
       markets: [],
-      drivingTime: 0,
-      workTime: 0,
+      totalDrivingTime: 0,
+      totalWorkTime: 0,
       totalTime: 0,
-      segments: [],
+      optimizedOrder: [],
     };
   }
 
   if (markets.length === 1) {
     return {
       markets,
-      drivingTime: 0,
-      workTime: 45,
+      totalDrivingTime: 0,
+      totalWorkTime: 45,
       totalTime: 45,
-      segments: [],
+      optimizedOrder: [markets[0].id],
     };
   }
 
   // Mock optimization: Sort by district (extracted from address postal code)
   const sortedMarkets = [...markets].sort((a, b) => {
-    const postalA = a.address.match(/\d{4}/)?.[0] || '';
-    const postalB = b.address.match(/\d{4}/)?.[0] || '';
+    const postalA = a.postalCode || '';
+    const postalB = b.postalCode || '';
     return postalA.localeCompare(postalB);
   });
 
   // Calculate mock drive times between consecutive markets
-  const segments: RouteSegment[] = [];
   let totalDriveTime = 0;
 
   for (let i = 0; i < sortedMarkets.length - 1; i++) {
     // Mock: Random drive time between 5-20 minutes
     const driveTime = Math.floor(Math.random() * 16) + 5;
-    segments.push({
-      from: sortedMarkets[i].id,
-      to: sortedMarkets[i + 1].id,
-      driveTime,
-    });
     totalDriveTime += driveTime;
   }
 
-  const workTime = markets.length * 45; // 45 minutes per market
-  const totalTime = totalDriveTime + workTime;
+  const totalWorkTime = markets.length * 45; // 45 minutes per market
+  const totalTime = totalDriveTime + totalWorkTime;
 
   return {
     markets: sortedMarkets,
-    drivingTime: totalDriveTime,
-    workTime,
+    totalDrivingTime: totalDriveTime,
+    totalWorkTime,
     totalTime,
-    segments,
+    optimizedOrder: sortedMarkets.map(m => m.id),
   };
-}
-
-/**
- * Recalculate route segments after manual reordering
- */
-export function recalculateRouteSegments(markets: Market[]): RouteSegment[] {
-  if (markets.length <= 1) return [];
-
-  const segments: RouteSegment[] = [];
-
-  for (let i = 0; i < markets.length - 1; i++) {
-    // Mock: Random drive time between 5-20 minutes
-    const driveTime = Math.floor(Math.random() * 16) + 5;
-    segments.push({
-      from: markets[i].id,
-      to: markets[i + 1].id,
-      driveTime,
-    });
-  }
-
-  return segments;
 }
 
 /**

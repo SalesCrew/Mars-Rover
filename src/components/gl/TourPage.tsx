@@ -16,7 +16,7 @@ interface TourPageProps {
   onBack: () => void;
 }
 
-export const TourPage: React.FC<TourPageProps> = ({ route, user, onBack }) => {
+export const TourPage: React.FC<TourPageProps> = ({ route, user }) => {
   const [startTime] = useState<Date>(new Date());
   const [completedMarketIds, setCompletedMarketIds] = useState<string[]>([]);
   const [endTime, setEndTime] = useState<Date | null>(null);

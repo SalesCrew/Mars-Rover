@@ -304,7 +304,6 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
     return `${mins}min`;
   };
 
-  const tourRoute = mode === 'tour' && tourStep === 'selection' ? calculateTourRoute() : optimizedRoute;
   const canStart = mode === 'single' ? selectedMarket !== null : selectedMarkets.length > 0;
 
   const getButtonText = () => {
@@ -404,18 +403,9 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                     {uncompletedMarkets.map((market) => (
                       <button
                         key={market.id}
-                        className={`${styles.dropdownItem} ${
-                          mode === 'tour' && selectedMarkets.includes(market.id) ? styles.selected : ''
-                        }`}
+                        className={styles.dropdownItem}
                         onClick={() => handleMarketSelect(market.id)}
                       >
-                        {mode === 'tour' && (
-                          <div className={styles.itemCheck}>
-                            {selectedMarkets.includes(market.id) && (
-                              <Check size={14} weight="bold" color="white" />
-                            )}
-                          </div>
-                        )}
                         <div className={styles.itemInfo}>
                           <div className={styles.itemName}>{market.name}</div>
                           <div className={styles.itemAddress}>
@@ -434,9 +424,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                     {completedMarkets.map((market) => (
                       <button
                         key={market.id}
-                        className={`${styles.dropdownItem} ${styles.completed} ${
-                          mode === 'tour' && selectedMarkets.includes(market.id) ? styles.selected : ''
-                        }`}
+                        className={`${styles.dropdownItem} ${styles.completed}`}
                         onClick={() => handleMarketSelect(market.id)}
                       >
                         <div className={styles.completedCheck}>
@@ -606,7 +594,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                             </div>
                           </div>
                         );
-                      })}
+                      }).filter((item): item is React.ReactElement => item !== null)}
                     </AnimatedListWrapper>
                   </div>
 

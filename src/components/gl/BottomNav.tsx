@@ -96,7 +96,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
             transform: `translateX(${activeIndex * (isMobile ? 44 + 4 : 48 + 4)}px)`,
           }}
         />
-        {navItems.map((item, index) => {
+        {navItems.map((item) => {
           const isActive = activeTab === item.id;
           return (
             <button

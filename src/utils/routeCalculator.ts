@@ -1,4 +1,4 @@
-import type { Market, TourRoute, RouteSegment } from '../types/gl-types';
+import type { Market, TourRoute } from '../types/market-types';
 
 /**
  * Calculate distance between two coordinates using Haversine formula
@@ -59,6 +59,8 @@ function nearestNeighborRoute(markets: Market[]): Market[] {
     let nearestDistance = Infinity;
     
     unvisited.forEach((market, index) => {
+      if (!current.coordinates || !market.coordinates) return;
+      
       const distance = calculateDistance(
         current.coordinates.lat,
         current.coordinates.lng,
@@ -87,23 +89,24 @@ export function calculateOptimalRoute(markets: Market[]): TourRoute {
   if (markets.length === 0) {
     return {
       markets: [],
-      totalDrivingMinutes: 0,
-      totalWorkMinutes: 0,
-      totalMinutes: 0,
-      segments: [],
+      totalDrivingTime: 0,
+      totalWorkTime: 0,
+      totalTime: 0,
+      optimizedOrder: [],
     };
   }
   
   // Optimize route using nearest neighbor
   const optimizedRoute = nearestNeighborRoute(markets);
   
-  // Calculate segments and driving times
-  const segments: RouteSegment[] = [];
-  let totalDrivingMinutes = 0;
+  // Calculate driving times
+  let totalDrivingTime = 0;
   
   for (let i = 0; i < optimizedRoute.length - 1; i++) {
     const from = optimizedRoute[i];
     const to = optimizedRoute[i + 1];
+    
+    if (!from.coordinates || !to.coordinates) continue;
     
     const distance = calculateDistance(
       from.coordinates.lat,
@@ -113,25 +116,19 @@ export function calculateOptimalRoute(markets: Market[]): TourRoute {
     );
     
     const drivingMinutes = calculateDrivingTime(distance);
-    totalDrivingMinutes += drivingMinutes;
-    
-    segments.push({
-      from,
-      to,
-      drivingMinutes,
-    });
+    totalDrivingTime += drivingMinutes;
   }
   
   // Calculate work time (45 minutes per market)
-  const totalWorkMinutes = optimizedRoute.length * 45;
-  const totalMinutes = totalDrivingMinutes + totalWorkMinutes;
+  const totalWorkTime = optimizedRoute.length * 45;
+  const totalTime = totalDrivingTime + totalWorkTime;
   
   return {
     markets: optimizedRoute,
-    totalDrivingMinutes,
-    totalWorkMinutes,
-    totalMinutes,
-    segments,
+    totalDrivingTime,
+    totalWorkTime,
+    totalTime,
+    optimizedOrder: optimizedRoute.map(m => m.id),
   };
 }
 

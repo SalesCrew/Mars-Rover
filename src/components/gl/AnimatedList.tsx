@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect, ReactNode, MouseEventHandler, UIEvent } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import type { ReactNode, MouseEventHandler, UIEvent } from 'react';
 import { motion, useInView } from 'motion/react';
 import './AnimatedList.css';
 
