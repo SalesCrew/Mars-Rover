@@ -28,6 +28,22 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   letter-spacing: -0.3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-family);
+  transition: opacity var(--transition-fast);
+}
+
+.appName:hover {
+  opacity: 0.7;
+}
+
+.appName:focus-visible {
+  outline: 2px solid var(--color-teal-mid);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .greeting {

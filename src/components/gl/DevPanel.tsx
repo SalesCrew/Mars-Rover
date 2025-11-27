@@ -3,17 +3,29 @@ import styles from './DevPanel.module.css';
 
 interface DevPanelProps {
   onCompleteNextMarket: () => void;
+  onToggle?: (toggle: () => void) => void;
 }
 
-export const DevPanel: React.FC<DevPanelProps> = ({ onCompleteNextMarket }) => {
+export const DevPanel: React.FC<DevPanelProps> = ({ onCompleteNextMarket, onToggle }) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  const togglePanel = () => {
+    setIsOpen(prev => !prev);
+  };
+
+  // Expose toggle function to parent
+  useEffect(() => {
+    if (onToggle) {
+      onToggle(togglePanel);
+    }
+  }, [onToggle]);
 
   // Toggle dev panel with Ctrl+Shift+D
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'D') {
         e.preventDefault();
-        setIsOpen(prev => !prev);
+        togglePanel();
       }
     };
 

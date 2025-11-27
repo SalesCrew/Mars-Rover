@@ -26,6 +26,7 @@ export const TourPage: React.FC<TourPageProps> = ({ route, user }) => {
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartRef = useRef(0);
+  const devPanelToggleRef = useRef<(() => void) | null>(null);
   
   // Current scroll position (which card is at position 0)
   const [scrollIndex, setScrollIndex] = useState(0);
@@ -291,7 +292,7 @@ export const TourPage: React.FC<TourPageProps> = ({ route, user }) => {
         />
       </div>
 
-      <Header firstName={user.firstName} avatar={user.avatar} />
+      <Header firstName={user.firstName} avatar={user.avatar} onDevPanelToggle={() => devPanelToggleRef.current?.()} />
       
       <main className={styles.main}>
         <div className={styles.container}>
@@ -496,7 +497,10 @@ export const TourPage: React.FC<TourPageProps> = ({ route, user }) => {
       </main>
 
       {/* Dev Panel */}
-      <DevPanel onCompleteNextMarket={handleCompleteNextMarket} />
+      <DevPanel 
+        onCompleteNextMarket={handleCompleteNextMarket} 
+        onToggle={(toggle) => { devPanelToggleRef.current = toggle; }}
+      />
     </div>
   );
 };
