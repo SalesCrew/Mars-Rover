@@ -43,21 +43,8 @@ export const MarketDetailModal: React.FC<MarketDetailModalProps> = ({
     return Math.round((market.currentVisits / market.frequency) * 100);
   };
 
-  const getChainColor = (chain: string) => {
-    const colors: Record<string, string> = {
-      'Billa': '#3B82F6',
-      'Billa Plus': '#3B82F6',
-      'Spar': '#E30613',
-      'Spar Gourmet': '#E30613',
-      'Hofer': '#005CA9',
-      'Merkur': '#006F3C',
-    };
-    return colors[chain] || '#3B82F6';
-  };
-
   const visitProgress = getVisitProgress();
   const visitsRemaining = market.frequency - market.currentVisits;
-  const chainColor = getChainColor(market.chain);
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -67,7 +54,7 @@ export const MarketDetailModal: React.FC<MarketDetailModalProps> = ({
       >
         {/* Header with Chain Badge */}
         <div className={styles.header}>
-          <div className={styles.chainBadge} style={{ backgroundColor: chainColor }}>
+          <div className={styles.chainBadge}>
             <Storefront size={24} weight="fill" />
           </div>
           <div className={styles.headerContent}>
@@ -82,7 +69,7 @@ export const MarketDetailModal: React.FC<MarketDetailModalProps> = ({
         {/* Stats Grid */}
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ backgroundColor: chainColor }}>
+            <div className={styles.statIcon}>
               <Calendar size={20} weight="fill" />
             </div>
             <div className={styles.statContent}>
@@ -92,7 +79,7 @@ export const MarketDetailModal: React.FC<MarketDetailModalProps> = ({
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ backgroundColor: chainColor }}>
+            <div className={styles.statIcon}>
               <TrendUp size={20} weight="fill" />
             </div>
             <div className={styles.statContent}>
@@ -104,7 +91,7 @@ export const MarketDetailModal: React.FC<MarketDetailModalProps> = ({
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ backgroundColor: chainColor }}>
+            <div className={styles.statIcon}>
               <Clock size={20} weight="fill" />
             </div>
             <div className={styles.statContent}>
@@ -118,17 +105,14 @@ export const MarketDetailModal: React.FC<MarketDetailModalProps> = ({
         <div className={styles.progressSection}>
           <div className={styles.progressHeader}>
             <span className={styles.progressLabel}>Jahresfortschritt</span>
-            <span className={styles.progressPercentage} style={{ color: chainColor }}>
+            <span className={styles.progressPercentage}>
               {visitProgress}%
             </span>
           </div>
           <div className={styles.progressBar}>
             <div 
               className={styles.progressFill} 
-              style={{ 
-                width: `${visitProgress}%`,
-                background: `linear-gradient(90deg, ${chainColor}, ${chainColor}dd)`
-              }}
+              style={{ width: `${visitProgress}%` }}
             />
           </div>
           <div className={styles.progressFooter}>
