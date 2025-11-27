@@ -60,7 +60,9 @@ export const TourPage: React.FC<TourPageProps> = ({ route, user }) => {
 
   // Handle wheel scroll - one card at a time with position-based logic
   const handleWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    // Always prevent default to stop page scroll
     e.preventDefault();
+    e.stopPropagation();
     
     if (isScrollingRef.current) return;
     
@@ -90,18 +92,20 @@ export const TourPage: React.FC<TourPageProps> = ({ route, user }) => {
     }, 350);
   };
 
-  // Handle touch for mobile - one card at a time
+  // Handle touch for mobile/iPad - one card at a time
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = e.touches[0].clientY;
   };
   
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (isScrollingRef.current) {
-      e.preventDefault();
-    }
+    // Always prevent default to stop page scroll when touching this container
+    e.preventDefault();
+    e.stopPropagation();
   };
   
   const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    
     if (isScrollingRef.current) return;
     
     const touchEnd = e.changedTouches[0].clientY;

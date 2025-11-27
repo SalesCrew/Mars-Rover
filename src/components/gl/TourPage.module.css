@@ -226,6 +226,8 @@
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .marketsList::-webkit-scrollbar {
@@ -373,6 +375,9 @@
   max-height: 450px;
   overflow: hidden;
   padding-bottom: var(--space-xl);
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .stackedCard {
