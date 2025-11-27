@@ -12,7 +12,6 @@ interface MarketFrequencyAlertsProps {
 
 export const MarketFrequencyAlerts: React.FC<MarketFrequencyAlertsProps> = ({
   alerts,
-  onViewAll,
   onMarketClick,
 }) => {
   if (alerts.length === 0) {
