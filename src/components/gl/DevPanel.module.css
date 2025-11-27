@@ -1,0 +1,120 @@
+.devPanel {
+  position: fixed;
+  top: var(--space-xl);
+  right: var(--space-xl);
+  width: 320px;
+  max-height: 80vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.devPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.devPanelTitle {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 1px;
+}
+
+.closeButton {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-family);
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.buttonGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+  max-height: calc(80vh - 100px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.buttonGrid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.buttonGrid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.buttonGrid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.devButton {
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 255, 0, 0.1);
+  border: 1.5px solid rgba(255, 255, 0, 0.8);
+  border-radius: var(--radius-md);
+  color: rgba(255, 255, 0, 0.95);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.devButton:hover:not(:disabled) {
+  background: rgba(255, 255, 0, 0.2);
+  border-color: rgba(255, 255, 0, 1);
+  color: rgba(255, 255, 0, 1);
+  transform: translateY(-1px);
+}
+
+.devButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.devButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .devPanel {
+    width: calc(100vw - var(--space-xl) * 2);
+    max-width: 320px;
+  }
+}
+

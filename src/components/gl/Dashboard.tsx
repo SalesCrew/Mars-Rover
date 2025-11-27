@@ -1,0 +1,142 @@
+import React, { useState } from 'react';
+import { BonusHeroCard } from './BonusHeroCard';
+import { QuickActionsBar } from './QuickActionsBar';
+import { MarketFrequencyAlerts } from './MarketFrequencyAlerts';
+import { BottomNav } from './BottomNav';
+import { MarketSelectionModal } from './MarketSelectionModal';
+import { TourPage } from './TourPage';
+import { Header } from './Header';
+import Aurora from './Aurora';
+import type { GLDashboard, NavigationTab } from '../../types/gl-types';
+import type { TourRoute } from '../../types/market-types';
+import { allMarkets } from '../../data/marketsData';
+import { useResponsive } from '../../hooks/useResponsive';
+import styles from './Dashboard.module.css';
+
+interface DashboardProps {
+  data: GLDashboard;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
+  const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
+  const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
+  const [activeTour, setActiveTour] = useState<TourRoute | null>(null);
+  const { isMobile } = useResponsive();
+
+  const handleBonusClick = () => {
+    console.log('Navigate to bonus details');
+    // TODO: Implement navigation
+  };
+
+  const handleStartVisit = () => {
+    setIsMarketModalOpen(true);
+  };
+
+  const handleStartSingleVisit = (marketId: string) => {
+    console.log('Start visit for market:', marketId);
+    // TODO: Navigate to visit workflow
+  };
+
+  const handleStartTour = (route: TourRoute) => {
+    console.log('Start tour with route:', route);
+    setActiveTour(route);
+  };
+
+  const handleVorverkauf = () => {
+    console.log('Open Vorverkauf form');
+    // TODO: Implement Vorverkauf entry
+  };
+
+  const handleVorbestellung = () => {
+    console.log('Open Vorbestellung form');
+    // TODO: Implement Vorbestellung entry
+  };
+
+  const handleCalculator = () => {
+    console.log('Open product calculator');
+    // TODO: Implement calculator
+  };
+
+  const handleViewAllFrequencies = () => {
+    console.log('View all market frequencies');
+    // TODO: Navigate to markets page with filter
+  };
+
+  const handleMarketClick = (marketId: string) => {
+    console.log('View market details:', marketId);
+    // TODO: Navigate to market detail page
+  };
+
+  const handleTabChange = (tab: NavigationTab) => {
+    setActiveTab(tab);
+    console.log('Navigate to:', tab);
+    // TODO: Implement routing
+  };
+
+  // If there's an active tour, show the TourPage
+  if (activeTour) {
+    return <TourPage route={activeTour} user={data.user} onBack={() => setActiveTour(null)} />;
+  }
+
+  return (
+    <div className={styles.dashboardWrapper}>
+      {/* Aurora Background */}
+      <div className={styles.auroraBackground}>
+        <Aurora
+          colorStops={["#60A5FA", "#3B82F6", "#1E40AF"]}
+          blend={0.6}
+          amplitude={0.8}
+          speed={0.3}
+        />
+      </div>
+
+      {/* Header */}
+      <Header firstName={data.user.firstName} avatar={data.user.avatar} />
+
+      {/* Main Content */}
+      <main className={`${styles.main} ${isMobile ? styles.withBottomNav : ''}`}>
+        <div className={styles.container}>
+          {/* Bonus Hero Card */}
+          <section className={styles.section}>
+            <BonusHeroCard bonuses={data.bonuses} onClick={handleBonusClick} />
+          </section>
+
+          {/* Quick Actions */}
+          <section className={styles.section}>
+            <QuickActionsBar
+              openVisitsToday={data.quickActions.openVisitsToday}
+              onStartVisit={handleStartVisit}
+              onVorverkauf={handleVorverkauf}
+              onVorbestellung={handleVorbestellung}
+              onCalculator={handleCalculator}
+            />
+          </section>
+
+          {/* Market Frequency Alerts */}
+          {data.frequencyAlerts.length > 0 && (
+            <section className={styles.section}>
+              <MarketFrequencyAlerts
+                alerts={data.frequencyAlerts}
+                onViewAll={handleViewAllFrequencies}
+                onMarketClick={handleMarketClick}
+              />
+            </section>
+          )}
+        </div>
+      </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+
+      {/* Market Selection Modal */}
+      <MarketSelectionModal
+        isOpen={isMarketModalOpen}
+        onClose={() => setIsMarketModalOpen(false)}
+        markets={allMarkets}
+        onStartVisit={handleStartSingleVisit}
+        onStartTour={handleStartTour}
+      />
+    </div>
+  );
+};
+

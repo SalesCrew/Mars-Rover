@@ -1,0 +1,643 @@
+.tourPage {
+  width: 100%;
+  height: 100vh;
+  background: white;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.auroraBackground {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 500px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.main {
+  position: relative;
+  z-index: 1;
+  padding: var(--space-2xl) 0;
+}
+
+.container {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-3xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+/* Page Title */
+.pageTitle {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  text-align: center;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+/* Progress Tracker */
+.progressTracker {
+  width: 100%;
+  padding: var(--space-md) var(--space-xl);
+}
+
+.progressLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.progressStop {
+  position: relative;
+  z-index: 2;
+}
+
+.stopCircle {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: white;
+  border: 2px solid rgba(59, 130, 246, 0.25);
+  transition: all var(--transition-base);
+}
+
+.progressStop.completed .stopCircle {
+  background: var(--color-teal-mid);
+  border-color: var(--color-teal-mid);
+}
+
+.progressStop.active .stopCircle {
+  background: var(--color-teal-mid);
+  border-color: var(--color-teal-mid);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.progressSegment {
+  flex: 1;
+  height: 2px;
+  background: rgba(59, 130, 246, 0.15);
+  transition: background var(--transition-base);
+}
+
+.progressSegment.completedSegment {
+  background: var(--color-teal-mid);
+}
+
+/* Progress Tracker - Completed State (Green) */
+.progressTrackerComplete .stopCircle {
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.progressTrackerComplete .progressStop.completed .stopCircle {
+  background: #10B981;
+  border-color: #10B981;
+}
+
+.progressTrackerComplete .progressStop.active .stopCircle {
+  background: #10B981;
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.progressTrackerComplete .progressSegment {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.progressTrackerComplete .progressSegment.completedSegment {
+  background: #10B981;
+}
+
+/* Content Row */
+.contentRow {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-xl);
+  align-items: start;
+}
+
+/* Tour Info Card */
+.tourInfoCard {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  height: fit-content;
+  align-self: start;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.infoLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.infoValue {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.infoValueAccent {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  background: linear-gradient(135deg, var(--color-teal-mid) 0%, var(--color-teal-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.infoValueComplete {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  background: linear-gradient(135deg, #34D399 0%, #10B981 50%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.infoDivider {
+  width: 100%;
+  height: 1px;
+  background: var(--color-stroke);
+}
+
+/* Markets Card */
+.marketsCard {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cardTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.marketCount {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.marketCountComplete {
+  font-size: var(--font-size-sm);
+  color: #10B981;
+  font-weight: var(--font-weight-semibold);
+}
+
+.marketsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 238px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.marketsList::-webkit-scrollbar {
+  display: none;
+}
+
+.marketItemWrapper {
+  width: 100%;
+}
+
+.marketItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: white;
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  min-height: 64px;
+}
+
+.marketItem.completedMarket {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.04), rgba(5, 150, 105, 0.02));
+  border-color: rgba(16, 185, 129, 0.15);
+}
+
+.marketItem.completedMarket .marketName,
+.marketItem.completedMarket .marketAddress {
+  opacity: 0.5;
+}
+
+.marketItem.activeMarket {
+  border-color: transparent;
+}
+
+.marketNumber {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--color-teal-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+.marketItem.completedMarket .marketNumber {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10B981;
+}
+
+.marketItem.activeMarket .marketNumber {
+  background: linear-gradient(135deg, var(--color-teal-light), var(--color-teal-mid));
+  color: white;
+}
+
+.marketInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.marketName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marketAddress {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.completedCheck {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: #10B981;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .contentRow {
+    grid-template-columns: 1fr;
+  }
+
+  .pageTitle {
+    font-size: var(--font-size-xl);
+  }
+
+  .container {
+    padding: 0 var(--space-xl);
+  }
+
+  .tourInfoCard {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .infoItem {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .infoDivider {
+    display: none;
+  }
+}
+
+/* Stacked Markets Section */
+.stackedMarketsSection {
+  width: 100%;
+  margin-top: var(--space-lg);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 var(--space-md) 0;
+}
+
+.stackedMarketsContainer {
+  position: relative;
+  display: block;
+  min-height: 400px;
+  max-height: 450px;
+  overflow: hidden;
+  padding-bottom: var(--space-xl);
+}
+
+.stackedCard {
+  width: 100%;
+  transform-origin: top center;
+  transition: top 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 80px;
+  will-change: top, transform, opacity;
+}
+
+.stackedCard:first-child {
+  margin-bottom: var(--space-xs);
+}
+
+.stackedCardContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-xl);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  min-height: 72px;
+}
+
+.stackedCardActive .stackedCardContent {
+  background: white;
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
+}
+
+.stackedCardLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex: 1;
+  min-width: 0;
+}
+
+.stackedNumber {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--color-teal-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-base);
+  flex-shrink: 0;
+}
+
+.stackedCardActive .stackedNumber {
+  background: linear-gradient(135deg, var(--color-teal-light), var(--color-teal-mid));
+  color: white;
+}
+
+.stackedInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.stackedName {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stackedAddress {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.startButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-xl);
+  background: linear-gradient(135deg, var(--color-teal-light) 0%, var(--color-teal-mid) 50%, var(--color-teal-dark) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  flex-shrink: 0;
+}
+
+.startButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+}
+
+.startButton:active {
+  transform: translateY(0);
+}
+
+/* End Tour Button */
+.endTourButton {
+  width: 100%;
+  padding: var(--space-md) var(--space-xl);
+  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 50%, #991B1B 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+  margin-top: var(--space-lg);
+}
+
+.endTourButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 50%, #B91C1C 100%);
+}
+
+.endTourButton:active {
+  transform: translateY(0);
+}
+
+/* Tour Completion Animation */
+.completionContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xl);
+  padding: var(--space-3xl) var(--space-xl);
+  animation: fadeInContainer 0.6s ease-out forwards;
+}
+
+@keyframes fadeInContainer {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.completionAnimation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.completionCheckCircle {
+  color: #10B981;
+  animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  filter: drop-shadow(0 8px 24px rgba(16, 185, 129, 0.3));
+}
+
+@keyframes scaleIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.completionText {
+  text-align: center;
+  animation: slideUpFade 0.5s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+@keyframes slideUpFade {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.completionTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.completionSubtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* Green Complete Button */
+.endTourButtonComplete {
+  width: 100%;
+  max-width: 280px;
+  padding: var(--space-md) var(--space-xl);
+  background: linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  animation: slideUpButton 0.5s ease-out 0.4s forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes slideUpButton {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.endTourButtonComplete:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #34D399 0%, #10B981 50%, #059669 100%);
+}
+
+.endTourButtonComplete:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .stackedCardContent {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-md);
+  }
+
+  .startButton {
+    width: 100%;
+    justify-content: center;
+  }
+}

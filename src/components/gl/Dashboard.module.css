@@ -1,0 +1,197 @@
+.dashboardWrapper {
+  min-height: 100vh;
+  background: var(--color-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.auroraBackground {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 500px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(232, 232, 232, 0.6);
+}
+
+.headerContent {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-3xl);
+  position: relative;
+}
+
+.appName {
+  position: absolute;
+  left: var(--space-3xl);
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  letter-spacing: -0.3px;
+}
+
+.greeting {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-secondary);
+  letter-spacing: 0.3px;
+}
+
+.headerActions {
+  position: absolute;
+  right: var(--space-3xl);
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.notificationButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(59, 130, 246, 0.08);
+  border: none;
+  cursor: pointer;
+  color: var(--color-teal-mid);
+  border-radius: var(--radius-md);
+  transition: color var(--transition-fast), background var(--transition-fast);
+  padding: 0;
+}
+
+.notificationButton:hover {
+  color: var(--color-teal-dark);
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.notificationButton:focus-visible {
+  outline: 2px solid var(--color-teal-mid);
+  outline-offset: 2px;
+}
+
+.avatarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  transition: opacity var(--transition-fast);
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.avatarButton:hover {
+  opacity: 0.8;
+}
+
+.avatarButton:focus-visible {
+  outline: 2px solid var(--color-teal-mid);
+  outline-offset: 2px;
+}
+
+.avatarButton img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.main {
+  flex: 1;
+  padding-top: var(--space-2xl);
+  padding-bottom: var(--space-3xl);
+  position: relative;
+  z-index: 1;
+}
+
+.main.withBottomNav {
+  padding-bottom: calc(100px + var(--space-3xl));
+}
+
+.container {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-3xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.section {
+  width: 100%;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .headerContent {
+    padding: 0 var(--space-xl);
+  }
+
+  .appName {
+    left: var(--space-xl);
+    font-size: var(--font-size-base);
+  }
+
+  .greeting {
+    font-size: var(--font-size-sm);
+  }
+
+  .headerActions {
+    right: var(--space-xl);
+    gap: var(--space-md);
+  }
+
+  .notificationButton {
+    width: 32px;
+    height: 32px;
+  }
+
+  .notificationButton svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .avatarButton {
+    width: 28px;
+    height: 28px;
+  }
+
+  .main {
+    padding-top: var(--space-lg);
+    padding-bottom: var(--space-xl);
+  }
+
+  .main.withBottomNav {
+    padding-bottom: calc(90px + var(--space-2xl));
+  }
+
+  .container {
+    padding: 0 var(--space-xl);
+    gap: var(--space-lg);
+  }
+}
+

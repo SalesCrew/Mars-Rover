@@ -1,0 +1,198 @@
+.bonusHero {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.90), rgba(255, 255, 255, 0.65));
+  overflow: hidden;
+  transition: transform var(--transition-base);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  border: 1px solid var(--color-stroke);
+}
+
+/* Pink gradient overlay */
+.bonusHero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at top right, var(--color-teal-light) 0%, transparent 70%);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.interactive {
+  cursor: pointer;
+}
+
+.interactive:active {
+  transform: scale(0.98);
+}
+
+.topSection {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-4xl) var(--space-4xl) var(--space-2xl);
+  gap: var(--space-sm);
+  filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.06));
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.amountContainer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.amount {
+  font-size: var(--font-size-5xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+  background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-teal-mid) 60%, var(--color-teal-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.percentageContainer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.percentage {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.percentage.positive {
+  color: #10B981;
+}
+
+.percentage.negative {
+  color: #EF4444;
+}
+
+.comparisonText {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  background: linear-gradient(135deg, var(--color-teal-mid) 0%, var(--color-teal-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.statsRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: 0 var(--space-xl) var(--space-xl);
+  gap: var(--space-lg);
+  filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.06));
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: 1;
+  min-width: 0;
+}
+
+.statValue {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.statIconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-teal-mid);
+  flex-shrink: 0;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+}
+
+.statTarget {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+}
+
+.statProgress {
+  width: 70%;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.statProgressBar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-teal-mid) 0%, var(--color-teal-dark) 100%);
+  border-radius: var(--radius-full);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s;
+}
+
+.statLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-align: center;
+  font-weight: var(--font-weight-regular);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .bonusHero {
+    height: 240px;
+  }
+
+  .topSection {
+    padding: var(--space-2xl) var(--space-xl) var(--space-lg);
+  }
+
+  .amount {
+    font-size: var(--font-size-4xl);
+  }
+
+  .statsRow {
+    padding: 0 var(--space-md) var(--space-md);
+    gap: var(--space-sm);
+  }
+
+  .statValue {
+    font-size: var(--font-size-xl);
+  }
+
+  .statLabel {
+    font-size: 9px;
+  }
+
+  .statProgress {
+    height: 2px;
+  }
+}
+

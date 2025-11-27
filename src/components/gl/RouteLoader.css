@@ -1,0 +1,117 @@
+.route-loader {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.route-loader .loader-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  border: 2px solid var(--color-teal-mid);
+  border-radius: 50%;
+  box-sizing: border-box;
+  animation: shadowOuter 4s 0s ease infinite alternate;
+}
+
+.route-loader .loader-ring::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 72px;
+  height: 72px;
+  border: 1.5px solid rgba(51, 86, 150, 0.75);
+  border-radius: 50%;
+  box-sizing: border-box;
+  animation: shadowInner 4s 0s ease infinite alternate;
+}
+
+.route-loader .loader-ring::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 66px;
+  height: 66px;
+  border: 1.5px solid rgba(51, 86, 150, 0.25);
+  border-radius: 50%;
+  box-sizing: border-box;
+  filter: drop-shadow(0 0 7px rgba(51, 86, 150, 0.8));
+}
+
+.route-loader .dots-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 10px;
+}
+
+.route-loader .dot {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  overflow: visible;
+}
+
+.route-loader .dot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--color-teal-mid);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 4px var(--color-teal-mid)) drop-shadow(0 0 2px rgba(51, 86, 150, 0.8));
+}
+
+.route-loader .dot:nth-child(1) {
+  left: 0;
+  animation: moveFirst 2s 0s ease infinite;
+}
+
+.route-loader .dot:nth-child(2) {
+  left: 25px;
+  animation: moveSecond 2s 0s ease infinite;
+}
+
+.route-loader .dot:nth-child(3) {
+  left: 50px;
+  animation: moveThird 2s 0s ease infinite;
+}
+
+@keyframes moveFirst {
+  0%   { left: 0; }
+  100% { left: 25px; }
+}
+
+@keyframes moveSecond {
+  0%   { left: 25px; }
+  100% { left: 50px; }
+}
+
+@keyframes moveThird {
+  0%   { left: 50px; transform: translateY(-50%) rotate(0deg); }
+  100% { left: 0; transform: translateY(-50%) rotate(360deg); }
+}
+
+@keyframes shadowOuter {
+  0%   { filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5)); }
+  100% { filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.7)); }
+}
+
+@keyframes shadowInner {
+  0%   { filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5)); }
+  100% { filter: drop-shadow(0 0 16px rgba(59, 130, 246, 0.7)); }
+}
+

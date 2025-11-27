@@ -1,0 +1,203 @@
+.quickActions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-lg);
+  width: 100%;
+}
+
+.quickActions.mobile {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: var(--space-md);
+  padding-bottom: var(--space-sm);
+}
+
+.quickActions.mobile::-webkit-scrollbar {
+  display: none;
+}
+
+.spotlightWrapper {
+  width: 100%;
+  height: 120px;
+}
+
+.starBorderWrapper {
+  width: 100%;
+  height: 120px;
+}
+
+.spotlightInner {
+  width: 100%;
+  height: 100%;
+}
+
+.spotlightInner.card-spotlight {
+  border: 1px solid var(--color-stroke);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.primaryAction {
+  position: relative;
+}
+
+.primaryAction::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+  padding: 2px;
+  background: linear-gradient(135deg, var(--color-teal-light) 0%, var(--color-teal-mid) 50%, var(--color-teal-dark) 100%);
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.quickActions.mobile .spotlightWrapper {
+  min-width: 140px;
+  height: 100px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
+.quickActions.mobile .starBorderWrapper {
+  min-width: 140px;
+  height: 100px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
+.actionButton {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: transform var(--transition-base);
+  padding: var(--space-lg);
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+}
+
+.actionButton:hover {
+  transform: translateY(-2px);
+}
+
+.actionButton:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.actionButton:focus-visible {
+  outline: 2px solid var(--color-teal-mid);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+.iconContainer {
+  color: var(--color-teal-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-base), color var(--transition-base);
+  position: relative;
+  z-index: 1;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+}
+
+.iconContainer svg {
+  color: var(--color-teal-mid);
+  width: 24px;
+  height: 24px;
+}
+
+.actionButton:hover .iconContainer {
+  transform: scale(1.08) translateY(-2px);
+}
+
+.label {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  text-align: center;
+  line-height: var(--line-height-tight);
+  position: relative;
+  z-index: 1;
+}
+
+.badge {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  background: linear-gradient(135deg, var(--color-teal-mid) 0%, var(--color-teal-dark) 100%);
+  color: white;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-full);
+  line-height: 1;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .quickActions {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+  }
+
+  .quickActions.mobile {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    overflow-x: visible;
+    scroll-snap-type: none;
+    gap: var(--space-md);
+  }
+
+  .quickActions.mobile .spotlightWrapper {
+    min-width: auto;
+    width: 100%;
+    height: 100px;
+    flex-shrink: 1;
+    scroll-snap-align: none;
+  }
+
+  .spotlightWrapper {
+    height: 100px;
+  }
+
+  .actionButton {
+    gap: var(--space-sm);
+    padding: var(--space-md);
+  }
+
+  .iconContainer svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .label {
+    font-size: var(--font-size-sm);
+  }
+
+  .badge {
+    font-size: 8px;
+    padding: 2px 5px;
+    top: var(--space-xs);
+    right: var(--space-xs);
+  }
+}
+
