@@ -8,7 +8,17 @@ interface DevPanelProps {
 
 export const DevPanel: React.FC<DevPanelProps> = ({ onCompleteNextMarket, onToggle }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [opacityMultiplier, setOpacityMultiplier] = useState(1);
+  
+  // Load saved opacity from localStorage or default to 1
+  const [opacityMultiplier, setOpacityMultiplier] = useState(() => {
+    const saved = localStorage.getItem('devPanelOpacity');
+    return saved ? Number(saved) : 1;
+  });
+
+  // Save opacity to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('devPanelOpacity', String(opacityMultiplier));
+  }, [opacityMultiplier]);
 
   const togglePanel = () => {
     setIsOpen(prev => !prev);
