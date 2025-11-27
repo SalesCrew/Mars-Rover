@@ -4,11 +4,12 @@ import { QuickActionsBar } from './QuickActionsBar';
 import { MarketFrequencyAlerts } from './MarketFrequencyAlerts';
 import { BottomNav } from './BottomNav';
 import { MarketSelectionModal } from './MarketSelectionModal';
+import { MarketDetailModal } from './MarketDetailModal';
 import { TourPage } from './TourPage';
 import { Header } from './Header';
 import Aurora from './Aurora';
 import type { GLDashboard, NavigationTab } from '../../types/gl-types';
-import type { TourRoute } from '../../types/market-types';
+import type { TourRoute, Market } from '../../types/market-types';
 import { allMarkets } from '../../data/marketsData';
 import { useResponsive } from '../../hooks/useResponsive';
 import styles from './Dashboard.module.css';
@@ -20,6 +21,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
+  const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
   const [activeTour, setActiveTour] = useState<TourRoute | null>(null);
   const { isMobile } = useResponsive();
 
@@ -63,8 +65,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   };
 
   const handleMarketClick = (marketId: string) => {
-    console.log('View market details:', marketId);
-    // TODO: Navigate to market detail page
+    const market = allMarkets.find(m => m.id === marketId);
+    if (market) {
+      setSelectedMarket(market);
+    }
+  };
+
+  const handleStartMarketVisit = (marketId: string) => {
+    console.log('Start visit for market:', marketId);
+    setSelectedMarket(null);
+    // TODO: Navigate to visit workflow
   };
 
   const handleTabChange = (tab: NavigationTab) => {
@@ -136,6 +146,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         onStartVisit={handleStartSingleVisit}
         onStartTour={handleStartTour}
       />
+
+      {/* Market Detail Modal */}
+      {selectedMarket && (
+        <MarketDetailModal
+          isOpen={true}
+          onClose={() => setSelectedMarket(null)}
+          onStartVisit={handleStartMarketVisit}
+          market={selectedMarket}
+        />
+      )}
     </div>
   );
 };
