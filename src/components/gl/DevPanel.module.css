@@ -4,7 +4,7 @@
   right: var(--space-xl);
   width: 320px;
   max-height: 80vh;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, calc(0.7 * var(--opacity-multiplier, 1)));
   backdrop-filter: blur(8px);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, calc(0.3 * var(--opacity-multiplier, 1)));
 }
 
 .devPanelHeader {
@@ -20,14 +20,42 @@
   align-items: center;
   justify-content: space-between;
   padding-bottom: var(--space-sm);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, calc(0.1 * var(--opacity-multiplier, 1)));
 }
 
 .devPanelTitle {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, calc(0.9 * var(--opacity-multiplier, 1)));
   letter-spacing: 1px;
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.opacitySelect {
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, calc(0.1 * var(--opacity-multiplier, 1)));
+  border: 1px solid rgba(255, 255, 255, calc(0.2 * var(--opacity-multiplier, 1)));
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, calc(0.9 * var(--opacity-multiplier, 1)));
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.opacitySelect:hover {
+  background: rgba(255, 255, 255, calc(0.15 * var(--opacity-multiplier, 1)));
+  border-color: rgba(255, 255, 255, calc(0.3 * var(--opacity-multiplier, 1)));
+}
+
+.opacitySelect option {
+  background: rgba(0, 0, 0, 0.95);
+  color: white;
 }
 
 .closeButton {
@@ -37,9 +65,9 @@
   align-items: center;
   justify-content: center;
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, calc(0.2 * var(--opacity-multiplier, 1)));
   border-radius: var(--radius-sm);
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, calc(0.7 * var(--opacity-multiplier, 1)));
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -48,9 +76,9 @@
 }
 
 .closeButton:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, calc(0.1 * var(--opacity-multiplier, 1)));
+  border-color: rgba(255, 255, 255, calc(0.3 * var(--opacity-multiplier, 1)));
+  color: rgba(255, 255, 255, calc(0.9 * var(--opacity-multiplier, 1)));
 }
 
 .buttonGrid {
@@ -60,7 +88,7 @@
   max-height: calc(80vh - 100px);
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-color: rgba(255, 255, 255, calc(0.2 * var(--opacity-multiplier, 1))) transparent;
 }
 
 .buttonGrid::-webkit-scrollbar {
@@ -72,16 +100,16 @@
 }
 
 .buttonGrid::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, calc(0.2 * var(--opacity-multiplier, 1)));
   border-radius: 3px;
 }
 
 .devButton {
   padding: var(--space-sm) var(--space-md);
-  background: rgba(255, 255, 0, 0.1);
-  border: 1.5px solid rgba(255, 255, 0, 0.8);
+  background: rgba(255, 255, 0, calc(0.1 * var(--opacity-multiplier, 1)));
+  border: 1.5px solid rgba(255, 255, 0, calc(0.8 * var(--opacity-multiplier, 1)));
   border-radius: var(--radius-md);
-  color: rgba(255, 255, 0, 0.95);
+  color: rgba(255, 255, 0, calc(0.95 * var(--opacity-multiplier, 1)));
   font-family: var(--font-family);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
@@ -95,9 +123,9 @@
 }
 
 .devButton:hover:not(:disabled) {
-  background: rgba(255, 255, 0, 0.2);
-  border-color: rgba(255, 255, 0, 1);
-  color: rgba(255, 255, 0, 1);
+  background: rgba(255, 255, 0, calc(0.2 * var(--opacity-multiplier, 1)));
+  border-color: rgba(255, 255, 0, calc(1 * var(--opacity-multiplier, 1)));
+  color: rgba(255, 255, 0, calc(1 * var(--opacity-multiplier, 1)));
   transform: translateY(-1px);
 }
 
@@ -106,7 +134,7 @@
 }
 
 .devButton:disabled {
-  opacity: 0.3;
+  opacity: calc(0.3 * var(--opacity-multiplier, 1));
   cursor: not-allowed;
 }
 
