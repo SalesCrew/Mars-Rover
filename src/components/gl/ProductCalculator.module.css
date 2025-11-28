@@ -820,14 +820,15 @@
 }
 
 .buttonSuccess {
-  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  background: linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .buttonSuccess:hover {
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
   transform: translateY(-1px);
+  filter: brightness(1.1);
 }
 
 .buttonSuccess:disabled {
