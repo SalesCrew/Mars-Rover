@@ -127,10 +127,10 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   const handleAddRemovedProduct = (product: Product) => {
     const existing = removedProducts.find(p => p.product.id === product.id);
     if (existing) {
-      setRemovedProducts(removedProducts.map(p => 
-        p.product.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
-      ));
+      // If already selected, remove it (uncheck)
+      setRemovedProducts(removedProducts.filter(p => p.product.id !== product.id));
     } else {
+      // If not selected, add it with quantity 1
       setRemovedProducts([...removedProducts, { product, quantity: 1 }]);
     }
   };
@@ -138,10 +138,10 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   const handleAddAvailableProduct = (product: Product) => {
     const existing = availableProducts.find(p => p.product.id === product.id);
     if (existing) {
-      setAvailableProducts(availableProducts.map(p => 
-        p.product.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
-      ));
+      // If already selected, remove it (uncheck)
+      setAvailableProducts(availableProducts.filter(p => p.product.id !== product.id));
     } else {
+      // If not selected, add it with quantity 1
       setAvailableProducts([...availableProducts, { product, quantity: 1 }]);
     }
   };
