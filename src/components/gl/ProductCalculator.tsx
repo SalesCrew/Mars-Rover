@@ -1,0 +1,658 @@
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { X, CaretDown, MagnifyingGlass, Plus, Minus, ArrowsClockwise, Package, Sparkle } from '@phosphor-icons/react';
+import type { Product, ProductWithQuantity, ReplacementSuggestion } from '../../types/product-types';
+import { allProducts } from '../../data/productsData';
+import styles from './ProductCalculator.module.css';
+
+interface ProductCalculatorProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, onClose }) => {
+  const [removedProducts, setRemovedProducts] = useState<ProductWithQuantity[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<ProductWithQuantity[]>([]);
+  const [suggestions, setSuggestions] = useState<ReplacementSuggestion[]>([]);
+  const [showCalculation, setShowCalculation] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
+  
+  // Dropdown states for removed products
+  const [isRemovedDropdownOpen, setIsRemovedDropdownOpen] = useState(false);
+  const [removedSearchQuery, setRemovedSearchQuery] = useState('');
+  const removedDropdownRef = useRef<HTMLDivElement>(null);
+  const removedSearchInputRef = useRef<HTMLInputElement>(null);
+  
+  // Dropdown states for available products
+  const [isAvailableDropdownOpen, setIsAvailableDropdownOpen] = useState(false);
+  const [availableSearchQuery, setAvailableSearchQuery] = useState('');
+  const availableDropdownRef = useRef<HTMLDivElement>(null);
+  const availableSearchInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter products based on search query
+  const filteredRemovedProducts = useMemo(() => {
+    const query = removedSearchQuery.toLowerCase().trim();
+    if (!query) return allProducts;
+    
+    return allProducts.filter(p => 
+      p.name.toLowerCase().includes(query) ||
+      p.brand.toLowerCase().includes(query) ||
+      p.category.toLowerCase().includes(query) ||
+      p.sku.toLowerCase().includes(query)
+    );
+  }, [removedSearchQuery]);
+
+  const filteredAvailableProducts = useMemo(() => {
+    const query = availableSearchQuery.toLowerCase().trim();
+    if (!query) return allProducts;
+    
+    return allProducts.filter(p => 
+      p.name.toLowerCase().includes(query) ||
+      p.brand.toLowerCase().includes(query) ||
+      p.category.toLowerCase().includes(query) ||
+      p.sku.toLowerCase().includes(query)
+    );
+  }, [availableSearchQuery]);
+
+  // Group products by category
+  const groupedRemovedProducts = useMemo(() => {
+    const groups: Record<string, Product[]> = {};
+    filteredRemovedProducts.forEach(product => {
+      const key = `${product.category}-${product.subCategory}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(product);
+    });
+    return groups;
+  }, [filteredRemovedProducts]);
+
+  const groupedAvailableProducts = useMemo(() => {
+    const groups: Record<string, Product[]> = {};
+    filteredAvailableProducts.forEach(product => {
+      const key = `${product.category}-${product.subCategory}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(product);
+    });
+    return groups;
+  }, [filteredAvailableProducts]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (removedDropdownRef.current && !removedDropdownRef.current.contains(event.target as Node)) {
+        setIsRemovedDropdownOpen(false);
+      }
+      if (availableDropdownRef.current && !availableDropdownRef.current.contains(event.target as Node)) {
+        setIsAvailableDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleAddRemovedProduct = (product: Product) => {
+    const existing = removedProducts.find(p => p.product.id === product.id);
+    if (existing) {
+      setRemovedProducts(removedProducts.map(p => 
+        p.product.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
+      ));
+    } else {
+      setRemovedProducts([...removedProducts, { product, quantity: 1 }]);
+    }
+  };
+
+  const handleAddAvailableProduct = (product: Product) => {
+    const existing = availableProducts.find(p => p.product.id === product.id);
+    if (existing) {
+      setAvailableProducts(availableProducts.map(p => 
+        p.product.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
+      ));
+    } else {
+      setAvailableProducts([...availableProducts, { product, quantity: 1 }]);
+    }
+  };
+
+  const handleUpdateQuantity = (
+    productId: string, 
+    delta: number, 
+    type: 'removed' | 'available'
+  ) => {
+    const list = type === 'removed' ? removedProducts : availableProducts;
+    const setList = type === 'removed' ? setRemovedProducts : setAvailableProducts;
+    
+    setList(list.map(p => {
+      if (p.product.id === productId) {
+        const newQuantity = Math.max(1, p.quantity + delta);
+        return { ...p, quantity: newQuantity };
+      }
+      return p;
+    }));
+  };
+
+  const handleRemoveProduct = (productId: string, type: 'removed' | 'available') => {
+    if (type === 'removed') {
+      setRemovedProducts(removedProducts.filter(p => p.product.id !== productId));
+    } else {
+      setAvailableProducts(availableProducts.filter(p => p.product.id !== productId));
+    }
+  };
+
+  const calculateReplacements = () => {
+    if (removedProducts.length === 0) return;
+    
+    setIsCalculating(true);
+    setShowCalculation(true);
+
+    // Simulate calculation delay
+    setTimeout(() => {
+      const totalRemovedValue = removedProducts.reduce(
+        (sum, p) => sum + p.product.price * p.quantity,
+        0
+      );
+
+      const newSuggestions: ReplacementSuggestion[] = [];
+
+      // If available products are specified, calculate combinations
+      if (availableProducts.length > 0) {
+        // Generate all possible combinations
+        const combinations = generateCombinations(availableProducts, totalRemovedValue);
+        newSuggestions.push(...combinations.slice(0, 5)); // Top 5 suggestions
+      } else {
+        // Generate suggestions from all products
+        const allCombinations = generateCombinations(
+          allProducts.map(p => ({ product: p, quantity: 1 })),
+          totalRemovedValue
+        );
+        newSuggestions.push(...allCombinations.slice(0, 5));
+      }
+
+      setSuggestions(newSuggestions);
+      setIsCalculating(false);
+    }, 1500);
+  };
+
+  const generateCombinations = (
+    products: ProductWithQuantity[],
+    targetValue: number
+  ): ReplacementSuggestion[] => {
+    const suggestions: ReplacementSuggestion[] = [];
+    const removedCategory = removedProducts[0]?.product.category;
+    const removedBrand = removedProducts[0]?.product.brand;
+
+    // Strategy 1: Single product match
+    products.forEach(p => {
+      const quantity = Math.ceil(targetValue / p.product.price);
+      const totalValue = p.product.price * quantity;
+      const valueDiff = Math.abs(totalValue - targetValue);
+      
+      if (valueDiff <= targetValue * 0.15) { // Within 15%
+        suggestions.push({
+          id: `single-${p.product.id}`,
+          products: [{ product: p.product, quantity }],
+          totalValue,
+          valueDifference: valueDiff,
+          matchScore: calculateMatchScore(p.product, removedCategory, removedBrand, valueDiff, targetValue),
+          categoryMatch: p.product.category === removedCategory,
+          brandMatch: p.product.brand === removedBrand,
+        });
+      }
+    });
+
+    // Strategy 2: Two-product combinations
+    for (let i = 0; i < products.length; i++) {
+      for (let j = i + 1; j < products.length; j++) {
+        const p1 = products[i];
+        const p2 = products[j];
+        
+        // Try different quantity combinations
+        for (let q1 = 1; q1 <= 5; q1++) {
+          for (let q2 = 1; q2 <= 5; q2++) {
+            const totalValue = p1.product.price * q1 + p2.product.price * q2;
+            const valueDiff = Math.abs(totalValue - targetValue);
+            
+            if (valueDiff <= targetValue * 0.1) { // Within 10%
+              const avgScore = (
+                calculateMatchScore(p1.product, removedCategory, removedBrand, 0, targetValue) +
+                calculateMatchScore(p2.product, removedCategory, removedBrand, 0, targetValue)
+              ) / 2;
+              
+              suggestions.push({
+                id: `combo-${p1.product.id}-${p2.product.id}-${q1}-${q2}`,
+                products: [
+                  { product: p1.product, quantity: q1 },
+                  { product: p2.product, quantity: q2 }
+                ],
+                totalValue,
+                valueDifference: valueDiff,
+                matchScore: avgScore - (valueDiff / targetValue) * 20,
+                categoryMatch: p1.product.category === removedCategory || p2.product.category === removedCategory,
+                brandMatch: p1.product.brand === removedBrand || p2.product.brand === removedBrand,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Sort by match score and return top suggestions
+    return suggestions
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 10);
+  };
+
+  const calculateMatchScore = (
+    product: Product,
+    targetCategory: string | undefined,
+    targetBrand: string | undefined,
+    valueDiff: number,
+    targetValue: number
+  ): number => {
+    let score = 100;
+    
+    // Category match is most important
+    if (product.category === targetCategory) {
+      score += 30;
+    } else {
+      score -= 20;
+    }
+    
+    // Brand match is valuable
+    if (product.brand === targetBrand) {
+      score += 20;
+    }
+    
+    // Value accuracy
+    const valueAccuracy = 1 - (valueDiff / targetValue);
+    score += valueAccuracy * 30;
+    
+    return Math.max(0, Math.min(100, score));
+  };
+
+  const formatPrice = (price: number) => `€${price.toFixed(2)}`;
+
+  const getTotalRemovedValue = () => {
+    return removedProducts.reduce((sum, p) => sum + p.product.price * p.quantity, 0);
+  };
+
+  const getCategoryLabel = (category: string, subCategory: string) => {
+    const labels: Record<string, string> = {
+      'food-chocolate': 'Schokolade',
+      'food-candy': 'Süßigkeiten',
+      'pets-cat food': 'Katzenfutter',
+      'pets-dog food': 'Hundefutter',
+      'pets-cat treats': 'Katzensnacks',
+      'pets-dog treats': 'Hundesnacks',
+    };
+    return labels[`${category}-${subCategory}`] || subCategory;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className={styles.header}>
+          <div className={styles.headerContent}>
+            <div className={styles.iconWrapper}>
+              <Package size={24} weight="duotone" />
+            </div>
+            <div>
+              <h2 className={styles.title}>Produktrechner</h2>
+              <p className={styles.subtitle}>Ersatzprodukte berechnen</p>
+            </div>
+          </div>
+          <button className={styles.closeButton} onClick={onClose} aria-label="Schließen">
+            <X size={20} weight="bold" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className={styles.content}>
+          {!showCalculation ? (
+            <>
+              {/* Removed Products Section */}
+              <div className={styles.section}>
+                <h3 className={styles.sectionTitle}>Entnommene Produkte</h3>
+                <p className={styles.sectionDescription}>
+                  Welche Produkte wurden aus dem Regal entfernt?
+                </p>
+
+                <div className={styles.dropdownContainer} ref={removedDropdownRef}>
+                  <button
+                    className={`${styles.dropdownButton} ${isRemovedDropdownOpen ? styles.open : ''}`}
+                    onClick={() => setIsRemovedDropdownOpen(!isRemovedDropdownOpen)}
+                  >
+                    <span className={styles.dropdownPlaceholder}>
+                      Produkt hinzufügen...
+                    </span>
+                    <CaretDown size={16} className={styles.dropdownChevron} />
+                  </button>
+
+                  {isRemovedDropdownOpen && (
+                    <div className={styles.dropdownMenu}>
+                      <div className={styles.searchContainer}>
+                        <MagnifyingGlass size={16} className={styles.searchIcon} />
+                        <input
+                          ref={removedSearchInputRef}
+                          type="text"
+                          className={styles.searchInput}
+                          placeholder="Produkt suchen..."
+                          value={removedSearchQuery}
+                          onChange={(e) => setRemovedSearchQuery(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+
+                      {Object.entries(groupedRemovedProducts).map(([key, products]) => {
+                        const [category, subCategory] = key.split('-');
+                        return (
+                          <div key={key} className={styles.dropdownSection}>
+                            <div className={styles.categoryLabel}>
+                              {getCategoryLabel(category, subCategory)}
+                            </div>
+                            {products.map(product => (
+                              <button
+                                key={product.id}
+                                className={styles.dropdownItem}
+                                onClick={() => {
+                                  handleAddRemovedProduct(product);
+                                  setIsRemovedDropdownOpen(false);
+                                  setRemovedSearchQuery('');
+                                }}
+                              >
+                                <div className={styles.productInfo}>
+                                  <div className={styles.productName}>{product.name}</div>
+                                  <div className={styles.productDetails}>
+                                    {product.brand} · {product.packageSize} · {formatPrice(product.price)}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Removed Products */}
+                {removedProducts.length > 0 && (
+                  <div className={styles.selectedProducts}>
+                    {removedProducts.map(p => (
+                      <div key={p.product.id} className={styles.productCard}>
+                        <div className={styles.productCardInfo}>
+                          <div className={styles.productCardName}>{p.product.name}</div>
+                          <div className={styles.productCardMeta}>
+                            {p.product.brand} · {p.product.packageSize}
+                          </div>
+                        </div>
+                        <div className={styles.quantityControls}>
+                          <button
+                            className={styles.quantityButton}
+                            onClick={() => handleUpdateQuantity(p.product.id, -1, 'removed')}
+                          >
+                            <Minus size={16} weight="bold" />
+                          </button>
+                          <span className={styles.quantity}>{p.quantity}</span>
+                          <button
+                            className={styles.quantityButton}
+                            onClick={() => handleUpdateQuantity(p.product.id, 1, 'removed')}
+                          >
+                            <Plus size={16} weight="bold" />
+                          </button>
+                        </div>
+                        <div className={styles.productCardPrice}>
+                          {formatPrice(p.product.price * p.quantity)}
+                        </div>
+                        <button
+                          className={styles.removeButton}
+                          onClick={() => handleRemoveProduct(p.product.id, 'removed')}
+                        >
+                          <X size={16} weight="bold" />
+                        </button>
+                      </div>
+                    ))}
+                    <div className={styles.totalValue}>
+                      <span>Gesamtwert</span>
+                      <span className={styles.totalAmount}>{formatPrice(getTotalRemovedValue())}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Available Products Section (Optional) */}
+              <div className={styles.section}>
+                <h3 className={styles.sectionTitle}>
+                  Verfügbare Produkte <span className={styles.optional}>(Optional)</span>
+                </h3>
+                <p className={styles.sectionDescription}>
+                  Welche Produkte haben Sie als Ersatz dabei?
+                </p>
+
+                <div className={styles.dropdownContainer} ref={availableDropdownRef}>
+                  <button
+                    className={`${styles.dropdownButton} ${isAvailableDropdownOpen ? styles.open : ''}`}
+                    onClick={() => setIsAvailableDropdownOpen(!isAvailableDropdownOpen)}
+                  >
+                    <span className={styles.dropdownPlaceholder}>
+                      Produkt hinzufügen...
+                    </span>
+                    <CaretDown size={16} className={styles.dropdownChevron} />
+                  </button>
+
+                  {isAvailableDropdownOpen && (
+                    <div className={styles.dropdownMenu}>
+                      <div className={styles.searchContainer}>
+                        <MagnifyingGlass size={16} className={styles.searchIcon} />
+                        <input
+                          ref={availableSearchInputRef}
+                          type="text"
+                          className={styles.searchInput}
+                          placeholder="Produkt suchen..."
+                          value={availableSearchQuery}
+                          onChange={(e) => setAvailableSearchQuery(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+
+                      {Object.entries(groupedAvailableProducts).map(([key, products]) => {
+                        const [category, subCategory] = key.split('-');
+                        return (
+                          <div key={key} className={styles.dropdownSection}>
+                            <div className={styles.categoryLabel}>
+                              {getCategoryLabel(category, subCategory)}
+                            </div>
+                            {products.map(product => (
+                              <button
+                                key={product.id}
+                                className={styles.dropdownItem}
+                                onClick={() => {
+                                  handleAddAvailableProduct(product);
+                                  setIsAvailableDropdownOpen(false);
+                                  setAvailableSearchQuery('');
+                                }}
+                              >
+                                <div className={styles.productInfo}>
+                                  <div className={styles.productName}>{product.name}</div>
+                                  <div className={styles.productDetails}>
+                                    {product.brand} · {product.packageSize} · {formatPrice(product.price)}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Available Products */}
+                {availableProducts.length > 0 && (
+                  <div className={styles.selectedProducts}>
+                    {availableProducts.map(p => (
+                      <div key={p.product.id} className={styles.productCard}>
+                        <div className={styles.productCardInfo}>
+                          <div className={styles.productCardName}>{p.product.name}</div>
+                          <div className={styles.productCardMeta}>
+                            {p.product.brand} · {p.product.packageSize}
+                          </div>
+                        </div>
+                        <div className={styles.quantityControls}>
+                          <button
+                            className={styles.quantityButton}
+                            onClick={() => handleUpdateQuantity(p.product.id, -1, 'available')}
+                          >
+                            <Minus size={16} weight="bold" />
+                          </button>
+                          <span className={styles.quantity}>{p.quantity}</span>
+                          <button
+                            className={styles.quantityButton}
+                            onClick={() => handleUpdateQuantity(p.product.id, 1, 'available')}
+                          >
+                            <Plus size={16} weight="bold" />
+                          </button>
+                        </div>
+                        <div className={styles.productCardPrice}>
+                          {formatPrice(p.product.price * p.quantity)}
+                        </div>
+                        <button
+                          className={styles.removeButton}
+                          onClick={() => handleRemoveProduct(p.product.id, 'available')}
+                        >
+                          <X size={16} weight="bold" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            /* Calculation Results */
+            <div className={styles.resultsSection}>
+              {isCalculating ? (
+                <div className={styles.calculatingState}>
+                  <div className={styles.calculatingIcon}>
+                    <ArrowsClockwise size={48} weight="bold" className={styles.spinning} />
+                  </div>
+                  <h3 className={styles.calculatingTitle}>Berechne Ersatzoptionen...</h3>
+                  <p className={styles.calculatingText}>
+                    Finde die perfekte Kombination für Sie
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className={styles.resultsHeader}>
+                    <Sparkle size={24} weight="duotone" />
+                    <div>
+                      <h3 className={styles.resultsTitle}>Ersatzvorschläge</h3>
+                      <p className={styles.resultsSubtitle}>
+                        Basierend auf {formatPrice(getTotalRemovedValue())} Warenwert
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className={styles.suggestions}>
+                    {suggestions.map((suggestion, index) => (
+                      <div key={suggestion.id} className={styles.suggestionCard}>
+                        <div className={styles.suggestionHeader}>
+                          <div className={styles.suggestionRank}>#{index + 1}</div>
+                          <div className={styles.suggestionMeta}>
+                            <div className={styles.matchScore}>
+                              {Math.round(suggestion.matchScore)}% Match
+                            </div>
+                            {suggestion.categoryMatch && (
+                              <div className={styles.badge}>Gleiche Kategorie</div>
+                            )}
+                            {suggestion.brandMatch && (
+                              <div className={styles.badge}>Gleiche Marke</div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className={styles.suggestionProducts}>
+                          {suggestion.products.map(p => (
+                            <div key={p.product.id} className={styles.suggestionProduct}>
+                              <div className={styles.suggestionProductInfo}>
+                                <div className={styles.suggestionProductName}>
+                                  {p.quantity}x {p.product.name}
+                                </div>
+                                <div className={styles.suggestionProductMeta}>
+                                  {p.product.brand} · {p.product.packageSize}
+                                </div>
+                              </div>
+                              <div className={styles.suggestionProductPrice}>
+                                {formatPrice(p.product.price * p.quantity)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className={styles.suggestionFooter}>
+                          <div className={styles.suggestionTotal}>
+                            <span>Gesamtwert</span>
+                            <span className={styles.suggestionTotalValue}>
+                              {formatPrice(suggestion.totalValue)}
+                            </span>
+                          </div>
+                          {suggestion.valueDifference > 0.01 && (
+                            <div className={styles.valueDifference}>
+                              {suggestion.valueDifference > 0 ? '+' : ''}
+                              {formatPrice(suggestion.valueDifference)} Differenz
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className={styles.footer}>
+          {showCalculation ? (
+            <>
+              <button
+                className={`${styles.button} ${styles.buttonSecondary}`}
+                onClick={() => {
+                  setShowCalculation(false);
+                  setSuggestions([]);
+                }}
+              >
+                Zurück
+              </button>
+              <button
+                className={`${styles.button} ${styles.buttonPrimary}`}
+                onClick={onClose}
+              >
+                Fertig
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className={`${styles.button} ${styles.buttonSecondary}`}
+                onClick={onClose}
+              >
+                Abbrechen
+              </button>
+              <button
+                className={`${styles.button} ${styles.buttonPrimary}`}
+                onClick={calculateReplacements}
+                disabled={removedProducts.length === 0}
+              >
+                <ArrowsClockwise size={18} weight="bold" />
+                Ersatz berechnen
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+

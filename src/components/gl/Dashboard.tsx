@@ -5,6 +5,7 @@ import { MarketFrequencyAlerts } from './MarketFrequencyAlerts';
 import { BottomNav } from './BottomNav';
 import { MarketSelectionModal } from './MarketSelectionModal';
 import { MarketDetailModal } from './MarketDetailModal';
+import { ProductCalculator } from './ProductCalculator';
 import { TourPage } from './TourPage';
 import { Header } from './Header';
 import Aurora from './Aurora';
@@ -21,6 +22,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
   const [activeTour, setActiveTour] = useState<TourRoute | null>(null);
   const { isMobile } = useResponsive();
@@ -55,8 +57,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   };
 
   const handleCalculator = () => {
-    console.log('Open product calculator');
-    // TODO: Implement calculator
+    setIsCalculatorOpen(true);
   };
 
   const handleViewAllFrequencies = () => {
@@ -156,6 +157,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           market={selectedMarket}
         />
       )}
+
+      {/* Product Calculator */}
+      <ProductCalculator
+        isOpen={isCalculatorOpen}
+        onClose={() => setIsCalculatorOpen(false)}
+      />
     </div>
   );
 };
