@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { X, CaretDown, MagnifyingGlass, Plus, Minus, ArrowsClockwise, Package, Sparkle } from '@phosphor-icons/react';
+import { X, CaretDown, MagnifyingGlass, Plus, Minus, ArrowsClockwise, Package, Sparkle, Check, ArrowsLeftRight } from '@phosphor-icons/react';
 import type { Product, ProductWithQuantity, ReplacementSuggestion } from '../../types/product-types';
 import { allProducts } from '../../data/productsData';
+import { allMarkets } from '../../data/marketsData';
 import styles from './ProductCalculator.module.css';
 
 interface ProductCalculatorProps {
@@ -15,6 +16,13 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   const [suggestions, setSuggestions] = useState<ReplacementSuggestion[]>([]);
   const [showCalculation, setShowCalculation] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<ReplacementSuggestion | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [selectedMarketId, setSelectedMarketId] = useState<string | null>(null);
+  const [isMarketDropdownOpen, setIsMarketDropdownOpen] = useState(false);
+  const [marketSearchQuery, setMarketSearchQuery] = useState('');
+  const marketDropdownRef = useRef<HTMLDivElement>(null);
+  const marketSearchInputRef = useRef<HTMLInputElement>(null);
   
   // Dropdown states for removed products
   const [isRemovedDropdownOpen, setIsRemovedDropdownOpen] = useState(false);
@@ -74,6 +82,28 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
     return groups;
   }, [filteredAvailableProducts]);
 
+  // Filter markets based on search query
+  const filteredMarkets = useMemo(() => {
+    const query = marketSearchQuery.toLowerCase().trim();
+    if (!query) return allMarkets;
+    
+    return allMarkets.filter(m => 
+      m.name.toLowerCase().includes(query) ||
+      m.address.toLowerCase().includes(query) ||
+      m.city.toLowerCase().includes(query) ||
+      m.postalCode.includes(query)
+    );
+  }, [marketSearchQuery]);
+
+  const sortedMarkets = [...filteredMarkets].sort((a, b) => {
+    if (a.isCompleted && !b.isCompleted) return 1;
+    if (!a.isCompleted && b.isCompleted) return -1;
+    return a.name.localeCompare(b.name);
+  });
+
+  const uncompletedMarkets = sortedMarkets.filter(m => !m.isCompleted);
+  const completedMarkets = sortedMarkets.filter(m => m.isCompleted);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -82,6 +112,9 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
       }
       if (availableDropdownRef.current && !availableDropdownRef.current.contains(event.target as Node)) {
         setIsAvailableDropdownOpen(false);
+      }
+      if (marketDropdownRef.current && !marketDropdownRef.current.contains(event.target as Node)) {
+        setIsMarketDropdownOpen(false);
       }
     };
 
@@ -588,7 +621,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                 <>
                   <div className={styles.suggestions}>
                     {suggestions.map((suggestion, index) => (
-                      <div key={suggestion.id} className={styles.suggestionCard}>
+                      <button
+                        key={suggestion.id}
+                        className={`${styles.suggestionCard} ${selectedSuggestion?.id === suggestion.id ? styles.selected : ''}`}
+                        onClick={() => setSelectedSuggestion(suggestion)}
+                      >
                         <div className={styles.suggestionHeader}>
                           <div className={styles.suggestionRank}>{index + 1}</div>
                           <div className={styles.matchScore}>
@@ -636,7 +673,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                             </div>
                           )}
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </>
@@ -654,13 +691,15 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                 onClick={() => {
                   setShowCalculation(false);
                   setSuggestions([]);
+                  setSelectedSuggestion(null);
                 }}
               >
                 Zurück
               </button>
               <button
                 className={`${styles.button} ${styles.buttonPrimary}`}
-                onClick={onClose}
+                onClick={() => setShowConfirmation(true)}
+                disabled={!selectedSuggestion}
               >
                 Fertig
               </button>
@@ -685,6 +724,186 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
           )}
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && selectedSuggestion && (
+        <div className={styles.confirmationOverlay} onClick={() => setShowConfirmation(false)}>
+          <div className={styles.confirmationModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.confirmationHeader}>
+              <div className={styles.confirmationIconWrapper}>
+                <ArrowsLeftRight size={32} weight="duotone" />
+              </div>
+              <div>
+                <h2 className={styles.confirmationTitle}>Produkttausch bestätigen</h2>
+                <p className={styles.confirmationSubtitle}>
+                  Überprüfen Sie den Austausch
+                </p>
+              </div>
+            </div>
+
+            <div className={styles.confirmationContent}>
+              {/* Market Selection */}
+              <div className={styles.confirmationSection}>
+                <label className={styles.confirmationLabel}>Markt auswählen</label>
+                <div className={`${styles.dropdownContainer} ${isMarketDropdownOpen ? styles.dropdownOpen : ''}`} ref={marketDropdownRef}>
+                  <button
+                    className={`${styles.dropdownButton} ${isMarketDropdownOpen ? styles.open : ''}`}
+                    onClick={() => setIsMarketDropdownOpen(!isMarketDropdownOpen)}
+                  >
+                    <span className={selectedMarketId ? styles.dropdownText : styles.dropdownPlaceholder}>
+                      {selectedMarketId 
+                        ? allMarkets.find(m => m.id === selectedMarketId)?.name 
+                        : 'Markt wählen...'}
+                    </span>
+                    <CaretDown size={16} className={styles.dropdownChevron} />
+                  </button>
+
+                  {isMarketDropdownOpen && (
+                    <div className={styles.dropdownMenu}>
+                      <div className={styles.searchContainer}>
+                        <MagnifyingGlass size={16} className={styles.searchIcon} />
+                        <input
+                          ref={marketSearchInputRef}
+                          type="text"
+                          className={styles.searchInput}
+                          placeholder="Markt suchen..."
+                          value={marketSearchQuery}
+                          onChange={(e) => setMarketSearchQuery(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+
+                      {uncompletedMarkets.length > 0 && (
+                        <div className={styles.dropdownSection}>
+                          <div className={styles.categoryLabel}>Verfügbare Märkte</div>
+                          {uncompletedMarkets.map((market) => (
+                            <button
+                              key={market.id}
+                              className={styles.dropdownItem}
+                              onClick={() => {
+                                setSelectedMarketId(market.id);
+                                setIsMarketDropdownOpen(false);
+                                setMarketSearchQuery('');
+                              }}
+                            >
+                              <div className={styles.productInfo}>
+                                <div className={styles.productName}>{market.name}</div>
+                                <div className={styles.productDetails}>
+                                  {market.address}, {market.postalCode} {market.city}
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {completedMarkets.length > 0 && (
+                        <div className={styles.dropdownSection}>
+                          <div className={styles.categoryLabel}>Heute bereits besucht</div>
+                          {completedMarkets.map((market) => (
+                            <button
+                              key={market.id}
+                              className={`${styles.dropdownItem} ${styles.completed}`}
+                              onClick={() => {
+                                setSelectedMarketId(market.id);
+                                setIsMarketDropdownOpen(false);
+                                setMarketSearchQuery('');
+                              }}
+                            >
+                              <div className={styles.completedCheck}>
+                                <Check size={14} weight="bold" color="white" />
+                              </div>
+                              <div className={styles.productInfo}>
+                                <div className={styles.productName}>{market.name}</div>
+                                <div className={styles.productDetails}>
+                                  {market.address}, {market.postalCode} {market.city}
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Exchange Summary */}
+              <div className={styles.exchangeSummary}>
+                <div className={styles.exchangeBox}>
+                  <div className={styles.exchangeLabel}>Entnommen</div>
+                  <div className={styles.exchangeProducts}>
+                    {removedProducts.map(p => (
+                      <div key={p.product.id} className={styles.exchangeProductItem}>
+                        <span className={styles.exchangeQuantity}>{p.quantity}x</span>
+                        <span className={styles.exchangeProductName}>{p.product.name}</span>
+                        <span className={styles.exchangePrice}>{formatPrice(p.product.price * p.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={styles.exchangeTotal}>
+                    Gesamt: {formatPrice(getTotalRemovedValue())}
+                  </div>
+                </div>
+
+                <div className={styles.exchangeArrow}>
+                  <ArrowsLeftRight size={24} weight="bold" />
+                </div>
+
+                <div className={styles.exchangeBox}>
+                  <div className={styles.exchangeLabel}>Ersetzt durch</div>
+                  <div className={styles.exchangeProducts}>
+                    {selectedSuggestion.products.map(p => (
+                      <div key={p.product.id} className={styles.exchangeProductItem}>
+                        <span className={styles.exchangeQuantity}>{p.quantity}x</span>
+                        <span className={styles.exchangeProductName}>{p.product.name}</span>
+                        <span className={styles.exchangePrice}>{formatPrice(p.product.price * p.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={styles.exchangeTotal}>
+                    Gesamt: {formatPrice(selectedSuggestion.totalValue)}
+                  </div>
+                </div>
+              </div>
+
+              {selectedSuggestion.valueDifference > 0.01 && (
+                <div className={styles.confirmationNote}>
+                  <div className={styles.valueDifference}>
+                    {selectedSuggestion.valueDifference > 0 ? '+' : ''}
+                    {formatPrice(selectedSuggestion.valueDifference)} Differenz
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.confirmationFooter}>
+              <button
+                className={`${styles.button} ${styles.buttonSecondary}`}
+                onClick={() => setShowConfirmation(false)}
+              >
+                Abbrechen
+              </button>
+              <button
+                className={`${styles.button} ${styles.buttonPrimary}`}
+                onClick={() => {
+                  // Log the exchange (in real app would send to backend)
+                  console.log('Exchange confirmed:', {
+                    marketId: selectedMarketId,
+                    removed: removedProducts,
+                    replacement: selectedSuggestion,
+                  });
+                  onClose();
+                }}
+                disabled={!selectedMarketId}
+              >
+                <Check size={18} weight="bold" />
+                Tausch bestätigen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
