@@ -400,6 +400,10 @@
   max-height: 360px;
   overflow: hidden;
   padding-bottom: var(--space-xl);
+  /* Expand container horizontally to give room for shadows within overflow:hidden */
+  width: calc(100% + 24px);
+  margin-left: -12px;
+  margin-right: -12px;
   overscroll-behavior: contain;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
@@ -425,6 +429,7 @@
   justify-content: space-between;
   gap: var(--space-lg);
   padding: var(--space-lg) var(--space-xl);
+  margin: 0 12px;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
   border: 1px solid var(--color-stroke);
   border-radius: var(--radius-lg);
