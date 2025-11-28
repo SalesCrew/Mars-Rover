@@ -706,7 +706,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
 
         {/* Footer */}
         <div className={styles.footer}>
-          {showCalculation ? (
+          {showCalculation && !isCalculating && !isCalculationCompleted ? (
             <>
               <button
                 className={`${styles.button} ${styles.buttonSecondary}`}
@@ -726,7 +726,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                 Fertig
               </button>
             </>
-          ) : (
+          ) : !showCalculation && !isCalculating && !isCalculationCompleted ? (
             <>
               <button
                 className={`${styles.button} ${styles.buttonSecondary}`}
@@ -743,7 +743,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                 Ersatz berechnen
               </button>
             </>
-          )}
+          ) : null}
         </div>
       </div>
 

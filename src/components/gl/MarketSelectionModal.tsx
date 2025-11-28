@@ -262,8 +262,13 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
           // Simulate API call delay with transport mode
           setTimeout(() => {
             const route = calculateTourRoute();
-            setOptimizedRoute(route);
-            setTourStep('result');
+            setTourStep('completed');
+            
+            // Show completed state for 1 second, then go to result
+            setTimeout(() => {
+              setOptimizedRoute(route);
+              setTourStep('result');
+            }, 1000);
           }, 2000);
         }
       } else if (tourStep === 'result' && optimizedRoute) {
@@ -758,7 +763,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
               Zurück
             </button>
           )}
-          {!(mode === 'tour' && tourStep === 'optimizing') && (
+          {!(mode === 'tour' && (tourStep === 'optimizing' || tourStep === 'completed')) && (
             <>
               {!(mode === 'tour' && tourStep === 'result') && (
                 <button className={`${styles.button} ${styles.buttonSecondary}`} onClick={onClose}>
