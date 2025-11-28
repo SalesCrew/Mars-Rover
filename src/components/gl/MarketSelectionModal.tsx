@@ -140,11 +140,11 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
   );
 
   // Focus search input when dropdown opens
-  useEffect(() => {
-    if (isDropdownOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [isDropdownOpen]);
+  // useEffect(() => {
+  //   if (isDropdownOpen && searchInputRef.current) {
+  //     searchInputRef.current.focus();
+  //   }
+  // }, [isDropdownOpen]);
 
   // Filter and sort markets based on search query
   const filteredMarkets = useMemo(() => {
