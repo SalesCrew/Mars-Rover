@@ -459,62 +459,93 @@
   justify-content: center;
   gap: var(--space-xs);
   padding: var(--space-xs) 0;
+  position: relative;
+}
+
+.routeArrow::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
+  transform: translateX(-50%);
+  z-index: 0;
 }
 
 .driveTime {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   color: var(--color-teal-mid);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
+  background: white;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  position: relative;
+  z-index: 1;
 }
 
 .selectedMarket {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-lg) var(--space-md);
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-sm);
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
-  min-height: 72px;
-  margin-bottom: 0;
+  min-height: 64px;
+  margin: var(--space-xs) 0;
   cursor: grab;
-  transition: background var(--transition-fast);
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .selectedMarket:active {
   cursor: grabbing;
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
 }
 
 .selectedMarket:hover {
-  background: rgba(59, 130, 246, 0.05);
+  background: white;
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08);
 }
 
 .selectedMarketOrder {
-  width: 24px;
-  height: 24px;
-  background: linear-gradient(135deg, var(--color-teal-light), var(--color-teal-dark));
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--color-teal-light), var(--color-teal-mid));
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
 }
 
 .selectedMarketName {
   flex: 1;
   color: var(--color-text-primary);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
 }
 
 .selectedMarketTime {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  background: rgba(59, 130, 246, 0.06);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
 }
 
 /* Footer Actions */
