@@ -325,7 +325,7 @@
   background: var(--color-bg-secondary);
   border-radius: var(--radius-md);
   animation: slideIn 0.3s ease;
-  max-height: 240px;
+  max-height: 200px;
   overflow-y: auto;
   
   /* Hide scrollbar */
