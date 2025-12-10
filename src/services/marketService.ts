@@ -3,7 +3,7 @@ import type { AdminMarket } from '../types/market-types';
 
 class MarketService {
   /**
-   * Fetch all markets from the database
+   * Fetch all markets from the API
    */
   async getAllMarkets(): Promise<AdminMarket[]> {
     try {
@@ -12,7 +12,7 @@ class MarketService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      return this.transformMarketsFromDB(data);
+      return this.transformMarketsFromDB(data || []);
     } catch (error) {
       console.error('Error fetching markets:', error);
       throw error;
@@ -41,16 +41,18 @@ class MarketService {
    */
   async createMarket(market: Partial<AdminMarket>): Promise<AdminMarket> {
     try {
+      const dbMarket = this.transformMarketToDB(market);
+      
       const response = await fetch(API_ENDPOINTS.markets.create, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(this.transformMarketToDB(market)),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbMarket),
       });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
       const data = await response.json();
       return this.transformMarketFromDB(data);
     } catch (error) {
@@ -64,16 +66,18 @@ class MarketService {
    */
   async updateMarket(id: string, market: Partial<AdminMarket>): Promise<AdminMarket> {
     try {
+      const dbMarket = this.transformMarketToDB(market);
+      
       const response = await fetch(API_ENDPOINTS.markets.update(id), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(this.transformMarketToDB(market)),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbMarket),
       });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
       const data = await response.json();
       return this.transformMarketFromDB(data);
     } catch (error) {
@@ -90,6 +94,7 @@ class MarketService {
       const response = await fetch(API_ENDPOINTS.markets.delete(id), {
         method: 'DELETE',
       });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -104,16 +109,18 @@ class MarketService {
    */
   async importMarkets(markets: AdminMarket[]): Promise<{ success: number; failed: number }> {
     try {
+      const dbMarkets = markets.map(m => this.transformMarketToDB(m));
+      
       const response = await fetch(API_ENDPOINTS.markets.import, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(markets.map(m => this.transformMarketToDB(m))),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbMarkets),
       });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
       return await response.json();
     } catch (error) {
       console.error('Error importing markets:', error);

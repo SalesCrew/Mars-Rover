@@ -1,0 +1,17 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/markets",
+      "destination": "/api/markets"
+    },
+    {
+      "source": "/api/markets/:id",
+      "destination": "/api/markets"
+    },
+    {
+      "source": "/api/markets/import",
+      "destination": "/api/markets"
+    }
+  ]
+}
+

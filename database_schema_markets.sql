@@ -1,6 +1,19 @@
 -- ============================================
 -- Mars Rover Admin - Markets Database Schema
+-- For Supabase (PostgreSQL)
 -- ============================================
+-- 
+-- INSTRUCTIONS FOR SUPABASE:
+-- 1. Go to your Supabase Dashboard
+-- 2. Navigate to SQL Editor
+-- 3. Create a new query
+-- 4. Copy and paste this entire SQL script
+-- 5. Click "Run" to execute
+--
+-- ============================================
+
+-- Drop existing table if you want to recreate it
+-- DROP TABLE IF EXISTS markets CASCADE;
 
 CREATE TABLE IF NOT EXISTS markets (
   -- Primary identification
@@ -43,30 +56,54 @@ CREATE TABLE IF NOT EXISTS markets (
   longitude DECIMAL(11, 8),
   
   -- Metadata
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
-  -- Indexes for common queries
-  INDEX idx_gebietsleiter (gebietsleiter),
-  INDEX idx_chain (chain),
-  INDEX idx_is_active (is_active),
-  INDEX idx_subgroup (subgroup),
-  INDEX idx_city (city)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- ============================================
--- Trigger to update updated_at timestamp
+-- Indexes for performance
 -- ============================================
-DELIMITER //
+CREATE INDEX IF NOT EXISTS idx_markets_gebietsleiter ON markets(gebietsleiter);
+CREATE INDEX IF NOT EXISTS idx_markets_chain ON markets(chain);
+CREATE INDEX IF NOT EXISTS idx_markets_is_active ON markets(is_active);
+CREATE INDEX IF NOT EXISTS idx_markets_subgroup ON markets(subgroup);
+CREATE INDEX IF NOT EXISTS idx_markets_city ON markets(city);
 
-CREATE TRIGGER IF NOT EXISTS update_markets_timestamp
+-- ============================================
+-- Function to update updated_at timestamp
+-- ============================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================
+-- Trigger to auto-update updated_at
+-- ============================================
+DROP TRIGGER IF EXISTS update_markets_updated_at ON markets;
+CREATE TRIGGER update_markets_updated_at
 BEFORE UPDATE ON markets
 FOR EACH ROW
-BEGIN
-  SET NEW.updated_at = CURRENT_TIMESTAMP;
-END//
+EXECUTE FUNCTION update_updated_at_column();
 
-DELIMITER ;
+-- ============================================
+-- Enable Row Level Security (RLS)
+-- ============================================
+ALTER TABLE markets ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow all operations for authenticated users
+-- You can customize these policies based on your security needs
+CREATE POLICY "Allow all operations for authenticated users" ON markets
+  FOR ALL
+  USING (auth.role() = 'authenticated');
+
+-- Optional: Allow service role full access
+CREATE POLICY "Allow all operations for service role" ON markets
+  FOR ALL
+  USING (auth.role() = 'service_role');
 
 -- ============================================
 -- Sample data (optional - for testing)
@@ -80,6 +117,8 @@ INSERT INTO markets (
 ) VALUES
   ('MKT-001', 'MKT-001', 'Billa+ Hauptstraße', 'Hauptstraße 45', 'Wien', '1010', 'Billa+', 'Max Mustermann', true, 12, '3R - BILLA Plus'),
   ('MKT-002', 'MKT-002', 'Spar Mariahilfer Straße', 'Mariahilfer Straße 123', 'Wien', '1060', 'Spar', 'Anna Schmidt', true, 24, '2A - Spar'),
-  ('MKT-003', 'MKT-003', 'Adeg Leopoldstadt', 'Taborstraße 67', 'Wien', '1020', 'Adeg', 'Peter Weber', true, 12, '3F - Adeg');
+  ('MKT-003', 'MKT-003', 'Adeg Leopoldstadt', 'Taborstraße 67', 'Wien', '1020', 'Adeg', 'Peter Weber', true, 12, '3F - Adeg')
+ON CONFLICT (id) DO NOTHING;
 */
+
 
