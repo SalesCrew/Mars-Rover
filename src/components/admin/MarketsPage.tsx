@@ -11,7 +11,11 @@ import styles from './MarketsPage.module.css';
 
 type FilterType = 'chain' | 'id' | 'adresse' | 'gebietsleiter' | 'subgroup' | 'status';
 
-export const MarketsPage: React.FC = () => {
+interface MarketsPageProps {
+  importedMarkets?: AdminMarket[];
+}
+
+export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }) => {
   const [markets, setMarkets] = useState<AdminMarket[]>(adminMarkets);
   const [selectedMarket, setSelectedMarket] = useState<AdminMarket | null>(null);
   const [hoveredMarket, setHoveredMarket] = useState<AdminMarket | null>(null);
@@ -56,6 +60,18 @@ export const MarketsPage: React.FC = () => {
     subgroup: useRef<HTMLDivElement>(null),
     status: useRef<HTMLDivElement>(null)
   };
+
+  // Handle imported markets
+  useEffect(() => {
+    if (importedMarkets.length > 0) {
+      setMarkets(prev => {
+        // Create a map of existing market IDs to avoid duplicates
+        const existingIds = new Set(prev.map(m => m.id));
+        const newMarkets = importedMarkets.filter(m => !existingIds.has(m.id));
+        return [...prev, ...newMarkets];
+      });
+    }
+  }, [importedMarkets]);
 
   // marketIds not needed anymore - using otherMarkets.map directly
 

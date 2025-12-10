@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X } from '@phosphor-icons/react';
+import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { AdminDashboard } from './AdminDashboard';
 import { MarketsPage } from './MarketsPage';
+import { parseMarketFile, validateImportFile } from '../../utils/marketImporter';
+import type { AdminMarket } from '../../types/market-types';
 import styles from './AdminPanel.module.css';
 
 interface AdminPanelProps {
@@ -23,6 +25,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [importResult, setImportResult] = useState<{ success: boolean; message: string; count?: number } | null>(null);
+  const [importedMarkets, setImportedMarkets] = useState<AdminMarket[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -54,10 +59,59 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
     }
   };
 
-  const handleFileSelect = (file: File) => {
-    // TODO: Handle file import
-    console.log('File selected:', file.name);
-    setIsImportModalOpen(false);
+  const handleFileSelect = async (file: File) => {
+    // Validate file
+    const validation = validateImportFile(file);
+    if (!validation.valid) {
+      setImportResult({
+        success: false,
+        message: validation.error || 'Ungültige Datei',
+      });
+      setTimeout(() => setImportResult(null), 5000);
+      return;
+    }
+
+    setIsProcessing(true);
+    setImportResult(null);
+
+    try {
+      const markets = await parseMarketFile(file);
+      
+      if (markets.length === 0) {
+        setImportResult({
+          success: false,
+          message: 'Keine gültigen Märkte in der Datei gefunden',
+        });
+        setIsProcessing(false);
+        setTimeout(() => setImportResult(null), 5000);
+        return;
+      }
+
+      // Store imported markets
+      setImportedMarkets(markets);
+      
+      setImportResult({
+        success: true,
+        message: `${markets.length} Märkte erfolgreich importiert`,
+        count: markets.length,
+      });
+
+      // Close modal after short delay
+      setTimeout(() => {
+        setIsImportModalOpen(false);
+        setImportResult(null);
+        setIsProcessing(false);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Import error:', error);
+      setImportResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Fehler beim Importieren der Datei',
+      });
+      setIsProcessing(false);
+      setTimeout(() => setImportResult(null), 5000);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -127,7 +181,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
         
         <div className={styles.pageContent}>
           {selectedPage === 'dashboard' && <AdminDashboard />}
-          {selectedPage === 'markets' && <MarketsPage />}
+          {selectedPage === 'markets' && <MarketsPage importedMarkets={importedMarkets} />}
           {/* Other page content will go here */}
         </div>
       </main>
@@ -146,16 +200,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
               </button>
             </div>
             <div 
-              className={`${styles.importDropzone} ${isDragging ? styles.importDropzoneDragging : ''}`}
+              className={`${styles.importDropzone} ${isDragging ? styles.importDropzoneDragging : ''} ${isProcessing ? styles.importDropzoneProcessing : ''}`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !isProcessing && fileInputRef.current?.click()}
             >
-              <Upload size={48} weight="regular" className={styles.importIcon} />
-              <h4 className={styles.importTitle}>Datei hierher ziehen</h4>
-              <p className={styles.importSubtitle}>oder klicken zum Auswählen</p>
-              <p className={styles.importFormats}>CSV, Excel (.xlsx, .xls)</p>
+              {isProcessing ? (
+                <>
+                  <div className={styles.importSpinner}></div>
+                  <h4 className={styles.importTitle}>Verarbeite Datei...</h4>
+                </>
+              ) : importResult ? (
+                <>
+                  {importResult.success ? (
+                    <>
+                      <CheckCircle size={48} weight="fill" className={styles.importIconSuccess} />
+                      <h4 className={styles.importTitle}>{importResult.message}</h4>
+                    </>
+                  ) : (
+                    <>
+                      <WarningCircle size={48} weight="fill" className={styles.importIconError} />
+                      <h4 className={styles.importTitle}>Fehler</h4>
+                      <p className={styles.importSubtitle}>{importResult.message}</p>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Upload size={48} weight="regular" className={styles.importIcon} />
+                  <h4 className={styles.importTitle}>Datei hierher ziehen</h4>
+                  <p className={styles.importSubtitle}>oder klicken zum Auswählen</p>
+                  <p className={styles.importFormats}>CSV, Excel (.xlsx, .xls)</p>
+                </>
+              )}
             </div>
             <input
               ref={fileInputRef}
