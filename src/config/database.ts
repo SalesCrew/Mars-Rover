@@ -1,7 +1,9 @@
 // API Configuration
-// All requests go through your backend API to keep credentials secure
+// Points to the separate backend server
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// In development: http://localhost:3001/api
+// In production: Set VITE_API_URL to your backend URL
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export const API_ENDPOINTS = {
   markets: {
