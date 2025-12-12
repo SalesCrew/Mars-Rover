@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { User, Phone, Envelope, MapPin, X, Image } from '@phosphor-icons/react';
 import { GLDetailModal } from './GLDetailModal';
