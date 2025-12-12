@@ -86,7 +86,7 @@ const getChainBadgeClass = (chain: string): string => {
 
 const ProgressRing: React.FC<{ current: number; required: number }> = ({ current, required }) => {
   const [animatedProgress, setAnimatedProgress] = React.useState(0);
-  const radius = 20;
+  const radius = 13;
   const circumference = 2 * Math.PI * radius;
   const progress = Math.min(current / required, 1);
   const strokeDashoffset = circumference * (1 - animatedProgress);
@@ -102,26 +102,26 @@ const ProgressRing: React.FC<{ current: number; required: number }> = ({ current
 
   return (
     <div className={styles.progressRing}>
-      <svg width="48" height="48" viewBox="0 0 48 48">
+      <svg width="32" height="32" viewBox="0 0 32 32">
         <circle
-          cx="24"
-          cy="24"
+          cx="16"
+          cy="16"
           r={radius}
           fill="none"
           stroke="rgba(226, 232, 240, 0.6)"
-          strokeWidth="3"
+          strokeWidth="2.5"
         />
         <circle
-          cx="24"
-          cy="24"
+          cx="16"
+          cy="16"
           r={radius}
           fill="none"
           stroke={color}
-          strokeWidth="3"
+          strokeWidth="2.5"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          transform="rotate(-90 24 24)"
+          transform="rotate(-90 16 16)"
           style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}
         />
       </svg>

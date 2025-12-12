@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle } from '@phosphor-icons/react';
+import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle, ClockCounterClockwise, ArrowRight, ArrowsClockwise, UserMinus, UserPlus } from '@phosphor-icons/react';
 import { AdminDashboard } from './AdminDashboard';
 import { MarketsPage } from './MarketsPage';
+import { GebietsleiterPage } from './GebietsleiterPage';
 import { parseMarketFile, validateImportFile } from '../../utils/marketImporter';
+import { actionHistoryService, type ActionHistoryEntry } from '../../services/actionHistoryService';
+import { marketService } from '../../services/marketService';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './AdminPanel.module.css';
 
@@ -24,11 +27,70 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
   const [selectedPage, setSelectedPage] = useState<AdminPage>('dashboard');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isHistorieModalOpen, setIsHistorieModalOpen] = useState(false);
+  const [isCreateGLModalOpen, setIsCreateGLModalOpen] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<ActionHistoryEntry[]>([]);
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResult, setImportResult] = useState<{ success: boolean; message: string; count?: number } | null>(null);
   const [importedMarkets, setImportedMarkets] = useState<AdminMarket[]>([]);
+  const [allMarkets, setAllMarkets] = useState<AdminMarket[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch all markets for GL detail modal
+  useEffect(() => {
+    const loadMarkets = async () => {
+      try {
+        const markets = await marketService.getAllMarkets();
+        setAllMarkets(markets);
+      } catch (error) {
+        console.error('Failed to load markets in AdminPanel:', error);
+      }
+    };
+    
+    loadMarkets();
+  }, [importedMarkets]); // Reload when markets are imported
+
+  // Fetch history when modal opens
+  useEffect(() => {
+    if (isHistorieModalOpen) {
+      loadHistory();
+      setHistorySearchTerm(''); // Reset search when opening
+    }
+  }, [isHistorieModalOpen]);
+
+  const loadHistory = async () => {
+    setIsLoadingHistory(true);
+    try {
+      const history = await actionHistoryService.getAllHistory(undefined, 500);
+      setHistoryEntries(history);
+    } catch (error) {
+      console.error('Failed to load history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // Filter history entries based on search term
+  const filteredHistoryEntries = historyEntries.filter(entry => {
+    if (!historySearchTerm) return true;
+    
+    const searchLower = historySearchTerm.toLowerCase();
+    const timestamp = new Date(entry.timestamp).toLocaleString('de-DE');
+    
+    return (
+      entry.market_chain.toLowerCase().includes(searchLower) ||
+      entry.market_address.toLowerCase().includes(searchLower) ||
+      entry.market_city?.toLowerCase().includes(searchLower) ||
+      entry.market_postal_code?.toLowerCase().includes(searchLower) ||
+      entry.target_gl.toLowerCase().includes(searchLower) ||
+      entry.previous_gl?.toLowerCase().includes(searchLower) ||
+      entry.action_type.toLowerCase().includes(searchLower) ||
+      timestamp.toLowerCase().includes(searchLower)
+    );
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -169,19 +231,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
             {menuItems.find(item => item.id === selectedPage)?.label}
           </h1>
           {selectedPage === 'markets' && (
-            <button 
-              className={styles.importButton}
-              onClick={() => setIsImportModalOpen(true)}
-            >
-              <Upload size={18} weight="bold" />
-              <span>Importieren</span>
-            </button>
+            <div className={styles.headerButtons}>
+              <button 
+                className={styles.historieButton}
+                onClick={() => setIsHistorieModalOpen(true)}
+              >
+                <ClockCounterClockwise size={18} weight="bold" />
+                <span>Historie</span>
+              </button>
+              <button 
+                className={styles.importButton}
+                onClick={() => setIsImportModalOpen(true)}
+              >
+                <Upload size={18} weight="bold" />
+                <span>Importieren</span>
+              </button>
+            </div>
+          )}
+          {selectedPage === 'gebietsleiter' && (
+            <div className={styles.headerButtons}>
+              <button 
+                className={styles.createGLButton}
+                onClick={() => setIsCreateGLModalOpen(true)}
+              >
+                <UserPlus size={18} weight="bold" />
+                <span>Neuen GL erstellen</span>
+              </button>
+            </div>
           )}
         </header>
         
         <div className={styles.pageContent}>
           {selectedPage === 'dashboard' && <AdminDashboard />}
           {selectedPage === 'markets' && <MarketsPage importedMarkets={importedMarkets} />}
+          {selectedPage === 'gebietsleiter' && <GebietsleiterPage isCreateModalOpen={isCreateGLModalOpen} onCloseCreateModal={() => setIsCreateGLModalOpen(false)} allMarkets={allMarkets} />}
           {/* Other page content will go here */}
         </div>
       </main>
@@ -242,6 +325,108 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
               style={{ display: 'none' }}
               onChange={handleFileInputChange}
             />
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Historie Modal */}
+      {isHistorieModalOpen && ReactDOM.createPortal(
+        <div className={styles.historieModalOverlay} onClick={() => setIsHistorieModalOpen(false)}>
+          <div className={styles.historieModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.historieModalHeader}>
+              <h3 className={styles.historieModalTitle}>Aktions-Historie</h3>
+              <input
+                type="text"
+                className={styles.historieSearchInput}
+                placeholder="Suchen nach Markt, GL, Adresse, Datum..."
+                value={historySearchTerm}
+                onChange={(e) => setHistorySearchTerm(e.target.value)}
+              />
+              <button 
+                className={styles.historieModalClose}
+                onClick={() => setIsHistorieModalOpen(false)}
+              >
+                <X size={20} weight="bold" />
+              </button>
+            </div>
+            <div className={styles.historieModalContent}>
+              {isLoadingHistory ? (
+                <div className={styles.historieLoading}>
+                  <div className={styles.spinner}></div>
+                  <span>Lade Historie...</span>
+                </div>
+              ) : filteredHistoryEntries.length === 0 ? (
+                <div className={styles.historieEmpty}>
+                  <ClockCounterClockwise size={48} weight="regular" />
+                  <span>{historySearchTerm ? 'Keine Ergebnisse gefunden' : 'Noch keine Aktionen vorhanden'}</span>
+                </div>
+              ) : (
+                <div className={styles.historieList}>
+                  {filteredHistoryEntries.map((entry) => (
+                    <div 
+                      key={entry.id} 
+                      className={`${styles.historieEntry} ${
+                        entry.action_type === 'assign' ? styles.historieEntryAssign : 
+                        entry.action_type === 'swap' ? styles.historieEntrySwap : 
+                        styles.historieEntryRemove
+                      }`}
+                    >
+                      <div className={styles.historieTimestamp}>
+                        {new Date(entry.timestamp).toLocaleString('de-DE', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                      <div className={styles.historieMarketInfo}>
+                        <span className={styles.historieChain}>{entry.market_chain}</span>
+                        <span className={styles.historieAddress}>
+                          {entry.market_address}
+                          {entry.market_postal_code && entry.market_city && 
+                            `, ${entry.market_postal_code} ${entry.market_city}`
+                          }
+                        </span>
+                      </div>
+                      <div className={styles.historieAction}>
+                        {entry.action_type === 'assign' && (
+                          <>
+                            <div className={styles.historieIconContainer}>
+                              <ArrowRight size={14} weight="bold" className={styles.historieIconAssign} />
+                            </div>
+                            <span className={styles.historieTargetGl}>{entry.target_gl}</span>
+                          </>
+                        )}
+                        {entry.action_type === 'swap' && (
+                          <>
+                            <div className={styles.historieIconContainer}>
+                              <ArrowRight size={14} weight="bold" className={styles.historieIconAssign} />
+                            </div>
+                            <span className={styles.historieTargetGl}>{entry.target_gl}</span>
+                            <div className={styles.historieIconContainer}>
+                              <ArrowsClockwise size={14} weight="bold" className={styles.historieIconSwap} />
+                            </div>
+                            {entry.previous_gl && (
+                              <span className={styles.historiePreviousGl}>{entry.previous_gl}</span>
+                            )}
+                          </>
+                        )}
+                        {entry.action_type === 'remove' && (
+                          <>
+                            <span className={styles.historieTargetGl}>{entry.target_gl}</span>
+                            <div className={styles.historieIconContainer}>
+                              <UserMinus size={14} weight="bold" className={styles.historieIconRemove} />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>,
         document.body

@@ -1,7 +1,7 @@
 // API Configuration
 // Points to the separate backend server
 
-// In development: http://localhost:3001/api
+// In development: http://localhost:3002/api
 // In production: Set VITE_API_URL to your backend URL
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 

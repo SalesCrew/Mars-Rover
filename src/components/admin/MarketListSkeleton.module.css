@@ -1,0 +1,113 @@
+.skeletonWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 20px;
+}
+
+.skeletonItem {
+  display: grid;
+  grid-template-columns: 180px 80px 280px 1fr 160px 60px 120px 100px;
+  gap: 16px;
+  padding: 16px 20px;
+  background: rgba(249, 250, 251, 0.5);
+  border: 1px solid rgba(226, 232, 240, 0.4);
+  border-radius: 12px;
+  align-items: center;
+}
+
+/* Skeleton animation - flicker between two opacity levels */
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* Base skeleton element */
+.skeletonText,
+.skeletonBadge,
+.skeletonRing,
+.skeletonDot {
+  background: #D1D5DB;
+  border-radius: 6px;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* Chain Cell */
+.chainCell {
+  display: flex;
+  align-items: center;
+}
+
+.skeletonBadge {
+  width: 100px;
+  height: 28px;
+  border-radius: 7px;
+}
+
+/* ID Cell */
+.idCell {
+  display: flex;
+  align-items: center;
+}
+
+.skeletonText {
+  height: 14px;
+}
+
+/* Address Cell */
+.addressCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Gebietsleiter Cell */
+.gebietsleiterCell {
+  display: flex;
+  align-items: center;
+}
+
+/* Subgroup Cell */
+.subgroupCell {
+  display: flex;
+  align-items: center;
+}
+
+/* Last Visit Cell */
+.lastVisitCell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Frequency Cell */
+.frequencyCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skeletonRing {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+/* Status Cell */
+.statusCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skeletonDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+

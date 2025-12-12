@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { MapPin, FunnelSimple, X, CaretDown, CaretUp, WarningCircle } from '@phosphor-icons/react';
-import AnimatedList from '../gl/AnimatedList';
+import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
 import { MarketListItem } from './MarketListItem';
+import { MarketListSkeleton } from './MarketListSkeleton';
 import { MarketDetailsModal } from './MarketDetailsModal';
 import { GLFilterCard } from './GLFilterCard';
 import type { ActionLogEntry } from './GLFilterCard';
 import { adminMarkets } from '../../data/adminMarketsData';
 import { marketService } from '../../services/marketService';
+import { actionHistoryService } from '../../services/actionHistoryService';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './MarketsPage.module.css';
 
@@ -68,9 +70,12 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
   useEffect(() => {
     const loadMarkets = async () => {
       try {
+        console.log('🔄 MarketsPage: Starting to load markets...');
         setIsLoadingMarkets(true);
         setLoadError(null);
         const fetchedMarkets = await marketService.getAllMarkets();
+        console.log('✅ MarketsPage: Loaded markets:', fetchedMarkets.length);
+        console.log('📊 First market:', fetchedMarkets[0]);
         setMarkets(fetchedMarkets);
       } catch (error) {
         console.error('Failed to load markets:', error);
@@ -118,13 +123,26 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
   const uniqueChains = [...new Set(markets.map(m => m.chain))].sort();
   const uniqueIDs = [...new Set(markets.map(m => m.internalId))].sort();
   const uniqueAddresses = [...new Set(markets.map(m => `${m.address}, ${m.postalCode} ${m.city}`))].sort();
-  const uniqueGLs = [...new Set(markets.map(m => m.gebietsleiter).filter(Boolean))].sort() as string[];
+  const uniqueGLs = [...new Set([...markets.map(m => m.gebietsleiter).filter(Boolean), 'Daniel D.', 'Markus M.', 'Stefan S.', 'Lisa L.', 'Thomas T.', 'Anna A.', 'Michael M.', 'Julia J.'])].sort() as string[];
   const uniqueSubgroups = [...new Set(markets.map(m => m.subgroup).filter(Boolean))].sort();
   const statusOptions = ['Aktiv', 'Inaktiv'];
 
   // Filter options based on search term
   const getFilteredOptions = (type: FilterType, options: string[]) => {
     const search = searchTerms[type].toLowerCase();
+    
+    // Special handling for address filter - split search into multiple terms
+    if (type === 'adresse' && search.trim()) {
+      const searchWords = search.trim().split(/\s+/); // Split by whitespace
+      
+      return options.filter(option => {
+        const optionLower = option.toLowerCase();
+        // Check if ALL search words are found somewhere in the address
+        return searchWords.every(word => optionLower.includes(word));
+      });
+    }
+    
+    // Default behavior for other filters
     return options.filter(option => option.toLowerCase().includes(search));
   };
 
@@ -172,7 +190,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
 
       return true;
     });
-  }, [selectedFilters, selectedGL]);
+  }, [markets, selectedFilters, selectedGL]);
 
   // Separate markets into GL's markets and other markets
   const glMarkets = useMemo(() => {
@@ -283,8 +301,25 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
           setTimeout(() => {
             // Fade out preview
             setIsFadingOut(true);
-            setTimeout(() => {
+            setTimeout(async () => {
               setActionLogs(prev => [logEntry, ...prev]);
+              
+              // Save to database
+              try {
+                await actionHistoryService.createHistoryEntry({
+                  action_type: logEntry.type,
+                  market_id: market.id,
+                  market_chain: market.chain,
+                  market_address: market.address,
+                  market_postal_code: market.postalCode,
+                  market_city: market.city,
+                  target_gl: selectedGL,
+                  previous_gl: logEntry.previousGl,
+                });
+              } catch (error) {
+                console.error('Failed to save action history:', error);
+              }
+              
               setIsProcessing(false);
               setIsFadingOut(false);
               setProcessingType(undefined);
@@ -294,8 +329,25 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
         } else {
           // For swap, fade out immediately
           setIsFadingOut(true);
-          setTimeout(() => {
+          setTimeout(async () => {
             setActionLogs(prev => [logEntry, ...prev]);
+            
+            // Save to database
+            try {
+              await actionHistoryService.createHistoryEntry({
+                action_type: logEntry.type,
+                market_id: market.id,
+                market_chain: market.chain,
+                market_address: market.address,
+                market_postal_code: market.postalCode,
+                market_city: market.city,
+                target_gl: selectedGL,
+                previous_gl: logEntry.previousGl,
+              });
+            } catch (error) {
+              console.error('Failed to save action history:', error);
+            }
+            
             setIsProcessing(false);
             setIsFadingOut(false);
             setProcessingType(undefined);
@@ -342,8 +394,24 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
 
         // Fade out preview
         setIsFadingOut(true);
-        setTimeout(() => {
+        setTimeout(async () => {
           setActionLogs(prev => [logEntry, ...prev]);
+          
+          // Save to database
+          try {
+            await actionHistoryService.createHistoryEntry({
+              action_type: 'remove',
+              market_id: market.id,
+              market_chain: market.chain,
+              market_address: market.address,
+              market_postal_code: market.postalCode,
+              market_city: market.city,
+              target_gl: selectedGL,
+            });
+          } catch (error) {
+            console.error('Failed to save action history:', error);
+          }
+          
           setIsProcessing(false);
           setIsFadingOut(false);
           setProcessingType(undefined);
@@ -358,10 +426,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
 
   const handleModeChange = (mode: 'add' | 'remove' | null) => {
     setActiveMode(mode);
-    // Clear action logs when mode changes
-    if (mode === null) {
-      setActionLogs([]);
-    }
+    // Don't clear action logs when switching modes - only clear when GL is deselected
   };
 
   const handleCloseModal = () => {
@@ -726,9 +791,8 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
 
         {/* Markets List */}
         {isLoadingMarkets ? (
-          <div className={styles.loadingState}>
-            <div className={styles.spinner}></div>
-            <span>Lade Märkte...</span>
+          <div className={styles.marketsListWrapper}>
+            <MarketListSkeleton />
           </div>
         ) : loadError ? (
           <div className={styles.errorState}>
@@ -760,12 +824,14 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
             )}
             
             {/* All Markets in one list */}
-            <AnimatedList
+            <VirtualizedAnimatedList
+              key={selectedGL || 'all-markets'}
               items={allDisplayMarkets.map(m => m.id)}
               showGradients={true}
               enableArrowNavigation={false}
               displayScrollbar={false}
               className={styles.marketsList}
+              estimateSize={56}
             >
               {(_item, index) => {
                 const market = allDisplayMarkets[index];
@@ -780,7 +846,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
                   </div>
                 );
               }}
-            </AnimatedList>
+            </VirtualizedAnimatedList>
           </div>
         )}
       </div>

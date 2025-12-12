@@ -55,3 +55,5 @@ npm start
 | `SUPABASE_URL` | Your Supabase project URL |
 | `SUPABASE_SERVICE_KEY` | Your Supabase service role key |
 
+
+

@@ -74,7 +74,7 @@ export const AdminDashboard: React.FC = () => {
             ) : (
               <div className={styles.trend} style={{ color: '#F59E0B' }}>
                 <TrendDown size={18} weight="bold" />
-                <span>{Math.round((billaData.goalPercentage * 0.5) - billaDisplayPercentage)}% bis Ziel</span>
+                <span>{Math.round((billaData.goalPercentage) - billaDisplayPercentage)}% bis Ziel</span>
               </div>
             )}
             renderTimeFiltersOnly={true}
@@ -84,7 +84,7 @@ export const AdminDashboard: React.FC = () => {
             <span className={`${styles.percentage} ${billaDisplayGoalMet ? styles.percentageSuccess : ''}`}>
               <CountUp from={0} to={billaDisplayPercentage} duration={1.5} delay={0.2} />%
             </span>
-            <span className={styles.goal}>von {Math.round(billaData.goalPercentage * 0.5)}%</span>
+            <span className={styles.goal}>von {Math.round(billaData.goalPercentage)}%</span>
           </div>
 
           <div className={styles.progressTrack}>
@@ -109,7 +109,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <div className={styles.metric}>
               <span className={styles.metricValue}>
-                <CountUp from={0} to={Math.max(0, Math.ceil(billaData.totalMarkets * billaData.goalPercentage * 0.5 / 100) - billaData.displayCount)} duration={1.2} delay={0.6} />
+                <CountUp from={0} to={Math.max(0, Math.ceil(billaData.totalMarkets * billaData.goalPercentage / 100) - billaData.displayCount)} duration={1.2} delay={0.6} />
               </span>
               <span className={styles.metricLabel}>Fehlen noch</span>
             </div>
@@ -143,7 +143,7 @@ export const AdminDashboard: React.FC = () => {
             ) : (
               <div className={styles.trend} style={{ color: '#F59E0B' }}>
                 <TrendDown size={18} weight="bold" />
-                <span>{Math.round((billaData.goalPercentage * 0.5) - billaKartonwarePercentage)}% bis Ziel</span>
+                <span>{Math.round((billaData.goalPercentage) - billaKartonwarePercentage)}% bis Ziel</span>
               </div>
             )}
             renderTimeFiltersOnly={true}
@@ -153,7 +153,7 @@ export const AdminDashboard: React.FC = () => {
             <span className={`${styles.percentage} ${billaKartonwareGoalMet ? styles.percentageSuccess : ''}`}>
               <CountUp from={0} to={billaKartonwarePercentage} duration={1.5} delay={0.2} />%
             </span>
-            <span className={styles.goal}>von {Math.round(billaData.goalPercentage * 0.5)}%</span>
+            <span className={styles.goal}>von {Math.round(billaData.goalPercentage)}%</span>
           </div>
 
           <div className={styles.progressSection}>
@@ -181,7 +181,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <div className={styles.metric}>
               <span className={styles.metricValue}>
-                <CountUp from={0} to={Math.max(0, Math.ceil(billaData.totalMarkets * billaData.goalPercentage * 0.5 / 100) - billaData.kartonwareCount)} duration={1.2} delay={0.6} />
+                <CountUp from={0} to={Math.max(0, Math.ceil(billaData.totalMarkets * billaData.goalPercentage / 100) - billaData.kartonwareCount)} duration={1.2} delay={0.6} />
               </span>
               <span className={styles.metricLabel}>Fehlen noch</span>
             </div>
@@ -218,7 +218,7 @@ export const AdminDashboard: React.FC = () => {
             ) : (
               <div className={styles.trend} style={{ color: '#F59E0B' }}>
                 <TrendDown size={18} weight="bold" />
-                <span>{Math.round((sparData.goalPercentage * 0.5) - sparDisplayPercentage)}% bis Ziel</span>
+                <span>{Math.round((sparData.goalPercentage) - sparDisplayPercentage)}% bis Ziel</span>
               </div>
             )}
             renderTimeFiltersOnly={true}
@@ -228,7 +228,7 @@ export const AdminDashboard: React.FC = () => {
             <span className={`${styles.percentage} ${sparDisplayGoalMet ? styles.percentageSuccess : ''}`}>
               <CountUp from={0} to={sparDisplayPercentage} duration={1.5} delay={0.2} />%
             </span>
-            <span className={styles.goal}>von {Math.round(sparData.goalPercentage * 0.5)}%</span>
+            <span className={styles.goal}>von {Math.round(sparData.goalPercentage)}%</span>
           </div>
 
           <div className={styles.progressTrack}>
@@ -253,7 +253,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <div className={styles.metric}>
               <span className={styles.metricValue}>
-                <CountUp from={0} to={Math.max(0, Math.ceil(sparData.totalMarkets * sparData.goalPercentage * 0.5 / 100) - sparData.displayCount)} duration={1.2} delay={0.6} />
+                <CountUp from={0} to={Math.max(0, Math.ceil(sparData.totalMarkets * sparData.goalPercentage / 100) - sparData.displayCount)} duration={1.2} delay={0.6} />
               </span>
               <span className={styles.metricLabel}>Fehlen noch</span>
             </div>
@@ -287,7 +287,7 @@ export const AdminDashboard: React.FC = () => {
             ) : (
               <div className={styles.trend} style={{ color: '#F59E0B' }}>
                 <TrendDown size={18} weight="bold" />
-                <span>{Math.round((sparData.goalPercentage * 0.5) - sparKartonwarePercentage)}% bis Ziel</span>
+                <span>{Math.round((sparData.goalPercentage) - sparKartonwarePercentage)}% bis Ziel</span>
               </div>
             )}
             renderTimeFiltersOnly={true}
@@ -297,7 +297,7 @@ export const AdminDashboard: React.FC = () => {
             <span className={`${styles.percentage} ${sparKartonwareGoalMet ? styles.percentageSuccess : ''}`}>
               <CountUp from={0} to={sparKartonwarePercentage} duration={1.5} delay={0.2} />%
             </span>
-            <span className={styles.goal}>von {Math.round(sparData.goalPercentage * 0.5)}%</span>
+            <span className={styles.goal}>von {Math.round(sparData.goalPercentage)}%</span>
           </div>
 
           <div className={styles.progressSection}>
@@ -325,7 +325,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <div className={styles.metric}>
               <span className={styles.metricValue}>
-                <CountUp from={0} to={Math.max(0, Math.ceil(sparData.totalMarkets * sparData.goalPercentage * 0.5 / 100) - sparData.kartonwareCount)} duration={1.2} delay={0.6} />
+                <CountUp from={0} to={Math.max(0, Math.ceil(sparData.totalMarkets * sparData.goalPercentage / 100) - sparData.kartonwareCount)} duration={1.2} delay={0.6} />
               </span>
               <span className={styles.metricLabel}>Fehlen noch</span>
             </div>

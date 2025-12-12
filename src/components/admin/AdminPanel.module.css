@@ -200,6 +200,38 @@
   letter-spacing: -0.5px;
 }
 
+/* Header Buttons Container */
+.headerButtons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Historie Button */
+.historieButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: white;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #8B5CF6;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.historieButton:hover {
+  background: rgba(139, 92, 246, 0.04);
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Import Button */
 .importButton {
   display: flex;
   align-items: center;
@@ -220,6 +252,30 @@
   background: rgba(59, 130, 246, 0.04);
   border-color: rgba(59, 130, 246, 0.3);
   box-shadow: 0 2px 6px rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Create GL Button */
+.createGLButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: white;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #10B981;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.createGLButton:hover {
+  background: rgba(16, 185, 129, 0.04);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.1);
   transform: translateY(-1px);
 }
 
@@ -416,6 +472,248 @@
   color: #9CA3AF;
   margin: 8px 0 0 0;
   font-weight: 500;
+}
+
+/* Historie Modal */
+.historieModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.historieModal {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 600px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.historieModalHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.historieModalTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1F2937;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.historieSearchInput {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1F2937;
+  background: white;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.historieSearchInput:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.historieSearchInput::placeholder {
+  color: #9CA3AF;
+}
+
+.historieModalClose {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.historieModalClose:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #6B7280;
+}
+
+.historieModalContent {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.historieLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 64px 0;
+  color: #9CA3AF;
+}
+
+.historieEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 64px 0;
+  color: #9CA3AF;
+}
+
+.historieList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(5 * 80px); /* Show 5 items, each roughly 80px including gap */
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.historieList::-webkit-scrollbar {
+  width: 8px;
+}
+
+.historieList::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.3);
+  border-radius: 4px;
+}
+
+.historieList::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
+}
+
+.historieList::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+.historieEntry {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(249, 250, 251, 0.5), rgba(255, 255, 255, 0.3));
+  border: 1px solid rgba(226, 232, 240, 0.4);
+  border-radius: 12px;
+  align-items: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.historieEntry:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(249, 250, 251, 0.6));
+  border-color: rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.historieEntryAssign {
+  border-left: 3px solid #10B981;
+}
+
+.historieEntrySwap {
+  border-left: 3px solid #3B82F6;
+}
+
+.historieEntryRemove {
+  border-left: 3px solid #EF4444;
+}
+
+.historieTimestamp {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6B7280;
+  white-space: nowrap;
+}
+
+.historieMarketInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.historieChain {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1F2937;
+}
+
+.historieAddress {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6B7280;
+}
+
+.historieAction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.historieIconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.historieIconAssign {
+  color: #10B981;
+}
+
+.historieIconSwap {
+  color: #3B82F6;
+}
+
+.historieIconRemove {
+  color: #EF4444;
+}
+
+.historieTargetGl {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1F2937;
+  padding: 4px 8px;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 6px;
+}
+
+.historiePreviousGl {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6B7280;
+  padding: 4px 8px;
+  background: rgba(107, 114, 128, 0.08);
+  border-radius: 6px;
+}
+
+.historieEmpty svg {
+  opacity: 0.5;
 }
 
 

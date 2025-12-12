@@ -28,11 +28,13 @@
 .listHeader {
   position: relative;
   display: grid;
-  grid-template-columns: 180px 80px 280px 1fr 160px 60px 120px 100px;
-  gap: 16px;
+  grid-template-columns: 160px 70px 250px 1fr 140px 50px 100px 70px;
+  gap: 8px;
   padding: 12px 20px;
   border-bottom: 2px solid rgba(226, 232, 240, 0.8);
   margin-bottom: 16px;
+  margin-left: 20px;
+  margin-right: 20px;
 }
 
 .clearFiltersButton {
@@ -283,6 +285,7 @@
   gap: 0;
   height: 100%;
   overflow: hidden;
+  padding: 0 20px;
 }
 
 /* GL Section Toggle */
@@ -291,13 +294,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(5, 150, 105, 0.04));
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(5, 150, 105, 0.04)), white;
   border: 1px solid rgba(16, 185, 129, 0.15);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 8px;
+  margin-bottom: 0;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .glSectionToggle:hover {
