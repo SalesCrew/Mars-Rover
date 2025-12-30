@@ -67,29 +67,42 @@ const processImportData = (rawData: any[][]): AdminMarket[] => {
 };
 
 const parseMarketRow = (row: any[], rowIndex: number): AdminMarket | null => {
-  // Map columns according to the specification:
-  // A=0: ID, C=2: Channel, D=3: Banner, E=4: Handelskette, 
-  // F=5: Name, G=6: PLZ, H=7: Stadt, I=8: Straße,
-  // J=9: Status, K=10: Filiale, L=11: Frequenz,
-  // O=14: Kundentyp, P=15: Tel, Q=16: Email,
-  // R=17: Maingroup, S=18: Subgroup
+  // CORRECT Excel Column Mapping (0-indexed):
+  // A=0: ID
+  // B=1: IGNORE (Besuch durch Agentur)
+  // C=2: IGNORE (ID duplicate)
+  // D=3: Channel
+  // E=4: Banner
+  // F=5: Handelskette (Chain)
+  // G=6: IGNORE (Fil)
+  // H=7: Name
+  // I=8: PLZ (Postal Code)
+  // J=9: Stadt (City)
+  // K=10: Straße (Address)
+  // L=11: Gebietsleiter Name (MA)
+  // M=12: Email (mail)
+  // N=13: Status
+  // O=14: Filiale (Branch)
+  // P=15: Frequenz
+  // Q=16: IGNORE (Besuchsdauer)
+  // R=17: Maingroup
+  // S=18: Subgroup
 
-  const id = row[0] ? String(row[0]).trim() : '';
-  const channel = row[2] ? String(row[2]).trim() : '';
-  const banner = row[3] ? String(row[3]).trim() : '';
-  const handelskette = row[4] ? String(row[4]).trim() : '';
-  const name = row[5] ? String(row[5]).trim() : '';
-  const plz = row[6] ? String(row[6]).trim() : '';
-  const stadt = row[7] ? String(row[7]).trim() : '';
-  const strasse = row[8] ? String(row[8]).trim() : '';
-  const status = row[9] ? String(row[9]).trim() : '';
-  const filiale = row[10] ? String(row[10]).trim() : '';
-  const frequenz = row[11] ? parseFloat(String(row[11])) : 12;
-  const kundentyp = row[14] ? String(row[14]).trim() : '';
-  const tel = row[15] ? String(row[15]).trim() : '';
-  const email = row[16] ? String(row[16]).trim() : '';
-  const maingroup = row[17] ? String(row[17]).trim() : '';
-  const subgroup = row[18] ? String(row[18]).trim() : '';
+  const id = row[0] ? String(row[0]).trim() : '';                    // A=0: ID
+  const channel = row[3] ? String(row[3]).trim() : '';               // D=3: Channel
+  const banner = row[4] ? String(row[4]).trim() : '';                // E=4: Banner
+  const handelskette = row[5] ? String(row[5]).trim() : '';          // F=5: Handelskette
+  const name = row[7] ? String(row[7]).trim() : '';                  // H=7: Name
+  const plz = row[8] ? String(row[8]).trim() : '';                   // I=8: PLZ
+  const stadt = row[9] ? String(row[9]).trim() : '';                 // J=9: Stadt
+  const strasse = row[10] ? String(row[10]).trim() : '';             // K=10: Straße
+  const gebietsleiterName = row[11] ? String(row[11]).trim() : '';   // L=11: Gebietsleiter Name
+  const gebietsleiterEmail = row[12] ? String(row[12]).trim() : '';  // M=12: GL Email (NOT market email)
+  const status = row[13] ? String(row[13]).trim() : '';              // N=13: Status
+  const filiale = row[14] ? String(row[14]).trim() : '';             // O=14: Filiale
+  const frequenz = row[15] ? parseFloat(String(row[15])) : 12;       // P=15: Frequenz
+  const maingroup = row[17] ? String(row[17]).trim() : '';           // R=17: Maingroup
+  const subgroup = row[18] ? String(row[18]).trim() : '';            // S=18: Subgroup
 
   // Validate required fields
   if (!id || !name) {
@@ -115,11 +128,10 @@ const parseMarketRow = (row: any[], rowIndex: number): AdminMarket | null => {
     channel: channel || undefined,
     banner: banner || undefined,
     branch: filiale || undefined,
-    customerType: kundentyp || undefined,
-    phone: tel || undefined,
-    email: email || undefined,
-    maingroup: maingroup || undefined,
-    subgroup: subgroup || undefined,
+    gebietsleiterName: gebietsleiterName || undefined,  // L=11: GL Name
+    gebietsleiterEmail: gebietsleiterEmail || undefined, // M=12: GL Email (for notifications)
+    maingroup: maingroup || undefined,                  // R=17: Maingroup
+    subgroup: subgroup || undefined,                    // S=18: Subgroup
   };
 
   return market;

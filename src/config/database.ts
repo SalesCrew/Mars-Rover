@@ -14,6 +14,13 @@ export const API_ENDPOINTS = {
     delete: (id: string) => `${API_BASE_URL}/markets/${id}`,
     import: `${API_BASE_URL}/markets/import`,
   },
+  products: {
+    getAll: `${API_BASE_URL}/products`,
+    getById: (id: string) => `${API_BASE_URL}/products/${id}`,
+    create: `${API_BASE_URL}/products`,
+    update: (id: string) => `${API_BASE_URL}/products/${id}`,
+    delete: (id: string) => `${API_BASE_URL}/products/${id}`,
+  },
 };
 
 

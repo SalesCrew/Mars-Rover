@@ -1,280 +1,74 @@
 import type { Product } from '../types/product-types';
+import { productService } from '../services/productService';
 
-export const allProducts: Product[] = [
-  // Mars Food Products
-  {
-    id: 'mars-001',
-    name: 'Mars Classic',
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 1.29,
-    weight: 51,
-    packageSize: '51g',
-    palletSize: 120,
-    brand: 'Mars',
-    sku: 'MARS-CLR-51',
-    orderNumber: 10245,
-  },
-  {
-    id: 'snickers-001',
-    name: 'Snickers Original',
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 1.29,
-    weight: 50,
-    packageSize: '50g',
-    palletSize: 120,
-    brand: 'Snickers',
-    sku: 'SNIK-ORG-50',
-    orderNumber: 10246,
-  },
-  {
-    id: 'twix-001',
-    name: 'Twix',
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 1.29,
-    weight: 50,
-    packageSize: '50g',
-    palletSize: 120,
-    brand: 'Twix',
-    sku: 'TWIX-ORG-50',
-    orderNumber: 10247,
-  },
-  {
-    id: 'bounty-001',
-    name: 'Bounty',
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 1.29,
-    weight: 57,
-    packageSize: '57g',
-    palletSize: 100,
-    brand: 'Bounty',
-    sku: 'BNTY-ORG-57',
-    orderNumber: 10248,
-  },
-  {
-    id: 'milkyway-001',
-    name: 'Milky Way',
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 1.29,
-    weight: 43,
-    packageSize: '43g',
-    palletSize: 144,
-    brand: 'Milky Way',
-    sku: 'MLKW-ORG-43',
-    orderNumber: 10249,
-  },
-  {
-    id: 'mars-pack-001',
-    name: 'Mars Miniatures Mix',
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 4.99,
-    weight: 400,
-    packageSize: '400g',
-    palletSize: 60,
-    brand: 'Mars',
-    sku: 'MARS-MNI-400',
-    orderNumber: 10250,
-  },
-  {
-    id: 'snickers-pack-001',
-    name: 'Snickers Fun Size',
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 4.99,
-    weight: 350,
-    packageSize: '350g',
-    palletSize: 72,
-    brand: 'Snickers',
-    sku: 'SNIK-FUN-350',
-    orderNumber: 10251,
-  },
-  {
-    id: 'maltesers-001',
-    name: 'Maltesers',
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 1.99,
-    weight: 100,
-    packageSize: '100g',
-    palletSize: 96,
-    brand: 'Maltesers',
-    sku: 'MALT-ORG-100',
-    orderNumber: 10252,
-  },
-  {
-    id: 'skittles-001',
-    name: 'Skittles Fruits',
-    category: 'food',
-    subCategory: 'candy',
-    price: 1.49,
-    weight: 55,
-    packageSize: '55g',
-    palletSize: 120,
-    brand: 'Skittles',
-    sku: 'SKIT-FRT-55',
-    orderNumber: 10253,
-  },
-  {
-    id: 'mms-001',
-    name: "M&M's Peanut",
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 1.79,
-    weight: 90,
-    packageSize: '90g',
-    palletSize: 108,
-    brand: "M&M's",
-    sku: 'MMS-PNT-90',
-    orderNumber: 10254,
-  },
-  {
-    id: 'mms-002',
-    name: "M&M's Chocolate",
-    category: 'food',
-    subCategory: 'chocolate',
-    price: 1.79,
-    weight: 90,
-    packageSize: '90g',
-    palletSize: 108,
-    brand: "M&M's",
-    sku: 'MMS-CHC-90',
-    orderNumber: 10255,
-  },
+// In-memory cache
+let productsCache: Product[] = [];
+let isLoaded = false;
 
-  // Mars Pets Products
-  {
-    id: 'whiskas-001',
-    name: 'Whiskas Thunfisch',
-    category: 'pets',
-    subCategory: 'cat food',
-    price: 0.69,
-    weight: 100,
-    packageSize: '100g',
-    palletSize: 200,
-    brand: 'Whiskas',
-    sku: 'WHSK-TUN-100',
-    orderNumber: 20101,
-  },
-  {
-    id: 'whiskas-002',
-    name: 'Whiskas Huhn',
-    category: 'pets',
-    subCategory: 'cat food',
-    price: 0.69,
-    weight: 100,
-    packageSize: '100g',
-    palletSize: 200,
-    brand: 'Whiskas',
-    sku: 'WHSK-CHK-100',
-    orderNumber: 20102,
-  },
-  {
-    id: 'whiskas-003',
-    name: 'Whiskas Multipack',
-    category: 'pets',
-    subCategory: 'cat food',
-    price: 4.99,
-    weight: 1200,
-    packageSize: '12x100g',
-    palletSize: 48,
-    brand: 'Whiskas',
-    sku: 'WHSK-MLT-1200',
-    orderNumber: 20103,
-  },
-  {
-    id: 'pedigree-001',
-    name: 'Pedigree Rind',
-    category: 'pets',
-    subCategory: 'dog food',
-    price: 1.49,
-    weight: 400,
-    packageSize: '400g',
-    palletSize: 80,
-    brand: 'Pedigree',
-    sku: 'PEDG-BEF-400',
-    orderNumber: 20201,
-  },
-  {
-    id: 'pedigree-002',
-    name: 'Pedigree Huhn',
-    category: 'pets',
-    subCategory: 'dog food',
-    price: 1.49,
-    weight: 400,
-    packageSize: '400g',
-    palletSize: 80,
-    brand: 'Pedigree',
-    sku: 'PEDG-CHK-400',
-    orderNumber: 20202,
-  },
-  {
-    id: 'pedigree-003',
-    name: 'Pedigree Dentastix',
-    category: 'pets',
-    subCategory: 'dog treats',
-    price: 3.99,
-    weight: 180,
-    packageSize: '180g',
-    palletSize: 96,
-    brand: 'Pedigree',
-    sku: 'PEDG-DEN-180',
-    orderNumber: 20203,
-  },
-  {
-    id: 'dreamies-001',
-    name: 'Dreamies Katzensnacks',
-    category: 'pets',
-    subCategory: 'cat treats',
-    price: 1.99,
-    weight: 60,
-    packageSize: '60g',
-    palletSize: 144,
-    brand: 'Dreamies',
-    sku: 'DREM-ORG-60',
-    orderNumber: 20301,
-  },
-  {
-    id: 'sheba-001',
-    name: 'Sheba Fresh & Fine',
-    category: 'pets',
-    subCategory: 'cat food',
-    price: 0.89,
-    weight: 50,
-    packageSize: '50g',
-    palletSize: 200,
-    brand: 'Sheba',
-    sku: 'SHEB-FRF-50',
-    orderNumber: 20401,
-  },
-  {
-    id: 'cesar-001',
-    name: 'Cesar Hundefutter',
-    category: 'pets',
-    subCategory: 'dog food',
-    price: 0.99,
-    weight: 150,
-    packageSize: '150g',
-    palletSize: 120,
-    brand: 'Cesar',
-    sku: 'CESA-ORG-150',
-    orderNumber: 20501,
-  },
-  {
-    id: 'perfect-fit-001',
-    name: 'Perfect Fit Katzenfutter',
-    category: 'pets',
-    subCategory: 'cat food',
-    price: 5.99,
-    weight: 1400,
-    packageSize: '1.4kg',
-    brand: 'Perfect Fit',
-    sku: 'PRFT-ORG-1400',
-    orderNumber: 20601,
-  },
-];
+// Load products from API
+const loadProducts = async (): Promise<Product[]> => {
+  try {
+    const products = await productService.getAllProducts();
+    productsCache = products;
+    isLoaded = true;
+    return products;
+  } catch (error) {
+    console.error('Failed to load products from API:', error);
+    return [];
+  }
+};
 
+// Get all products (async - loads from API if needed)
+export const getAllProducts = async (): Promise<Product[]> => {
+  if (!isLoaded) {
+    await loadProducts();
+  }
+  return productsCache;
+};
+
+// Get products synchronously (returns cached data)
+export const getProductsSync = (): Product[] => {
+  return productsCache;
+};
+
+// Add products (saves to API and updates cache)
+export const addProducts = async (products: Product[]): Promise<void> => {
+  try {
+    const savedProducts = await productService.createProducts(products);
+    productsCache = [...productsCache, ...savedProducts];
+    console.log('Products saved to API:', savedProducts.length, 'Total:', productsCache.length);
+  } catch (error) {
+    console.error('Failed to save products to API:', error);
+    throw error;
+  }
+};
+
+// Update a product (saves to API and updates cache)
+export const updateProduct = async (id: string, updates: Partial<Product>): Promise<void> => {
+  try {
+    const updatedProduct = await productService.updateProduct(id, updates);
+    productsCache = productsCache.map(p => p.id === id ? updatedProduct : p);
+  } catch (error) {
+    console.error('Failed to update product:', error);
+    throw error;
+  }
+};
+
+// Delete a product (deletes from API and updates cache)
+export const deleteProduct = async (id: string): Promise<void> => {
+  try {
+    await productService.deleteProduct(id);
+    productsCache = productsCache.filter(p => p.id !== id);
+  } catch (error) {
+    console.error('Failed to delete product:', error);
+    throw error;
+  }
+};
+
+// Refresh products from API
+export const refreshProducts = async (): Promise<void> => {
+  await loadProducts();
+};
+
+// For backwards compatibility
+export const allProducts = getProductsSync;

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { User, Phone, Envelope, MapPin, X, Image } from '@phosphor-icons/react';
 import { GLDetailModal } from './GLDetailModal';
+import { gebietsleiterService, type Gebietsleiter } from '../../services/gebietsleiterService';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './GebietsleiterPage.module.css';
 
@@ -15,13 +16,13 @@ interface GL {
   id: string;
   name: string;
   address: string;
-  postalCode: string;
+  postal_code: string;
   city: string;
   phone: string;
   email: string;
-  profilePicture: string | null;
-  password: string;
-  createdAt: Date;
+  profile_picture_url: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export const GebietsleiterPage: React.FC<GebietsleiterPageProps> = ({ isCreateModalOpen, onCloseCreateModal, allMarkets = [] }) => {
@@ -29,6 +30,7 @@ export const GebietsleiterPage: React.FC<GebietsleiterPageProps> = ({ isCreateMo
   const [isSending, setIsSending] = useState(false);
   const [gebietsleiterList, setGebietsleiterList] = useState<GL[]>([]);
   const [selectedGL, setSelectedGL] = useState<GL | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -41,6 +43,23 @@ export const GebietsleiterPage: React.FC<GebietsleiterPageProps> = ({ isCreateMo
   const [emailText, setEmailText] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
+
+  // Load gebietsleiter on mount
+  useEffect(() => {
+    loadGebietsleiter();
+  }, []);
+
+  const loadGebietsleiter = async () => {
+    try {
+      setIsLoading(true);
+      const data = await gebietsleiterService.getAllGebietsleiter();
+      setGebietsleiterList(data);
+    } catch (error) {
+      console.error('Failed to load gebietsleiter:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const generateRandomPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*';
@@ -90,30 +109,28 @@ Das Mars Rover Team`;
   const handleSendEmail = async () => {
     setIsSending(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // TODO: Wire up Outlook API
-    console.log('Sending email:', emailText);
-    
-    // Create GL account
-    const newGL: GL = {
-      id: `gl-${Date.now()}`,
+    try {
+      // Create GL account in database
+      const newGL = await gebietsleiterService.createGebietsleiter({
       name: formData.name,
       address: formData.address,
       postalCode: formData.postalCode,
       city: formData.city,
       phone: formData.phone,
       email: formData.email,
-      profilePicture: profilePictureUrl,
       password: generatedPassword,
-      createdAt: new Date(),
-    };
-    
-    setGebietsleiterList(prev => [newGL, ...prev]);
+        profilePictureUrl: profilePictureUrl,
+      });
+      
+      // TODO: Wire up Outlook API to send email
+      console.log('Sending email:', emailText);
+      
+      // Reload list
+      await loadGebietsleiter();
     
     setIsSending(false);
     setIsEmailModalOpen(false);
+      
     // Reset form
     setFormData({
       name: '',
@@ -125,11 +142,21 @@ Das Mars Rover Team`;
       profilePicture: null,
     });
     setProfilePictureUrl(null);
+    } catch (error) {
+      console.error('Error creating gebietsleiter:', error);
+      alert('Fehler beim Erstellen des Gebietsleiters: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
+      setIsSending(false);
+    }
   };
 
   return (
     <div className={styles.gebietsleiterPage}>
-      {gebietsleiterList.length === 0 ? (
+      {isLoading ? (
+        <div className={styles.contentPlaceholder}>
+          <div className={styles.spinner}></div>
+          <p className={styles.placeholderText}>Lade Gebietsleiter...</p>
+        </div>
+      ) : gebietsleiterList.length === 0 ? (
         <div className={styles.contentPlaceholder}>
           <User size={64} weight="regular" className={styles.placeholderIcon} />
           <p className={styles.placeholderText}>Gebietsleiter-Verwaltung</p>
@@ -145,8 +172,8 @@ Das Mars Rover Team`;
             >
               {/* Profile Picture */}
               <div className={styles.glAvatar}>
-                {gl.profilePicture ? (
-                  <img src={gl.profilePicture} alt={gl.name} className={styles.glAvatarImage} />
+                {gl.profile_picture_url ? (
+                  <img src={gl.profile_picture_url} alt={gl.name} className={styles.glAvatarImage} />
                 ) : (
                   <div className={styles.glAvatarPlaceholder}>
                     <User size={32} weight="regular" />
@@ -165,7 +192,7 @@ Das Mars Rover Team`;
                 
                 <div className={styles.glDetail}>
                   <MapPin size={14} weight="regular" className={styles.glDetailIcon} />
-                  <span>{gl.postalCode} {gl.city}</span>
+                  <span>{gl.postal_code} {gl.city}</span>
                 </div>
                 
                 <div className={styles.glDetail}>
@@ -182,7 +209,7 @@ Das Mars Rover Team`;
               {/* Created Date */}
               <div className={styles.glFooter}>
                 <span className={styles.glCreatedDate}>
-                  Erstellt: {gl.createdAt.toLocaleDateString('de-DE', { 
+                  Erstellt: {new Date(gl.created_at).toLocaleDateString('de-DE', { 
                     day: '2-digit', 
                     month: '2-digit', 
                     year: 'numeric' 

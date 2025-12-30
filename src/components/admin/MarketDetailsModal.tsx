@@ -83,7 +83,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
 
   // List of Gebietsleiter
   const gebietsleiterList = useMemo(() => {
-    const gls = allMarkets.map(m => m.gebietsleiter).filter((gl): gl is string => !!gl);
+    const gls = allMarkets.map(m => m.gebietsleiterName).filter((gl): gl is string => !!gl);
     return Array.from(new Set(gls)).sort();
   }, [allMarkets]);
 
@@ -241,7 +241,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   const getFieldNameForType = (type: DropdownType): keyof AdminMarket => {
     const mapping: Record<DropdownType, keyof AdminMarket> = {
       status: 'isActive',
-      gl: 'gebietsleiter',
+      gl: 'gebietsleiterName',
       channel: 'channel',
       banner: 'banner',
       handelskette: 'chain',
@@ -288,8 +288,8 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
               className={styles.customDropdown}
               onClick={() => handleDropdownToggle('gl')}
             >
-              <span className={formData.gebietsleiter ? styles.dropdownText : styles.dropdownPlaceholder}>
-                {formData.gebietsleiter || 'Auswählen...'}
+              <span className={formData.gebietsleiterName ? styles.dropdownText : styles.dropdownPlaceholder}>
+                {formData.gebietsleiterName || 'Auswählen...'}
               </span>
               <CaretDown size={16} weight="bold" />
               
@@ -320,7 +320,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
                   <div className={styles.dropdownOptions}>
                     <div 
                       className={`${styles.dropdownOption} ${styles.dropdownOptionGrey}`}
-                      onClick={() => handleSelect('gebietsleiter', undefined)}
+                      onClick={() => handleSelect('gebietsleiterName', undefined)}
                     >
                       Leer
                     </div>
@@ -329,7 +329,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
                         <div 
                           key={gl}
                           className={`${styles.dropdownOption} ${styles.dropdownOptionGrey}`}
-                          onClick={() => handleSelect('gebietsleiter', gl)}
+                          onClick={() => handleSelect('gebietsleiterName', gl)}
                         >
                           {gl}
                         </div>
@@ -467,17 +467,6 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
           </div>
 
           {renderSearchableDropdown('kundentyp', 'Kundentyp', formData.customerType, uniqueCustomerTypes, 'Kundentyp', true)}
-
-          <div className={styles.field}>
-            <label className={styles.label}>Telefonnummer</label>
-            <input 
-              type="tel" 
-              className={styles.input}
-              value={formData.phone || ''}
-              onChange={(e) => handleChange('phone', e.target.value)}
-              placeholder="+43 ..."
-            />
-          </div>
 
           {/* Row 5 - Full Width Row */}
           <div className={styles.fullWidthRow}>

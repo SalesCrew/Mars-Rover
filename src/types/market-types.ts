@@ -17,6 +17,14 @@ export interface Market {
     lat: number;
     lng: number;
   };
+  // Additional fields from Excel import
+  channel?: string;
+  banner?: string;
+  branch?: string; // Filiale (Row O)
+  maingroup?: string; // Row R
+  subgroup?: string; // Row S
+  gebietsleiterName?: string; // Row L - Gebietsleiter name
+  isActive?: boolean; // Row N - status
 }
 
 export interface TourRoute {
@@ -28,18 +36,20 @@ export interface TourRoute {
 }
 
 export interface AdminMarket extends Market {
-  internalId: string; // e.g., "MKT-001"
-  isActive: boolean;
-  subgroup?: string; // e.g., "3F - Adeg", "AB - Spar Wörgl"
-  gebietsleiter?: string; // Gebietsleiter
-  channel?: string;
-  banner?: string;
-  branch?: string; // Filiale
-  visitDay?: string; // Besuchstag
-  visitDuration?: string; // Besuchdauer
-  customerType?: string; // Kundentyp
-  phone?: string; // Telefonnummer
-  email?: string; // E-Mail Adresse
-  maingroup?: string; // Maingroup (was haingroup)
+  internalId: string; // e.g., "MKT-001" (auto-generated)
+  isActive: boolean; // Row N: Status from Excel
+  subgroup?: string; // Row S: e.g., "3F - Adeg", "AB - Spar Wörgl"
+  gebietsleiter?: string; // UUID of the assigned GL (gebietsleiter_id in DB)
+  gebietsleiterName?: string; // Row L: Gebietsleiter name (visible in UI)
+  gebietsleiterEmail?: string; // GL email for notifications (Row M from Excel)
+  email?: string; // Market contact email (NOT used anymore)
+  channel?: string; // Row D: Distribution channel
+  banner?: string; // Row E: Banner/Brand group
+  branch?: string; // Row O: Filiale
+  visitDay?: string; // Besuchstag (not from Excel)
+  visitDuration?: string; // Row Q: Besuchsdauer (e.g., "30 min")
+  customerType?: string; // Kundentyp (not from Excel)
+  phone?: string; // Not displayed in UI anymore
+  maingroup?: string; // Row R: Maingroup
 }
 

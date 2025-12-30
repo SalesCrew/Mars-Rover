@@ -1,20 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle, ClockCounterClockwise, ArrowRight, ArrowsClockwise, UserMinus, UserPlus, CalendarPlus } from '@phosphor-icons/react';
+import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle, ClockCounterClockwise, ArrowRight, ArrowsClockwise, UserMinus, UserPlus, CalendarPlus, Plus, Stack, SignOut } from '@phosphor-icons/react';
 import { AdminDashboard } from './AdminDashboard';
 import { MarketsPage } from './MarketsPage';
 import { GebietsleiterPage } from './GebietsleiterPage';
 import { VorbestellerPage } from './VorbestellerPage';
+import { FragebogenPage } from './FragebogenPage';
 import { ProductsPage } from './ProductsPage';
+import { CreateDisplayModal } from './CreateDisplayModal';
 import { parseMarketFile, validateImportFile } from '../../utils/marketImporter';
 import { actionHistoryService, type ActionHistoryEntry } from '../../services/actionHistoryService';
 import { marketService } from '../../services/marketService';
+import { useAuth } from '../../contexts/AuthContext';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './AdminPanel.module.css';
 
 interface AdminPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 type AdminPage = 'dashboard' | 'markets' | 'gebietsleiter' | 'vorbesteller' | 'fragebogen' | 'produkte';
@@ -25,14 +28,19 @@ interface MenuItem {
   icon: React.ReactNode;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [selectedPage, setSelectedPage] = useState<AdminPage>('dashboard');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isHistorieModalOpen, setIsHistorieModalOpen] = useState(false);
   const [isCreateGLModalOpen, setIsCreateGLModalOpen] = useState(false);
   const [isCreateWelleModalOpen, setIsCreateWelleModalOpen] = useState(false);
+  const [isCreateModuleModalOpen, setIsCreateModuleModalOpen] = useState(false);
+  const [isCreateFragebogenModalOpen, setIsCreateFragebogenModalOpen] = useState(false);
   const [isProductImportModalOpen, setIsProductImportModalOpen] = useState(false);
+  const [isCreateDisplayModalOpen, setIsCreateDisplayModalOpen] = useState(false);
+  const [displayDepartment, setDisplayDepartment] = useState<'pets' | 'food'>('pets');
+  const [selectedProductImportType, setSelectedProductImportType] = useState<'pets-standard' | 'pets-display' | 'food-standard' | 'food-display' | null>(null);
   const [historyEntries, setHistoryEntries] = useState<ActionHistoryEntry[]>([]);
   const [historySearchTerm, setHistorySearchTerm] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -46,6 +54,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
   const [isProductDragging, setIsProductDragging] = useState(false);
   const [isProductProcessing, setIsProductProcessing] = useState(false);
   const [productImportResult, setProductImportResult] = useState<{ success: boolean; message: string; count?: number } | null>(null);
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+  };
 
   // Fetch all markets for GL detail modal
   useEffect(() => {
@@ -235,26 +248,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
     }
   };
 
-  const processProductFile = async (_file: File) => {
+  const processProductFile = async (file: File) => {
+    if (!selectedProductImportType) {
+      setProductImportResult({
+        success: false,
+        message: 'Bitte wählen Sie einen Import-Typ aus'
+      });
+      return;
+    }
+
     setIsProductProcessing(true);
     setProductImportResult(null);
 
-    // Simulate processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const { parseProductFile } = await import('../../utils/productImporter');
+      const products = await parseProductFile(file, selectedProductImportType);
+      
+      // Update the products in the data store and WAIT for it to complete
+      const { addProducts } = await import('../../data/productsData');
+      await addProducts(products);
+      
+      // Trigger update event for ProductsPage AFTER products are saved
+      window.dispatchEvent(new Event('productsUpdated'));
+      
+      console.log('Imported products:', products);
 
-    // TODO: Implement actual product import logic
-    setProductImportResult({
-      success: true,
-      message: 'Produkte erfolgreich importiert',
-      count: 0
-    });
-    setIsProductProcessing(false);
+      setProductImportResult({
+        success: true,
+        message: `${products.length} Produkte erfolgreich importiert`,
+        count: products.length
+      });
 
-    // Reset after 3 seconds
-    setTimeout(() => {
-      setProductImportResult(null);
-      setIsProductImportModalOpen(false);
-    }, 2000);
+      // Reset import type selection
+      setTimeout(() => {
+        setProductImportResult(null);
+        setIsProductImportModalOpen(false);
+        setSelectedProductImportType(null);
+      }, 2000);
+    } catch (error) {
+      console.error('Product import error:', error);
+      setProductImportResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Unbekannter Fehler beim Importieren'
+      });
+    } finally {
+      setIsProductProcessing(false);
+    }
   };
 
   return (
@@ -279,9 +318,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
             </button>
           ))}
         </nav>
+
+        {/* Logout Button */}
+        <button
+          className={styles.logoutButton}
+          onClick={handleLogout}
+          title="Abmelden"
+        >
+          <span className={styles.logoutIcon}>
+            <SignOut size={20} weight="regular" />
+          </span>
+          <span className={styles.logoutLabel}>Abmelden</span>
+        </button>
       </aside>
 
       <main className={styles.content}>
+        <div id="dropdown-portal-container" className={styles.dropdownPortal} />
         <header className={styles.header}>
           <h1 className={styles.pageTitle}>
             {menuItems.find(item => item.id === selectedPage)?.label}
@@ -326,6 +378,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
               </button>
             </div>
           )}
+          {selectedPage === 'fragebogen' && (
+            <div className={styles.headerButtons}>
+              <button 
+                className={styles.createFragebogenButton}
+                onClick={() => setIsCreateFragebogenModalOpen(true)}
+              >
+                <Plus size={18} weight="bold" />
+                <span>Fragebogen erstellen</span>
+              </button>
+              <button 
+                className={styles.createModuleButton}
+                onClick={() => setIsCreateModuleModalOpen(true)}
+              >
+                <Stack size={18} weight="bold" />
+                <span>Modul erstellen</span>
+              </button>
+            </div>
+          )}
           {selectedPage === 'produkte' && (
             <div className={styles.headerButtons}>
               <button 
@@ -344,6 +414,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
           {selectedPage === 'markets' && <MarketsPage importedMarkets={importedMarkets} />}
           {selectedPage === 'gebietsleiter' && <GebietsleiterPage isCreateModalOpen={isCreateGLModalOpen} onCloseCreateModal={() => setIsCreateGLModalOpen(false)} allMarkets={allMarkets} />}
           {selectedPage === 'vorbesteller' && <VorbestellerPage isCreateWelleModalOpen={isCreateWelleModalOpen} onCloseCreateWelleModal={() => setIsCreateWelleModalOpen(false)} onOpenCreateWelleModal={() => setIsCreateWelleModalOpen(true)} />}
+          {selectedPage === 'fragebogen' && <FragebogenPage isCreateModuleModalOpen={isCreateModuleModalOpen} onCloseCreateModuleModal={() => setIsCreateModuleModalOpen(false)} isCreateFragebogenModalOpen={isCreateFragebogenModalOpen} onCloseCreateFragebogenModal={() => setIsCreateFragebogenModalOpen(false)} />}
           {selectedPage === 'produkte' && <ProductsPage />}
         </div>
       </main>
@@ -411,60 +482,153 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
 
       {/* Product Import Modal */}
       {isProductImportModalOpen && ReactDOM.createPortal(
-        <div className={styles.importModalOverlay} onClick={() => setIsProductImportModalOpen(false)}>
+        <div className={styles.importModalOverlay} onClick={() => {
+          setIsProductImportModalOpen(false);
+          setSelectedProductImportType(null);
+        }}>
           <div className={styles.importModal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.importModalHeader}>
               <h3 className={styles.importModalTitle}>Produkte importieren</h3>
               <button 
                 className={styles.importModalClose}
-                onClick={() => setIsProductImportModalOpen(false)}
+                onClick={() => {
+                  setIsProductImportModalOpen(false);
+                  setSelectedProductImportType(null);
+                }}
               >
                 <X size={20} weight="bold" />
               </button>
             </div>
-            <div 
-              className={`${styles.importDropzone} ${isProductDragging ? styles.importDropzoneDragging : ''} ${isProductProcessing ? styles.importDropzoneProcessing : ''}`}
-              onDrop={handleProductDrop}
-              onDragOver={handleProductDragOver}
-              onDragLeave={handleProductDragLeave}
-              onClick={() => !isProductProcessing && productFileInputRef.current?.click()}
-            >
-              {isProductProcessing ? (
-                <>
-                  <div className={styles.importSpinner}></div>
-                  <h4 className={styles.importTitle}>Verarbeite Datei...</h4>
-                </>
-              ) : productImportResult ? (
-                <>
-                  {productImportResult.success ? (
+
+            {/* Import Type Selection */}
+            {!selectedProductImportType && !isProductProcessing && !productImportResult && (
+              <div className={styles.importTypeSelection}>
+                <p className={styles.importTypeLabel}>Bitte wählen Sie den Import-Typ:</p>
+                
+                {/* Mars Pets (Tiernahrung) */}
+                <div className={styles.importDepartmentSection}>
+                  <div className={styles.importDepartmentBox} style={{ 
+                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                    borderColor: 'rgba(16, 185, 129, 0.3)'
+                  }}>
+                    <span style={{ color: '#10B981', fontWeight: 600 }}>Tiernahrung</span>
+                  </div>
+                  <div className={styles.importTypeButtons}>
+                    <button
+                      className={styles.importTypeButton}
+                      onClick={() => setSelectedProductImportType('pets-standard')}
+                    >
+                      Standard Produkte
+                    </button>
+                    <button
+                      className={styles.importTypeButton}
+                      onClick={() => {
+                        setDisplayDepartment('pets');
+                        setIsProductImportModalOpen(false);
+                        setIsCreateDisplayModalOpen(true);
+                      }}
+                    >
+                      Displays
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mars Food */}
+                <div className={styles.importDepartmentSection}>
+                  <div className={styles.importDepartmentBox} style={{ 
+                    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                    borderColor: 'rgba(245, 158, 11, 0.3)'
+                  }}>
+                    <span style={{ color: '#F59E0B', fontWeight: 600 }}>Lebensmittel</span>
+                  </div>
+                  <div className={styles.importTypeButtons}>
+                    <button
+                      className={styles.importTypeButton}
+                      onClick={() => setSelectedProductImportType('food-standard')}
+                    >
+                      Standard Produkte
+                    </button>
+                    <button
+                      className={styles.importTypeButton}
+                      onClick={() => {
+                        setDisplayDepartment('food');
+                        setIsProductImportModalOpen(false);
+                        setIsCreateDisplayModalOpen(true);
+                      }}
+                    >
+                      Displays
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* File Upload Area */}
+            {selectedProductImportType && (
+              <>
+                <div className={styles.selectedImportType}>
+                  <span>Ausgewählt: </span>
+                  <strong>
+                    {selectedProductImportType === 'pets-standard' && 'Tiernahrung - Standard Produkte'}
+                    {selectedProductImportType === 'pets-display' && 'Tiernahrung - Displays'}
+                    {selectedProductImportType === 'food-standard' && 'Lebensmittel - Standard Produkte'}
+                    {selectedProductImportType === 'food-display' && 'Lebensmittel - Displays'}
+                  </strong>
+                  <button 
+                    className={styles.changeTypeButton}
+                    onClick={() => {
+                      setSelectedProductImportType(null);
+                      setProductImportResult(null);
+                    }}
+                  >
+                    Ändern
+                  </button>
+                </div>
+                <div 
+                  className={`${styles.importDropzone} ${isProductDragging ? styles.importDropzoneDragging : ''} ${isProductProcessing ? styles.importDropzoneProcessing : ''}`}
+                  onDrop={handleProductDrop}
+                  onDragOver={handleProductDragOver}
+                  onDragLeave={handleProductDragLeave}
+                  onClick={() => !isProductProcessing && productFileInputRef.current?.click()}
+                >
+                  {isProductProcessing ? (
                     <>
-                      <CheckCircle size={48} weight="fill" className={styles.importIconSuccess} />
-                      <h4 className={styles.importTitle}>{productImportResult.message}</h4>
+                      <div className={styles.importSpinner}></div>
+                      <h4 className={styles.importTitle}>Verarbeite Datei...</h4>
+                    </>
+                  ) : productImportResult ? (
+                    <>
+                      {productImportResult.success ? (
+                        <>
+                          <CheckCircle size={48} weight="fill" className={styles.importIconSuccess} />
+                          <h4 className={styles.importTitle}>{productImportResult.message}</h4>
+                        </>
+                      ) : (
+                        <>
+                          <WarningCircle size={48} weight="fill" className={styles.importIconError} />
+                          <h4 className={styles.importTitle}>Fehler</h4>
+                          <p className={styles.importSubtitle}>{productImportResult.message}</p>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
-                      <WarningCircle size={48} weight="fill" className={styles.importIconError} />
-                      <h4 className={styles.importTitle}>Fehler</h4>
-                      <p className={styles.importSubtitle}>{productImportResult.message}</p>
+                      <Upload size={48} weight="regular" className={styles.importIcon} />
+                      <h4 className={styles.importTitle}>Datei hierher ziehen</h4>
+                      <p className={styles.importSubtitle}>oder klicken zum Auswählen</p>
+                      <p className={styles.importFormats}>CSV, Excel (.xlsx, .xls)</p>
                     </>
                   )}
-                </>
-              ) : (
-                <>
-                  <Upload size={48} weight="regular" className={styles.importIcon} />
-                  <h4 className={styles.importTitle}>Datei hierher ziehen</h4>
-                  <p className={styles.importSubtitle}>oder klicken zum Auswählen</p>
-                  <p className={styles.importFormats}>CSV, Excel (.xlsx, .xls), JSON</p>
-                </>
-              )}
-            </div>
-            <input
-              ref={productFileInputRef}
-              type="file"
-              accept=".csv,.xlsx,.xls,.json"
-              style={{ display: 'none' }}
-              onChange={handleProductFileInputChange}
-            />
+                </div>
+                <input
+                  ref={productFileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  style={{ display: 'none' }}
+                  onChange={handleProductFileInputChange}
+                />
+              </>
+            )}
           </div>
         </div>,
         document.body
@@ -571,6 +735,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen }) => {
         </div>,
         document.body
       )}
+
+      {/* Create Display Modal */}
+      <CreateDisplayModal
+        isOpen={isCreateDisplayModalOpen}
+        onClose={() => {
+          setIsCreateDisplayModalOpen(false);
+          setIsProductImportModalOpen(true); // Return to product import modal
+        }}
+        onSave={async (displays) => {
+          try {
+            // Update the products in the data store and WAIT
+            const { addProducts } = await import('../../data/productsData');
+            await addProducts(displays);
+            
+            // Trigger update event for ProductsPage AFTER products are saved
+            window.dispatchEvent(new Event('productsUpdated'));
+            
+            console.log('Created displays:', displays);
+            
+            setIsCreateDisplayModalOpen(false);
+            setIsProductImportModalOpen(false);
+          } catch (error) {
+            console.error('Failed to save displays:', error);
+            alert('Fehler beim Speichern der Displays');
+          }
+        }}
+        department={displayDepartment}
+      />
     </div>
   );
 };

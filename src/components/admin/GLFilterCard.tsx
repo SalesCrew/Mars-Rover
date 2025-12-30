@@ -98,7 +98,7 @@ export const GLFilterCard: React.FC<GLFilterCardProps> = ({
   }, [selectedGL, gebietsleiter]);
   
   // Check if hovered market's GL matches selectedGL
-  const isMatchingGL = hoveredMarket && hoveredMarket.gebietsleiter === selectedGL;
+  const isMatchingGL = hoveredMarket && hoveredMarket.gebietsleiterName === selectedGL;
   const isRemoveMode = _activeMode === 'remove';
   const showRedPreview = isRemoveMode && isProcessing;
   const showBluePreview = processingType === 'swap' && isProcessing;
@@ -132,6 +132,7 @@ export const GLFilterCard: React.FC<GLFilterCardProps> = ({
         {gebietsleiter.map((gl, index) => {
           const isActive = activeGL === gl;
           const isCurrentlySelected = selectedGL === gl;
+          const isEmpty = !gl || gl.trim() === ''; // Check if placeholder
           const { row, col } = getGridPosition(index);
           
           let animationClass = '';
@@ -150,11 +151,12 @@ export const GLFilterCard: React.FC<GLFilterCardProps> = ({
           
           return (
             <button
-              key={gl}
-              className={`${styles.glButton} ${isCurrentlySelected ? styles.glButtonActive : ''} ${animationClass}`}
-              onClick={() => onGLSelect(gl)}
+              key={`${gl || `placeholder-${index}`}`}
+              className={`${styles.glButton} ${isCurrentlySelected ? styles.glButtonActive : ''} ${isEmpty ? styles.glButtonEmpty : ''} ${animationClass}`}
+              onClick={() => !isEmpty && onGLSelect(gl)}
+              disabled={isEmpty}
             >
-              {gl}
+              {gl || ''}
             </button>
           );
         })}

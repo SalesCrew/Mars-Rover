@@ -1,0 +1,556 @@
+.loginPage {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Aurora Background */
+.auroraBackground {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 500px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+/* Content Container */
+.contentContainer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  padding: 40px;
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* Branding Section */
+.brandingSection {
+  text-align: center;
+  animation: fadeInDown 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.appName {
+  font-size: 72px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #3B82F6 0%, #7cff67 50%, #3B82F6 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.02em;
+  text-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+}
+
+.tagline {
+  font-size: 18px;
+  font-weight: 500;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+/* Login Panel */
+.loginPanel {
+  background: white;
+  border-radius: 24px;
+  padding: 48px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 20px 40px rgba(59, 130, 246, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.2s backwards;
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.loginPanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3B82F6, #7cff67, #3B82F6);
+  background-size: 200% 100%;
+  animation: gradientShift 3s ease-in-out infinite;
+}
+
+/* Panel Header */
+.panelHeader {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.panelTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.01em;
+}
+
+.panelSubtitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Form */
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Error Message */
+.errorMessage {
+  padding: 14px 16px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+/* Input Group */
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 16px;
+  color: #94a3b8;
+  pointer-events: none;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+.input {
+  width: 100%;
+  padding: 14px 16px 14px 48px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 2px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+}
+
+.input::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.input:focus {
+  background: white;
+  border-color: #3B82F6;
+  box-shadow: 
+    0 0 0 3px rgba(59, 130, 246, 0.1),
+    0 2px 8px rgba(59, 130, 246, 0.08);
+}
+
+.input:focus + .inputIcon,
+.inputWrapper:focus-within .inputIcon {
+  color: #3B82F6;
+}
+
+/* Submit Button */
+.submitButton {
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 12px;
+  box-shadow: 
+    0 4px 12px rgba(59, 130, 246, 0.3),
+    0 2px 4px rgba(59, 130, 246, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.submitButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.submitButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 20px rgba(59, 130, 246, 0.4),
+    0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.submitButton:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.submitButton:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 
+    0 2px 8px rgba(59, 130, 246, 0.3),
+    0 1px 2px rgba(59, 130, 246, 0.2);
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Loading Spinner */
+.loadingSpinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Panel Footer */
+.panelFooter {
+  text-align: center;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.footerText {
+  font-size: 13px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* Animations */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* iPad and Tablet Optimizations */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .contentContainer {
+    gap: 52px;
+  }
+
+  .appName {
+    font-size: 80px;
+  }
+
+  .tagline {
+    font-size: 20px;
+  }
+
+  .loginPanel {
+    padding: 56px;
+    max-width: 520px;
+  }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 767px) {
+  .contentContainer {
+    gap: 32px;
+    padding: 24px;
+  }
+
+  .appName {
+    font-size: 48px;
+  }
+
+  .tagline {
+    font-size: 16px;
+  }
+
+  .loginPanel {
+    padding: 32px 24px;
+    max-width: 100%;
+    border-radius: 20px;
+  }
+
+  .panelTitle {
+    font-size: 24px;
+  }
+
+  .panelSubtitle {
+    font-size: 14px;
+  }
+
+  .input {
+    padding: 12px 16px 12px 44px;
+  }
+
+  .submitButton {
+    padding: 14px 20px;
+  }
+}
+
+/* Hidden Rover link for admin access */
+.roverLink {
+  cursor: default;
+  transition: none;
+}
+
+/* Admin Login Overlay */
+.adminOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Admin Panel */
+.adminPanel {
+  background: linear-gradient(145deg, #1e1e2e 0%, #0f0f1a 100%);
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
+  margin: 20px;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.adminCloseButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.adminCloseButton:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.adminHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.adminIcon {
+  color: #f59e0b;
+  margin-bottom: 12px;
+}
+
+.adminTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.01em;
+}
+
+.adminSubtitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.adminForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.adminForm .inputLabel {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.adminForm .input {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.adminForm .input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.adminForm .input:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #f59e0b;
+  box-shadow: 
+    0 0 0 3px rgba(245, 158, 11, 0.15),
+    0 2px 8px rgba(245, 158, 11, 0.1);
+}
+
+.adminForm .inputIcon {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.adminForm .inputWrapper:focus-within .inputIcon {
+  color: #f59e0b;
+}
+
+.adminSubmitButton {
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f0f1a;
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 8px;
+  box-shadow: 
+    0 4px 12px rgba(245, 158, 11, 0.3),
+    0 2px 4px rgba(245, 158, 11, 0.2);
+}
+
+.adminSubmitButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 20px rgba(245, 158, 11, 0.4),
+    0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+.adminSubmitButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.adminSubmitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.adminForm .errorMessage {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+}

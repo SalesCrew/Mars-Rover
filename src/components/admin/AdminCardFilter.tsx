@@ -48,7 +48,7 @@ export const AdminCardFilter: React.FC<AdminCardFilterProps> = ({
   const glDropdownMenuRef = useRef<HTMLDivElement>(null);
   const chainDropdownMenuRef = useRef<HTMLDivElement>(null);
 
-  // Click outside handler
+  // Click outside handler and scroll handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -70,11 +70,37 @@ export const AdminCardFilter: React.FC<AdminCardFilterProps> = ({
       }
     };
 
+    const handleScroll = () => {
+      // Update GL dropdown position on scroll
+      if (showGLDropdown && glButtonRef.current) {
+        setGlDropdownPos(calculateDropdownPos(glButtonRef));
+      }
+      // Update Chain dropdown position on scroll
+      if (showChainDropdown && chainButtonRef.current) {
+        setChainDropdownPos(calculateDropdownPos(chainButtonRef));
+      }
+      // Update Calendar position on scroll
+      if (showCalendar && zeitraumButtonRef.current) {
+        const rect = zeitraumButtonRef.current.getBoundingClientRect();
+        const parentRect = zeitraumButtonRef.current.closest(`.${styles.filterContainer}`)?.getBoundingClientRect();
+        setCalendarPos({ 
+          top: rect.bottom + 8, 
+          left: parentRect?.left || rect.left,
+          width: parentRect?.width || 500
+        });
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
     };
-  }, []);
+  }, [showGLDropdown, showChainDropdown, showCalendar]);
 
   const timeOptions = [
     { id: 'welle' as TimeFilter, label: 'Aktuelle Welle' },
@@ -159,7 +185,7 @@ export const AdminCardFilter: React.FC<AdminCardFilterProps> = ({
                   </button>
                 ))}
               </div>,
-              document.body
+              document.getElementById('dropdown-portal-container') || document.body
             )}
           </div>
 
@@ -193,7 +219,7 @@ export const AdminCardFilter: React.FC<AdminCardFilterProps> = ({
                   </button>
                 ))}
               </div>,
-              document.body
+              document.getElementById('dropdown-portal-container') || document.body
             )}
           </div>
         </div>
@@ -260,7 +286,7 @@ export const AdminCardFilter: React.FC<AdminCardFilterProps> = ({
             <button className={styles.applyButton}>Anwenden</button>
           </div>
         </div>,
-        document.body
+        document.getElementById('dropdown-portal-container') || document.body
       )}
     </div>
   );

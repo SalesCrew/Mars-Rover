@@ -391,6 +391,21 @@
   color: #6B7280;
 }
 
+/* Empty placeholder button */
+.glButtonEmpty {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.3);
+  cursor: default;
+  pointer-events: none;
+}
+
+.glButtonEmpty:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.3);
+  transform: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
 /* Slide out animations */
 .slideOutTop {
   animation: slideOutToTop 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;

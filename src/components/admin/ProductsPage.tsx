@@ -1,49 +1,49 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FunnelSimple, X, MagnifyingGlass, Package } from '@phosphor-icons/react';
-import { allProducts } from '../../data/productsData';
+import { getAllProducts } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
 import styles from './ProductsPage.module.css';
 
-type FilterType = 'category' | 'subCategory' | 'brand' | 'price';
+type FilterType = 'department' | 'productType' | 'price';
 
 export const ProductsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [openFilter, setOpenFilter] = useState<FilterType | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editedProduct, setEditedProduct] = useState<Product | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // Force re-render when products change
+  const [products, setProducts] = useState<Product[]>([]); // State for products
+  const [isLoading, setIsLoading] = useState(true); // Loading state
   const [selectedFilters, setSelectedFilters] = useState<{
-    category: string[];
-    subCategory: string[];
-    brand: string[];
+    department: string[];
+    productType: string[];
     price: string[];
   }>({
-    category: [],
-    subCategory: [],
-    brand: [],
+    department: [],
+    productType: [],
     price: []
+  });
+  const [searchTerms, setSearchTerms] = useState<Record<FilterType, string>>({
+    department: '',
+    productType: '',
+    price: ''
   });
 
   const filterRefs = {
-    category: useRef<HTMLDivElement>(null),
-    subCategory: useRef<HTMLDivElement>(null),
-    brand: useRef<HTMLDivElement>(null),
+    department: useRef<HTMLDivElement>(null),
+    productType: useRef<HTMLDivElement>(null),
     price: useRef<HTMLDivElement>(null)
   };
 
   // Get unique values for filters
-  const uniqueCategories = useMemo(() => 
-    [...new Set(allProducts.map(p => p.category))].sort(), 
-    []
+  const uniqueDepartments = useMemo(() => 
+    [...new Set(products.map(p => p.department))].sort(), 
+    [products, refreshKey]
   );
   
-  const uniqueSubCategories = useMemo(() => 
-    [...new Set(allProducts.map(p => p.subCategory))].sort(), 
-    []
-  );
-  
-  const uniqueBrands = useMemo(() => 
-    [...new Set(allProducts.map(p => p.brand))].sort(), 
-    []
+  const uniqueProductTypes = useMemo(() => 
+    [...new Set(products.map(p => p.productType))].sort(), 
+    [products, refreshKey]
   );
 
   const priceRanges = [
@@ -54,34 +54,45 @@ export const ProductsPage: React.FC = () => {
     '> €5'
   ];
 
+  // Load products on mount
+  useEffect(() => {
+    const loadProductsData = async () => {
+      setIsLoading(true);
+      try {
+        const loadedProducts = await getAllProducts();
+        setProducts(loadedProducts);
+      } catch (error) {
+        console.error('Failed to load products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProductsData();
+  }, [refreshKey]);
+
   // Apply filters
   const filteredProducts = useMemo(() => {
-    let filtered = allProducts;
+    let filtered = products;
 
     // Search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(p =>
         p.name.toLowerCase().includes(query) ||
-        p.brand.toLowerCase().includes(query) ||
-        p.sku.toLowerCase().includes(query) ||
-        p.orderNumber?.toString().includes(query)
+        p.weight.toLowerCase().includes(query) ||
+        (p.sku && p.sku.toLowerCase().includes(query))
       );
     }
 
-    // Category filter
-    if (selectedFilters.category.length > 0) {
-      filtered = filtered.filter(p => selectedFilters.category.includes(p.category));
+    // Department filter
+    if (selectedFilters.department.length > 0) {
+      filtered = filtered.filter(p => selectedFilters.department.includes(p.department));
     }
 
-    // Sub-category filter
-    if (selectedFilters.subCategory.length > 0) {
-      filtered = filtered.filter(p => selectedFilters.subCategory.includes(p.subCategory));
-    }
-
-    // Brand filter
-    if (selectedFilters.brand.length > 0) {
-      filtered = filtered.filter(p => selectedFilters.brand.includes(p.brand));
+    // Product Type filter
+    if (selectedFilters.productType.length > 0) {
+      filtered = filtered.filter(p => selectedFilters.productType.includes(p.productType));
     }
 
     // Price filter
@@ -99,7 +110,17 @@ export const ProductsPage: React.FC = () => {
     }
 
     return filtered;
-  }, [searchQuery, selectedFilters]);
+  }, [searchQuery, selectedFilters, products, refreshKey]);
+
+  // Listen for product updates
+  useEffect(() => {
+    const handleProductsUpdate = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+    
+    window.addEventListener('productsUpdated', handleProductsUpdate);
+    return () => window.removeEventListener('productsUpdated', handleProductsUpdate);
+  }, []);
 
   const handleFilterToggle = (filterType: FilterType, value: string) => {
     setSelectedFilters(prev => {
@@ -122,43 +143,68 @@ export const ProductsPage: React.FC = () => {
     return selectedFilters[filterType].length === allOptions.length && allOptions.length > 0;
   };
 
+  const handleSearchChange = (type: FilterType, value: string) => {
+    setSearchTerms(prev => ({ ...prev, [type]: value }));
+  };
+
+  // Filter options based on search term
+  const getFilteredOptions = (type: FilterType, options: string[]) => {
+    const search = searchTerms[type].toLowerCase();
+    return options.filter(option => option.toLowerCase().includes(search));
+  };
+
   const clearAllFilters = () => {
     setSelectedFilters({
-      category: [],
-      subCategory: [],
-      brand: [],
+      department: [],
+      productType: [],
       price: []
     });
     setSearchQuery('');
+    setSearchTerms({
+      department: '',
+      productType: '',
+      price: ''
+    });
   };
 
   const hasActiveFilters = 
-    selectedFilters.category.length > 0 ||
-    selectedFilters.subCategory.length > 0 ||
-    selectedFilters.brand.length > 0 ||
+    selectedFilters.department.length > 0 ||
+    selectedFilters.productType.length > 0 ||
     selectedFilters.price.length > 0 ||
     searchQuery.trim().length > 0;
 
   // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      Object.entries(filterRefs).forEach(([key, ref]) => {
-        if (ref.current && !ref.current.contains(event.target as Node)) {
-          if (openFilter === key as FilterType) {
-            setOpenFilter(null);
-          }
-        }
-      });
+      if (!openFilter) return;
+
+      const clickedElement = event.target as HTMLElement;
+      const currentFilterRef = filterRefs[openFilter].current;
+
+      // Check if click is outside the current open filter
+      if (currentFilterRef && !currentFilterRef.contains(clickedElement)) {
+        setOpenFilter(null);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [openFilter]);
 
   const formatPrice = (price: number) => `€${price.toFixed(2)}`;
 
-  const getCategoryColor = (category: string) => {
-    return category === 'pets' ? '#10B981' : '#F59E0B';
+  const getDepartmentColor = (department: string) => {
+    return department === 'pets' ? '#10B981' : '#F59E0B';
+  };
+
+  const getDepartmentLabel = (department: string) => {
+    return department === 'pets' ? 'Tiernahrung' : 'Lebensmittel';
+  };
+
+  const getProductTypeLabel = (productType: string) => {
+    return productType === 'standard' ? 'Standard' : 'Display';
   };
 
   const handleProductClick = (product: Product) => {
@@ -174,6 +220,8 @@ export const ProductsPage: React.FC = () => {
   const handleSaveProduct = () => {
     // TODO: Implement save logic (API call)
     console.log('Saving product:', editedProduct);
+    // After saving, refresh products
+    setRefreshKey(prev => prev + 1);
     handleCloseModal();
   };
 
@@ -196,7 +244,7 @@ export const ProductsPage: React.FC = () => {
             <MagnifyingGlass size={20} weight="regular" className={styles.searchIcon} />
             <input
               type="text"
-              placeholder="Suche nach Name, Marke, SKU oder Bestellnummer..."
+              placeholder="Suche nach Name, Gewicht oder SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={styles.searchInput}
@@ -232,29 +280,39 @@ export const ProductsPage: React.FC = () => {
             <span>Produktname</span>
           </div>
 
-          {/* Category */}
+          {/* Department */}
           <div 
-            className={`${styles.headerCell} ${selectedFilters.category.length > 0 ? styles.headerCellActive : ''}`}
-            ref={filterRefs.category}
+            className={`${styles.headerCell} ${selectedFilters.department.length > 0 ? styles.headerCellActive : ''}`}
+            ref={filterRefs.department}
           >
-            <span>Kategorie</span>
+            <span>Abteilung</span>
             <button
-              className={`${styles.filterButton} ${selectedFilters.category.length > 0 ? styles.filterButtonActive : ''}`}
-              onClick={() => setOpenFilter(openFilter === 'category' ? null : 'category')}
+              className={`${styles.filterButton} ${selectedFilters.department.length > 0 ? styles.filterButtonActive : ''}`}
+              onClick={() => setOpenFilter(openFilter === 'department' ? null : 'department')}
             >
-              <FunnelSimple size={14} weight={selectedFilters.category.length > 0 ? 'fill' : 'regular'} />
+              <FunnelSimple size={14} weight={selectedFilters.department.length > 0 ? 'fill' : 'regular'} />
             </button>
-            {openFilter === 'category' && (
+            {openFilter === 'department' && (
               <div className={styles.filterDropdown}>
+                <div className={styles.searchInputWrapper}>
+                  <input
+                    type="text"
+                    placeholder="Suchen..."
+                    className={styles.searchInput}
+                    value={searchTerms.department}
+                    onChange={(e) => handleSearchChange('department', e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
                 <label className={styles.filterOption}>
                   <input
                     type="checkbox"
-                    checked={isAllSelected('category', uniqueCategories)}
+                    checked={isAllSelected('department', getFilteredOptions('department', uniqueDepartments))}
                     onChange={() => {
-                      if (isAllSelected('category', uniqueCategories)) {
-                        setSelectedFilters(prev => ({ ...prev, category: [] }));
+                      if (isAllSelected('department', getFilteredOptions('department', uniqueDepartments))) {
+                        setSelectedFilters(prev => ({ ...prev, department: [] }));
                       } else {
-                        handleSelectAll('category', uniqueCategories);
+                        handleSelectAll('department', getFilteredOptions('department', uniqueDepartments));
                       }
                     }}
                   />
@@ -262,15 +320,15 @@ export const ProductsPage: React.FC = () => {
                     <strong>Alle</strong>
                   </span>
                 </label>
-                {uniqueCategories.map(cat => (
-                  <label key={cat} className={styles.filterOption}>
+                {getFilteredOptions('department', uniqueDepartments).map(dept => (
+                  <label key={dept} className={styles.filterOption}>
                     <input
                       type="checkbox"
-                      checked={selectedFilters.category.includes(cat)}
-                      onChange={() => handleFilterToggle('category', cat)}
+                      checked={selectedFilters.department.includes(dept)}
+                      onChange={() => handleFilterToggle('department', dept)}
                     />
                     <span className={styles.filterOptionLabel}>
-                      {cat === 'pets' ? 'Haustiere' : 'Lebensmittel'}
+                      {getDepartmentLabel(dept)}
                     </span>
                   </label>
                 ))}
@@ -278,29 +336,39 @@ export const ProductsPage: React.FC = () => {
             )}
           </div>
 
-          {/* Sub-Category */}
+          {/* Product Type */}
           <div 
-            className={`${styles.headerCell} ${selectedFilters.subCategory.length > 0 ? styles.headerCellActive : ''}`}
-            ref={filterRefs.subCategory}
+            className={`${styles.headerCell} ${selectedFilters.productType.length > 0 ? styles.headerCellActive : ''}`}
+            ref={filterRefs.productType}
           >
-            <span>Unterkategorie</span>
+            <span>Typ</span>
             <button
-              className={`${styles.filterButton} ${selectedFilters.subCategory.length > 0 ? styles.filterButtonActive : ''}`}
-              onClick={() => setOpenFilter(openFilter === 'subCategory' ? null : 'subCategory')}
+              className={`${styles.filterButton} ${selectedFilters.productType.length > 0 ? styles.filterButtonActive : ''}`}
+              onClick={() => setOpenFilter(openFilter === 'productType' ? null : 'productType')}
             >
-              <FunnelSimple size={14} weight={selectedFilters.subCategory.length > 0 ? 'fill' : 'regular'} />
+              <FunnelSimple size={14} weight={selectedFilters.productType.length > 0 ? 'fill' : 'regular'} />
             </button>
-            {openFilter === 'subCategory' && (
+            {openFilter === 'productType' && (
               <div className={styles.filterDropdown}>
+                <div className={styles.searchInputWrapper}>
+                  <input
+                    type="text"
+                    placeholder="Suchen..."
+                    className={styles.searchInput}
+                    value={searchTerms.productType}
+                    onChange={(e) => handleSearchChange('productType', e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
                 <label className={styles.filterOption}>
                   <input
                     type="checkbox"
-                    checked={isAllSelected('subCategory', uniqueSubCategories)}
+                    checked={isAllSelected('productType', getFilteredOptions('productType', uniqueProductTypes))}
                     onChange={() => {
-                      if (isAllSelected('subCategory', uniqueSubCategories)) {
-                        setSelectedFilters(prev => ({ ...prev, subCategory: [] }));
+                      if (isAllSelected('productType', getFilteredOptions('productType', uniqueProductTypes))) {
+                        setSelectedFilters(prev => ({ ...prev, productType: [] }));
                       } else {
-                        handleSelectAll('subCategory', uniqueSubCategories);
+                        handleSelectAll('productType', getFilteredOptions('productType', uniqueProductTypes));
                       }
                     }}
                   />
@@ -308,62 +376,23 @@ export const ProductsPage: React.FC = () => {
                     <strong>Alle</strong>
                   </span>
                 </label>
-                {uniqueSubCategories.map(subCat => (
-                  <label key={subCat} className={styles.filterOption}>
+                {getFilteredOptions('productType', uniqueProductTypes).map(type => (
+                  <label key={type} className={styles.filterOption}>
                     <input
                       type="checkbox"
-                      checked={selectedFilters.subCategory.includes(subCat)}
-                      onChange={() => handleFilterToggle('subCategory', subCat)}
+                      checked={selectedFilters.productType.includes(type)}
+                      onChange={() => handleFilterToggle('productType', type)}
                     />
-                    <span className={styles.filterOptionLabel}>{subCat}</span>
+                    <span className={styles.filterOptionLabel}>{getProductTypeLabel(type)}</span>
                   </label>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Brand */}
-          <div 
-            className={`${styles.headerCell} ${selectedFilters.brand.length > 0 ? styles.headerCellActive : ''}`}
-            ref={filterRefs.brand}
-          >
-            <span>Marke</span>
-            <button
-              className={`${styles.filterButton} ${selectedFilters.brand.length > 0 ? styles.filterButtonActive : ''}`}
-              onClick={() => setOpenFilter(openFilter === 'brand' ? null : 'brand')}
-            >
-              <FunnelSimple size={14} weight={selectedFilters.brand.length > 0 ? 'fill' : 'regular'} />
-            </button>
-            {openFilter === 'brand' && (
-              <div className={styles.filterDropdown}>
-                <label className={styles.filterOption}>
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected('brand', uniqueBrands)}
-                    onChange={() => {
-                      if (isAllSelected('brand', uniqueBrands)) {
-                        setSelectedFilters(prev => ({ ...prev, brand: [] }));
-                      } else {
-                        handleSelectAll('brand', uniqueBrands);
-                      }
-                    }}
-                  />
-                  <span className={styles.filterOptionLabel}>
-                    <strong>Alle</strong>
-                  </span>
-                </label>
-                {uniqueBrands.map(brand => (
-                  <label key={brand} className={styles.filterOption}>
-                    <input
-                      type="checkbox"
-                      checked={selectedFilters.brand.includes(brand)}
-                      onChange={() => handleFilterToggle('brand', brand)}
-                    />
-                    <span className={styles.filterOptionLabel}>{brand}</span>
-                  </label>
-                ))}
-              </div>
-            )}
+          {/* Weight */}
+          <div className={styles.headerCell}>
+            <span>Gewicht</span>
           </div>
 
           {/* Price */}
@@ -380,15 +409,25 @@ export const ProductsPage: React.FC = () => {
             </button>
             {openFilter === 'price' && (
               <div className={styles.filterDropdown}>
+                <div className={styles.searchInputWrapper}>
+                  <input
+                    type="text"
+                    placeholder="Suchen..."
+                    className={styles.searchInput}
+                    value={searchTerms.price}
+                    onChange={(e) => handleSearchChange('price', e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
                 <label className={styles.filterOption}>
                   <input
                     type="checkbox"
-                    checked={isAllSelected('price', priceRanges)}
+                    checked={isAllSelected('price', getFilteredOptions('price', priceRanges))}
                     onChange={() => {
-                      if (isAllSelected('price', priceRanges)) {
+                      if (isAllSelected('price', getFilteredOptions('price', priceRanges))) {
                         setSelectedFilters(prev => ({ ...prev, price: [] }));
                       } else {
-                        handleSelectAll('price', priceRanges);
+                        handleSelectAll('price', getFilteredOptions('price', priceRanges));
                       }
                     }}
                   />
@@ -396,7 +435,7 @@ export const ProductsPage: React.FC = () => {
                     <strong>Alle</strong>
                   </span>
                 </label>
-                {priceRanges.map(range => (
+                {getFilteredOptions('price', priceRanges).map(range => (
                   <label key={range} className={styles.filterOption}>
                     <input
                       type="checkbox"
@@ -410,30 +449,20 @@ export const ProductsPage: React.FC = () => {
             )}
           </div>
 
-          {/* Package Size */}
-          <div className={styles.headerCell}>
-            <span>Größe</span>
-          </div>
-
           {/* Pallet Size */}
           <div className={styles.headerCell}>
             <span>Palette</span>
-          </div>
-
-          {/* SKU */}
-          <div className={styles.headerCell}>
-            <span>SKU</span>
-          </div>
-
-          {/* Order Number */}
-          <div className={styles.headerCell}>
-            <span>Best.-Nr.</span>
           </div>
         </div>
 
         {/* Products List */}
         <div className={styles.listContent}>
-          {filteredProducts.length === 0 ? (
+          {isLoading ? (
+            <div className={styles.emptyState}>
+              <Package size={48} weight="regular" />
+              <p>Lade Produkte...</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className={styles.emptyState}>
               <Package size={48} weight="regular" />
               <p>Keine Produkte gefunden</p>
@@ -455,28 +484,28 @@ export const ProductsPage: React.FC = () => {
                   <span className={styles.productName}>{product.name}</span>
                 </div>
 
-                {/* Category */}
+                {/* Department */}
                 <div className={styles.productCell}>
                   <span 
                     className={styles.categoryBadge}
                     style={{ 
-                      backgroundColor: `${getCategoryColor(product.category)}15`,
-                      color: getCategoryColor(product.category),
-                      borderColor: `${getCategoryColor(product.category)}30`
+                      backgroundColor: `${getDepartmentColor(product.department)}15`,
+                      color: getDepartmentColor(product.department),
+                      borderColor: `${getDepartmentColor(product.department)}30`
                     }}
                   >
-                    {product.category === 'pets' ? 'Haustiere' : 'Lebensmittel'}
+                    {getDepartmentLabel(product.department)}
                   </span>
                 </div>
 
-                {/* Sub-Category */}
+                {/* Product Type */}
                 <div className={styles.productCell}>
-                  <span className={styles.subCategory}>{product.subCategory}</span>
+                  <span className={styles.subCategory}>{getProductTypeLabel(product.productType)}</span>
                 </div>
 
-                {/* Brand */}
+                {/* Weight */}
                 <div className={styles.productCell}>
-                  <span className={styles.brand}>{product.brand}</span>
+                  <span className={styles.packageSize}>{product.weight}</span>
                 </div>
 
                 {/* Price */}
@@ -484,24 +513,9 @@ export const ProductsPage: React.FC = () => {
                   <span className={styles.price}>{formatPrice(product.price)}</span>
                 </div>
 
-                {/* Package Size */}
-                <div className={styles.productCell}>
-                  <span className={styles.packageSize}>{product.packageSize}</span>
-                </div>
-
                 {/* Pallet Size */}
                 <div className={styles.productCell}>
                   <span className={styles.palletSize}>{product.palletSize || '-'}</span>
-                </div>
-
-                {/* SKU */}
-                <div className={styles.productCell}>
-                  <span className={styles.sku}>{product.sku}</span>
-                </div>
-
-                {/* Order Number */}
-                <div className={styles.productCell}>
-                  <span className={styles.orderNumber}>{product.orderNumber}</span>
                 </div>
               </div>
             ))
@@ -514,7 +528,20 @@ export const ProductsPage: React.FC = () => {
         <div className={styles.modalOverlay} onClick={handleCloseModal}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>{selectedProduct.name}</h3>
+              <div className={styles.modalTitleRow}>
+                <h3 className={styles.modalTitle}>{selectedProduct.name}</h3>
+                <span 
+                  className={styles.categoryBadge}
+                  style={{ 
+                    backgroundColor: `${getDepartmentColor(selectedProduct.department)}15`,
+                    color: getDepartmentColor(selectedProduct.department),
+                    borderColor: `${getDepartmentColor(selectedProduct.department)}30`,
+                    marginLeft: '12px'
+                  }}
+                >
+                  {getDepartmentLabel(selectedProduct.department)}
+                </span>
+              </div>
               <button className={styles.modalClose} onClick={handleCloseModal}>
                 <X size={20} weight="bold" />
               </button>
@@ -532,38 +559,53 @@ export const ProductsPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Brand */}
+                {/* Department */}
                 <div className={styles.detailItem}>
-                  <label className={styles.detailLabel}>Marke</label>
-                  <input
-                    type="text"
-                    className={styles.detailInput}
-                    value={editedProduct.brand}
-                    onChange={(e) => handleInputChange('brand', e.target.value)}
-                  />
-                </div>
-
-                {/* Category */}
-                <div className={styles.detailItem}>
-                  <label className={styles.detailLabel}>Kategorie</label>
+                  <label className={styles.detailLabel}>Abteilung</label>
                   <select
                     className={styles.detailSelect}
-                    value={editedProduct.category}
-                    onChange={(e) => handleInputChange('category', e.target.value)}
+                    value={editedProduct.department}
+                    onChange={(e) => handleInputChange('department', e.target.value)}
                   >
-                    <option value="pets">Haustiere</option>
+                    <option value="pets">Tiernahrung</option>
                     <option value="food">Lebensmittel</option>
                   </select>
                 </div>
 
-                {/* Sub-Category */}
+                {/* Product Type */}
                 <div className={styles.detailItem}>
-                  <label className={styles.detailLabel}>Unterkategorie</label>
+                  <label className={styles.detailLabel}>Produkttyp</label>
+                  <select
+                    className={styles.detailSelect}
+                    value={editedProduct.productType}
+                    onChange={(e) => handleInputChange('productType', e.target.value)}
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="display">Display</option>
+                  </select>
+                </div>
+
+                {/* Weight */}
+                <div className={styles.detailItem}>
+                  <label className={styles.detailLabel}>Gewicht</label>
                   <input
                     type="text"
                     className={styles.detailInput}
-                    value={editedProduct.subCategory}
-                    onChange={(e) => handleInputChange('subCategory', e.target.value)}
+                    value={editedProduct.weight}
+                    onChange={(e) => handleInputChange('weight', e.target.value)}
+                    placeholder="z.B. 150g, 1kg"
+                  />
+                </div>
+
+                {/* Content */}
+                <div className={styles.detailItem}>
+                  <label className={styles.detailLabel}>Inhalt</label>
+                  <input
+                    type="text"
+                    className={styles.detailInput}
+                    value={editedProduct.content || ''}
+                    onChange={(e) => handleInputChange('content', e.target.value)}
+                    placeholder="Optional"
                   />
                 </div>
 
@@ -579,17 +621,6 @@ export const ProductsPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Package Size */}
-                <div className={styles.detailItem}>
-                  <label className={styles.detailLabel}>Packungsgröße</label>
-                  <input
-                    type="text"
-                    className={styles.detailInput}
-                    value={editedProduct.packageSize}
-                    onChange={(e) => handleInputChange('packageSize', e.target.value)}
-                  />
-                </div>
-
                 {/* Pallet Size */}
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>Palettengröße (Stück)</label>
@@ -602,50 +633,15 @@ export const ProductsPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Weight */}
-                <div className={styles.detailItem}>
-                  <label className={styles.detailLabel}>Gewicht (g)</label>
-                  <input
-                    type="number"
-                    className={styles.detailInput}
-                    value={editedProduct.weight || ''}
-                    onChange={(e) => handleInputChange('weight', parseInt(e.target.value) || 0)}
-                    placeholder="Optional"
-                  />
-                </div>
-
-                {/* Volume */}
-                <div className={styles.detailItem}>
-                  <label className={styles.detailLabel}>Volumen (ml)</label>
-                  <input
-                    type="number"
-                    className={styles.detailInput}
-                    value={editedProduct.volume || ''}
-                    onChange={(e) => handleInputChange('volume', parseInt(e.target.value) || 0)}
-                    placeholder="Optional"
-                  />
-                </div>
-
                 {/* SKU */}
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>SKU</label>
                   <input
                     type="text"
                     className={styles.detailInput}
-                    value={editedProduct.sku}
+                    value={editedProduct.sku || ''}
                     onChange={(e) => handleInputChange('sku', e.target.value)}
-                  />
-                </div>
-
-                {/* Order Number */}
-                <div className={styles.detailItem}>
-                  <label className={styles.detailLabel}>Bestellnummer</label>
-                  <input
-                    type="number"
-                    className={styles.detailInput}
-                    value={editedProduct.orderNumber || ''}
-                    onChange={(e) => handleInputChange('orderNumber', parseInt(e.target.value) || 0)}
-                    placeholder="5-stellig"
+                    placeholder="Automatisch generiert"
                   />
                 </div>
               </div>

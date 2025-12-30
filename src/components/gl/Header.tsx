@@ -1,15 +1,16 @@
 import React from 'react';
-import { Bell } from '@phosphor-icons/react';
+import { SignOut } from '@phosphor-icons/react';
 import styles from './Header.module.css';
 
 interface HeaderProps {
   firstName: string;
   avatar: string;
   onDevPanelToggle?: () => void;
-  onNotificationClick?: () => void;
+  onLogout?: () => void;
+  onProfileClick?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onDevPanelToggle, onNotificationClick }) => {
+export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onDevPanelToggle, onLogout, onProfileClick }) => {
   return (
     <header className={styles.header}>
       <div className={styles.headerContent}>
@@ -27,14 +28,19 @@ export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onDevPanelTog
         
         <div className={styles.headerActions}>
           <button 
-            className={styles.notificationButton} 
-            aria-label="Benachrichtigungen"
-            onClick={onNotificationClick}
+            className={styles.logoutButton} 
+            aria-label="Abmelden"
+            onClick={onLogout}
+            title="Abmelden"
           >
-            <Bell size={20} weight="regular" />
+            <SignOut size={20} weight="regular" />
           </button>
           
-          <button className={styles.avatarButton} aria-label="Profil">
+          <button 
+            className={styles.avatarButton} 
+            aria-label="Profil"
+            onClick={onProfileClick}
+          >
             <img src={avatar} alt={firstName} />
           </button>
         </div>

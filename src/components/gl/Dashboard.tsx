@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BonusHeroCard } from './BonusHeroCard';
 import { QuickActionsBar } from './QuickActionsBar';
 import { MarketFrequencyAlerts } from './MarketFrequencyAlerts';
@@ -13,12 +13,17 @@ import { ChatBubble } from './ChatBubble';
 import { PreorderNotification } from './PreorderNotification';
 import { VorbestellerModal } from './VorbestellerModal';
 import { StatisticsContent } from './StatisticsContent';
+import { ProfilePage } from './ProfilePage';
 import { AdminPanel } from '../admin/AdminPanel';
 import Aurora from './Aurora';
-import type { GLDashboard, NavigationTab } from '../../types/gl-types';
+import type { GLDashboard, NavigationTab, GLProfile } from '../../types/gl-types';
 import type { TourRoute, Market } from '../../types/market-types';
-import { allMarkets } from '../../data/marketsData';
+import { allMarkets as mockMarkets } from '../../data/marketsData';
+import { mockProfileData } from '../../data/mockData';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useAuth } from '../../contexts/AuthContext';
+import { gebietsleiterService } from '../../services/gebietsleiterService';
+import { marketService } from '../../services/marketService';
 import styles from './Dashboard.module.css';
 
 interface DashboardProps {
@@ -35,26 +40,92 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [activeTour, setActiveTour] = useState<TourRoute | null>(null);
   const [notificationTrigger, setNotificationTrigger] = useState(0);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [glProfileData, setGlProfileData] = useState<any>(null);
+  const [realMarkets, setRealMarkets] = useState<Market[]>([]);
   const { isMobile } = useResponsive();
+  const { logout, user } = useAuth();
 
-  // Keyboard shortcut for Admin Panel (Ctrl + Alt + A)
+  // Fetch GL profile data on mount
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.altKey && (event.key === 'a' || event.key === 'A')) {
-        event.preventDefault();
-        console.log('Admin panel toggle');
-        setIsAdminPanelOpen(prev => {
-          console.log('Opening admin panel:', !prev);
-          return !prev;
-        });
+    const fetchGLProfile = async () => {
+      if (user?.id) {
+        try {
+          const glData = await gebietsleiterService.getGebietsleiterById(user.id);
+          setGlProfileData(glData);
+        } catch (error) {
+          console.error('Error fetching GL profile:', error);
+        }
       }
     };
+    fetchGLProfile();
+  }, [user?.id]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+  // Fetch real markets from database
+  useEffect(() => {
+    const fetchMarkets = async () => {
+      try {
+        const dbMarkets = await marketService.getAllMarkets();
+        const markets: Market[] = dbMarkets.map(m => ({
+          id: m.id,
+          name: m.name,
+          address: m.address,
+          city: m.city,
+          postalCode: m.postalCode,
+          chain: m.chain || '',
+          frequency: m.frequency || 12,
+          currentVisits: 0,
+          lastVisitDate: '',
+          isCompleted: false,
+        }));
+        setRealMarkets(markets);
+      } catch (error) {
+        console.error('Error fetching markets:', error);
+        setRealMarkets(mockMarkets); // Fallback to mock data
+      }
     };
+    fetchMarkets();
   }, []);
+
+  // Build profile data from GL data or use mock as fallback
+  const profileData: GLProfile = useMemo(() => {
+    if (glProfileData) {
+      return {
+        ...mockProfileData, // Keep stats from mock for now
+        id: glProfileData.id,
+        name: glProfileData.name,
+        address: glProfileData.address,
+        postalCode: glProfileData.postal_code,
+        city: glProfileData.city,
+        phone: glProfileData.phone,
+        email: glProfileData.email,
+        profilePictureUrl: glProfileData.profile_picture_url,
+        createdAt: glProfileData.created_at,
+      };
+    }
+    return mockProfileData;
+  }, [glProfileData]);
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  // Admin Panel keyboard shortcut DISABLED - admin access via separate login only
+  // useEffect(() => {
+  //   const handleKeyDown = (event: KeyboardEvent) => {
+  //     if (event.ctrlKey && event.altKey && (event.key === 'a' || event.key === 'A')) {
+  //       event.preventDefault();
+  //       console.log('Admin panel toggle');
+  //       setIsAdminPanelOpen(prev => {
+  //         console.log('Opening admin panel:', !prev);
+  //         return !prev;
+  //       });
+  //     }
+  //   };
+  //   window.addEventListener('keydown', handleKeyDown);
+  //   return () => {
+  //     window.removeEventListener('keydown', handleKeyDown);
+  //   };
+  // }, []);
 
   const handleBonusClick = () => {
     console.log('Navigate to bonus details');
@@ -109,7 +180,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const handleTabChange = (tab: NavigationTab) => {
     setActiveTab(tab);
     console.log('Navigate to:', tab);
-    // TODO: Implement routing
+  };
+
+  const handleProfileClick = () => {
+    setActiveTab('profile');
   };
 
   const handleNotificationClick = () => {
@@ -135,9 +209,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
       {/* Header */}
       <Header 
-        firstName={data.user.firstName} 
-        avatar={data.user.avatar}
-        onNotificationClick={activeTab === 'dashboard' ? handleNotificationClick : undefined}
+        firstName={user?.firstName || data.user.firstName} 
+        avatar={glProfileData?.profile_picture_url || data.user.avatar}
+        onLogout={handleLogout}
+        onProfileClick={handleProfileClick}
       />
 
       {/* Main Content */}
@@ -177,6 +252,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           {activeTab === 'statistics' && (
             <StatisticsContent />
           )}
+
+          {activeTab === 'profile' && (
+            <ProfilePage profile={profileData} />
+          )}
         </div>
       </main>
 
@@ -192,7 +271,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       <MarketSelectionModal
         isOpen={isMarketModalOpen}
         onClose={() => setIsMarketModalOpen(false)}
-        markets={allMarkets}
+        markets={realMarkets.length > 0 ? realMarkets : mockMarkets}
         onStartVisit={handleStartSingleVisit}
         onStartTour={handleStartTour}
       />

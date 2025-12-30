@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, CaretDown, MagnifyingGlass, Plus, Minus, ArrowsClockwise, Package, Sparkle, Check, ArrowsLeftRight, Storefront } from '@phosphor-icons/react';
 import type { Product, ProductWithQuantity, ReplacementSuggestion } from '../../types/product-types';
-import { allProducts } from '../../data/productsData';
+import { getAllProducts } from '../../data/productsData';
 import { allMarkets } from '../../data/marketsData';
 import { RingLoader } from 'react-spinners';
 import { ExchangeSuccessModal } from './ExchangeSuccessModal';
@@ -30,6 +30,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   const [marketSearchQuery, setMarketSearchQuery] = useState('');
   const marketDropdownRef = useRef<HTMLDivElement>(null);
   const marketSearchInputRef = useRef<HTMLInputElement>(null);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   
   // Dropdown states for removed products
   const [isRemovedDropdownOpen, setIsRemovedDropdownOpen] = useState(false);
@@ -43,6 +45,25 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   const availableDropdownRef = useRef<HTMLDivElement>(null);
   const availableSearchInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch real products from database
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoadingProducts(true);
+        const products = await getAllProducts();
+        setAllProducts(products);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchProducts();
+    }
+  }, [isOpen]);
+
   // Filter products based on search query
   const filteredRemovedProducts = useMemo(() => {
     const query = removedSearchQuery.toLowerCase().trim();
@@ -50,11 +71,10 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
     
     return allProducts.filter(p => 
       p.name.toLowerCase().includes(query) ||
-      p.brand.toLowerCase().includes(query) ||
-      p.category.toLowerCase().includes(query) ||
-      p.sku.toLowerCase().includes(query)
+      p.department.toLowerCase().includes(query) ||
+      (p.sku && p.sku.toLowerCase().includes(query))
     );
-  }, [removedSearchQuery]);
+  }, [removedSearchQuery, allProducts]);
 
   const filteredAvailableProducts = useMemo(() => {
     const query = availableSearchQuery.toLowerCase().trim();
@@ -62,17 +82,16 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
     
     return allProducts.filter(p => 
       p.name.toLowerCase().includes(query) ||
-      p.brand.toLowerCase().includes(query) ||
-      p.category.toLowerCase().includes(query) ||
-      p.sku.toLowerCase().includes(query)
+      p.department.toLowerCase().includes(query) ||
+      (p.sku && p.sku.toLowerCase().includes(query))
     );
-  }, [availableSearchQuery]);
+  }, [availableSearchQuery, allProducts]);
 
   // Group products by category
   const groupedRemovedProducts = useMemo(() => {
     const groups: Record<string, Product[]> = {};
     filteredRemovedProducts.forEach(product => {
-      const key = `${product.category}-${product.subCategory}`;
+      const key = `${product.department}-${product.productType}`;
       if (!groups[key]) groups[key] = [];
       groups[key].push(product);
     });
@@ -82,7 +101,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   const groupedAvailableProducts = useMemo(() => {
     const groups: Record<string, Product[]> = {};
     filteredAvailableProducts.forEach(product => {
-      const key = `${product.category}-${product.subCategory}`;
+      const key = `${product.department}-${product.productType}`;
       if (!groups[key]) groups[key] = [];
       groups[key].push(product);
     });
@@ -248,8 +267,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   ): ReplacementSuggestion[] => {
     const singleProductSuggestions: ReplacementSuggestion[] = [];
     const multiProductSuggestions: ReplacementSuggestion[] = [];
-    const removedCategory = removedProducts[0]?.product.category;
-    const removedBrand = removedProducts[0]?.product.brand;
+    const removedCategory = removedProducts[0]?.product.department;
+    const removedBrand = removedProducts[0]?.product.name; // Use name as brand identifier
 
     // Strategy 1: Single product match
     products.forEach(p => {
@@ -264,8 +283,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
           totalValue,
           valueDifference: valueDiff,
           matchScore: calculateMatchScore(p.product, removedCategory, removedBrand, valueDiff, targetValue),
-          categoryMatch: p.product.category === removedCategory,
-          brandMatch: p.product.brand === removedBrand,
+          categoryMatch: p.product.department === removedCategory,
+          brandMatch: p.product.name === removedBrand,
         });
       }
     });
@@ -297,8 +316,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                 totalValue,
                 valueDifference: valueDiff,
                 matchScore: avgScore - (valueDiff / targetValue) * 15,
-                categoryMatch: p1.product.category === removedCategory || p2.product.category === removedCategory,
-                brandMatch: p1.product.brand === removedBrand || p2.product.brand === removedBrand,
+                categoryMatch: p1.product.department === removedCategory || p2.product.department === removedCategory,
+                brandMatch: p1.product.name === removedBrand || p2.product.name === removedBrand,
               });
             }
           }
@@ -342,14 +361,14 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
     let score = 100;
     
     // Category match is most important
-    if (product.category === targetCategory) {
+    if (product.department === targetCategory) {
       score += 30;
     } else {
       score -= 20;
     }
     
     // Brand match is valuable
-    if (product.brand === targetBrand) {
+    if (product.name === targetBrand) {
       score += 20;
     }
     
@@ -438,7 +457,17 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                 >
                   <span className={selectedMarketId ? styles.dropdownText : styles.dropdownPlaceholder}>
                     {selectedMarketId 
-                      ? allMarkets.find(m => m.id === selectedMarketId)?.name 
+                      ? (() => {
+                          const market = allMarkets.find(m => m.id === selectedMarketId);
+                          return market ? (
+                            <>
+                              <span style={{ fontWeight: 'var(--font-weight-semibold)' }}>{market.chain}</span>
+                              <span style={{ opacity: 0.5, marginLeft: '8px' }}>
+                                {market.address}, {market.postalCode} {market.city}
+                              </span>
+                            </>
+                          ) : 'Markt wählen...';
+                        })()
                       : 'Markt wählen...'}
                   </span>
                   <CaretDown size={16} className={styles.dropdownChevron} />
@@ -569,8 +598,14 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                 <div className={styles.productInfo}>
                                   <div className={styles.productName}>{product.name}</div>
                                   <div className={styles.productDetails}>
-                                    {product.brand} · {product.packageSize} · {formatPrice(product.price)}
+                                    {product.weight || product.content || '-'}
                                   </div>
+                                </div>
+                                <div className={styles.productPriceInfo}>
+                                  {product.palletSize && (
+                                    <span className={styles.palletSize}>{product.palletSize} Stk</span>
+                                  )}
+                                  <span className={styles.productPrice}>{formatPrice(product.price)}</span>
                                 </div>
                               </button>
                             ))}
@@ -589,7 +624,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                         <div className={styles.productCardInfo}>
                           <div className={styles.productCardName}>{p.product.name}</div>
                           <div className={styles.productCardMeta}>
-                            {p.product.brand} · {p.product.packageSize}
+                            {p.product.weight || p.product.content || '-'}
+                            {p.product.palletSize && ` · ${p.product.palletSize} Stk`}
                           </div>
                         </div>
                         <div className={styles.quantityControls}>
@@ -689,8 +725,14 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                 <div className={styles.productInfo}>
                                   <div className={styles.productName}>{product.name}</div>
                                   <div className={styles.productDetails}>
-                                    {product.brand} · {product.packageSize} · {formatPrice(product.price)}
+                                    {product.weight || product.content || '-'}
                                   </div>
+                                </div>
+                                <div className={styles.productPriceInfo}>
+                                  {product.palletSize && (
+                                    <span className={styles.palletSize}>{product.palletSize} Stk</span>
+                                  )}
+                                  <span className={styles.productPrice}>{formatPrice(product.price)}</span>
                                 </div>
                               </button>
                             ))}
@@ -709,7 +751,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                         <div className={styles.productCardInfo}>
                           <div className={styles.productCardName}>{p.product.name}</div>
                           <div className={styles.productCardMeta}>
-                            {p.product.brand} · {p.product.packageSize}
+                            {p.product.weight || p.product.content || '-'}
+                            {p.product.palletSize && ` · ${p.product.palletSize} Stk`}
                           </div>
                         </div>
                         <div className={styles.quantityControls}>
@@ -805,7 +848,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                   {p.quantity}x {p.product.name}
                                 </div>
                                 <div className={styles.suggestionProductMeta}>
-                                  {p.product.brand} · {p.product.packageSize}
+                                  {p.product.weight || p.product.content || '-'}
+                                  {p.product.palletSize && ` · ${p.product.palletSize} Stk`}
                                 </div>
                               </div>
                               <div className={styles.suggestionProductPrice}>
@@ -938,7 +982,17 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                   >
                     <span className={selectedMarketId ? styles.dropdownText : styles.dropdownPlaceholder}>
                       {selectedMarketId 
-                        ? allMarkets.find(m => m.id === selectedMarketId)?.name 
+                        ? (() => {
+                            const market = allMarkets.find(m => m.id === selectedMarketId);
+                            return market ? (
+                              <>
+                                <span style={{ fontWeight: 'var(--font-weight-semibold)' }}>{market.chain}</span>
+                                <span style={{ opacity: 0.5, marginLeft: '8px' }}>
+                                  {market.address}, {market.postalCode} {market.city}
+                                </span>
+                              </>
+                            ) : 'Markt wählen...';
+                          })()
                         : 'Markt wählen...'}
                     </span>
                     <CaretDown size={16} className={styles.dropdownChevron} />

@@ -1,4 +1,4 @@
-import type { GLDashboard } from '../types/gl-types';
+import type { GLDashboard, GLProfile } from '../types/gl-types';
 
 export const mockDashboardData: GLDashboard = {
   user: {
@@ -177,3 +177,50 @@ export const mockDashboardData: GLDashboard = {
   },
 };
 
+export const mockProfileData: GLProfile = {
+  id: 'gl-001',
+  name: 'Thomas Müller',
+  address: 'Mariahilfer Straße 88',
+  postalCode: '1070',
+  city: 'Wien',
+  phone: '+43 664 123 4567',
+  email: 'thomas.mueller@marsrover.at',
+  profilePictureUrl: 'https://i.pravatar.cc/150?img=12',
+  createdAt: '2024-03-15T10:00:00Z',
+  // Statistics
+  monthlyVisits: 38,
+  totalMarkets: 180,
+  mostVisitedMarket: {
+    name: 'Billa Hauptstraße',
+    chain: 'BILLA',
+    visitCount: 24,
+  },
+  averageVisitDuration: 42,
+  sellInSuccessRate: 68,
+  topMarkets: [
+    {
+      id: 'billa-hauptstrasse',
+      name: 'Billa Hauptstraße',
+      chain: 'BILLA',
+      address: 'Hauptstraße 45, 1010 Wien',
+      visitCount: 24,
+      lastVisit: '2024-12-27T14:30:00Z',
+    },
+    {
+      id: 'spar-mariahilf',
+      name: 'Spar Mariahilf',
+      chain: 'Spar',
+      address: 'Mariahilfer Str. 120, 1070 Wien',
+      visitCount: 22,
+      lastVisit: '2024-12-26T10:15:00Z',
+    },
+    {
+      id: 'merkur-landstrasse',
+      name: 'Merkur Landstraße',
+      chain: 'Merkur',
+      address: 'Landstraßer Hauptstraße 50, 1030 Wien',
+      visitCount: 20,
+      lastVisit: '2024-12-24T16:45:00Z',
+    },
+  ],
+};

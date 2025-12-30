@@ -9,6 +9,7 @@ import type { ActionLogEntry } from './GLFilterCard';
 import { adminMarkets } from '../../data/adminMarketsData';
 import { marketService } from '../../services/marketService';
 import { actionHistoryService } from '../../services/actionHistoryService';
+import { gebietsleiterService } from '../../services/gebietsleiterService';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './MarketsPage.module.css';
 
@@ -22,6 +23,8 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
   const [markets, setMarkets] = useState<AdminMarket[]>([]);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [glNames, setGlNames] = useState<string[]>([]);
+  const [glsData, setGlsData] = useState<any[]>([]); // Store full GL data
   const [selectedMarket, setSelectedMarket] = useState<AdminMarket | null>(null);
   const [hoveredMarket, setHoveredMarket] = useState<AdminMarket | null>(null);
   const [selectedGL, setSelectedGL] = useState<string | null>(null);
@@ -90,6 +93,57 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
     loadMarkets();
   }, []);
 
+  // Load GLs from database on mount
+  useEffect(() => {
+    const loadGLs = async () => {
+      try {
+        const fetchedGLs = await gebietsleiterService.getAllGebietsleiter();
+        console.log('📊 Fetched GLs:', fetchedGLs);
+        
+        // Store full GL data for later use
+        setGlsData(fetchedGLs);
+        
+        // Use full names
+        const names = fetchedGLs.map(gl => gl.name);
+        
+        console.log('📊 GL names:', names);
+        
+        // Always ensure we have exactly 8 entries
+        const displayNames = [...names];
+        while (displayNames.length < 8) {
+          displayNames.push(''); // Add empty placeholders
+        }
+        setGlNames(displayNames.slice(0, 8)); // Take only first 8
+      } catch (error) {
+        console.error('Failed to load GLs:', error);
+        // Fallback to 8 empty placeholders
+        setGlNames(Array(8).fill(''));
+      }
+    };
+
+    loadGLs();
+  }, []);
+
+  // Click outside handler to close filters
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!openFilter) return;
+
+      const clickedElement = event.target as HTMLElement;
+      const currentFilterRef = filterRefs[openFilter].current;
+
+      // Check if click is outside the current open filter
+      if (currentFilterRef && !currentFilterRef.contains(clickedElement)) {
+        setOpenFilter(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openFilter]);
+
   // Handle imported markets
   useEffect(() => {
     if (importedMarkets.length > 0) {
@@ -123,7 +177,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
   const uniqueChains = [...new Set(markets.map(m => m.chain))].sort();
   const uniqueIDs = [...new Set(markets.map(m => m.internalId))].sort();
   const uniqueAddresses = [...new Set(markets.map(m => `${m.address}, ${m.postalCode} ${m.city}`))].sort();
-  const uniqueGLs = [...new Set([...markets.map(m => m.gebietsleiter).filter(Boolean), 'Daniel D.', 'Markus M.', 'Stefan S.', 'Lisa L.', 'Thomas T.', 'Anna A.', 'Michael M.', 'Julia J.'])].sort() as string[];
+  const uniqueGLs = [...new Set([...markets.map(m => m.gebietsleiterName).filter(Boolean), ...glNames.filter(Boolean)])].sort() as string[];
   const uniqueSubgroups = [...new Set(markets.map(m => m.subgroup).filter(Boolean))].sort();
   const statusOptions = ['Aktiv', 'Inaktiv'];
 
@@ -170,7 +224,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
 
       // Check Gebietsleiter filter (only apply when not using GLFilterCard)
       if (!selectedGL && selectedFilters.gebietsleiter.length > 0 && 
-          (!market.gebietsleiter || !selectedFilters.gebietsleiter.includes(market.gebietsleiter))) {
+          (!market.gebietsleiterName || !selectedFilters.gebietsleiter.includes(market.gebietsleiterName))) {
         return false;
       }
 
@@ -195,12 +249,12 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
   // Separate markets into GL's markets and other markets
   const glMarkets = useMemo(() => {
     if (!selectedGL) return [];
-    return filteredMarkets.filter(m => m.gebietsleiter === selectedGL);
+    return filteredMarkets.filter(m => m.gebietsleiterName === selectedGL);
   }, [filteredMarkets, selectedGL]);
 
   const otherMarkets = useMemo(() => {
     if (!selectedGL) return filteredMarkets;
-    return filteredMarkets.filter(m => m.gebietsleiter !== selectedGL);
+    return filteredMarkets.filter(m => m.gebietsleiterName !== selectedGL);
   }, [filteredMarkets, selectedGL]);
 
   // Calculate stats based on GL's markets when selected, otherwise all filtered
@@ -251,7 +305,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
     // If in add mode and a GL is selected
     if (activeMode === 'add' && selectedGL) {
       // Check if market already has a GL (swap) or not (assign)
-      const willSwap = market.gebietsleiter && market.gebietsleiter !== selectedGL;
+      const willSwap = market.gebietsleiterName && market.gebietsleiterName !== selectedGL;
       
       setProcessingType(willSwap ? 'swap' : 'assign');
       setIsProcessing(true);
@@ -268,18 +322,34 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
         };
 
         // Check if market already has a GL
-        if (market.gebietsleiter && market.gebietsleiter !== selectedGL) {
+        if (market.gebietsleiterName && market.gebietsleiterName !== selectedGL) {
           // Swap action
           logEntry.type = 'swap';
-          logEntry.previousGl = market.gebietsleiter;
-        } else if (market.gebietsleiter === selectedGL) {
+          logEntry.previousGl = market.gebietsleiterName;
+        } else if (market.gebietsleiterName === selectedGL) {
           // Already assigned to this GL - do nothing
           setIsProcessing(false);
           setProcessingType(undefined);
           return;
         }
 
-        const updatedMarket = { ...market, gebietsleiter: selectedGL };
+        // Find the full GL data by name
+        const selectedGLData = glsData.find(gl => gl.name === selectedGL);
+        
+        if (!selectedGLData) {
+          console.error('Could not find GL data for:', selectedGL);
+          setIsProcessing(false);
+          setProcessingType(undefined);
+          return;
+        }
+
+        // Update ALL GL-related fields
+        const updatedMarket = { 
+          ...market, 
+          gebietsleiter: selectedGLData.id, // UUID
+          gebietsleiterName: selectedGLData.name, // Full name
+          gebietsleiterEmail: selectedGLData.email // Email
+        };
 
         try {
           // Update in database
@@ -360,7 +430,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
     // If in remove mode and a GL is selected
     if (activeMode === 'remove' && selectedGL) {
       // Can only remove markets assigned to the selected GL
-      if (market.gebietsleiter !== selectedGL) {
+      if (market.gebietsleiterName !== selectedGL) {
         return; // Can't remove other GL's markets
       }
 
@@ -521,7 +591,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
         totalMarkets={totalMarkets}
         activeMarkets={activeMarkets}
         inactiveMarkets={inactiveMarkets}
-        gebietsleiter={uniqueGLs}
+        gebietsleiter={glNames}
         selectedGL={selectedGL}
         onGLSelect={handleGLSelect}
         hoveredMarket={hoveredMarket}
@@ -561,12 +631,12 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
                 <label className={styles.filterOption}>
                   <input
                     type="checkbox"
-                    checked={isAllSelected('chain', uniqueChains)}
+                    checked={isAllSelected('chain', getFilteredOptions('chain', uniqueChains))}
                     onChange={() => {
-                      if (isAllSelected('chain', uniqueChains)) {
+                      if (isAllSelected('chain', getFilteredOptions('chain', uniqueChains))) {
                         setSelectedFilters(prev => ({ ...prev, chain: [] }));
                       } else {
-                        handleSelectAll('chain', uniqueChains);
+                        handleSelectAll('chain', getFilteredOptions('chain', uniqueChains));
                       }
                     }}
                   />
@@ -609,12 +679,12 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
                 <label className={styles.filterOption}>
                   <input
                     type="checkbox"
-                    checked={isAllSelected('id', uniqueIDs)}
+                    checked={isAllSelected('id', getFilteredOptions('id', uniqueIDs))}
                     onChange={() => {
-                      if (isAllSelected('id', uniqueIDs)) {
+                      if (isAllSelected('id', getFilteredOptions('id', uniqueIDs))) {
                         setSelectedFilters(prev => ({ ...prev, id: [] }));
                       } else {
-                        handleSelectAll('id', uniqueIDs);
+                        handleSelectAll('id', getFilteredOptions('id', uniqueIDs));
                       }
                     }}
                   />
@@ -657,12 +727,12 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
                 <label className={styles.filterOption}>
                   <input
                     type="checkbox"
-                    checked={isAllSelected('adresse', uniqueAddresses)}
+                    checked={isAllSelected('adresse', getFilteredOptions('adresse', uniqueAddresses))}
                     onChange={() => {
-                      if (isAllSelected('adresse', uniqueAddresses)) {
+                      if (isAllSelected('adresse', getFilteredOptions('adresse', uniqueAddresses))) {
                         setSelectedFilters(prev => ({ ...prev, adresse: [] }));
                       } else {
-                        handleSelectAll('adresse', uniqueAddresses);
+                        handleSelectAll('adresse', getFilteredOptions('adresse', uniqueAddresses));
                       }
                     }}
                   />
@@ -705,12 +775,12 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
                 <label className={styles.filterOption}>
                   <input
                     type="checkbox"
-                    checked={isAllSelected('gebietsleiter', uniqueGLs as string[])}
+                    checked={isAllSelected('gebietsleiter', getFilteredOptions('gebietsleiter', uniqueGLs as string[]))}
                     onChange={() => {
-                      if (isAllSelected('gebietsleiter', uniqueGLs as string[])) {
+                      if (isAllSelected('gebietsleiter', getFilteredOptions('gebietsleiter', uniqueGLs as string[]))) {
                         setSelectedFilters(prev => ({ ...prev, gebietsleiter: [] }));
                       } else {
-                        handleSelectAll('gebietsleiter', uniqueGLs as string[]);
+                        handleSelectAll('gebietsleiter', getFilteredOptions('gebietsleiter', uniqueGLs as string[]));
                       }
                     }}
                   />
@@ -753,12 +823,12 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
                 <label className={styles.filterOption}>
                   <input
                     type="checkbox"
-                    checked={isAllSelected('subgroup', uniqueSubgroups as string[])}
+                    checked={isAllSelected('subgroup', getFilteredOptions('subgroup', uniqueSubgroups as string[]))}
                     onChange={() => {
-                      if (isAllSelected('subgroup', uniqueSubgroups as string[])) {
+                      if (isAllSelected('subgroup', getFilteredOptions('subgroup', uniqueSubgroups as string[]))) {
                         setSelectedFilters(prev => ({ ...prev, subgroup: [] }));
                       } else {
-                        handleSelectAll('subgroup', uniqueSubgroups as string[]);
+                        handleSelectAll('subgroup', getFilteredOptions('subgroup', uniqueSubgroups as string[]));
                       }
                     }}
                   />
@@ -804,12 +874,12 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
                 <label className={styles.filterOption}>
                   <input
                     type="checkbox"
-                    checked={isAllSelected('status', statusOptions)}
+                    checked={isAllSelected('status', getFilteredOptions('status', statusOptions))}
                     onChange={() => {
-                      if (isAllSelected('status', statusOptions)) {
+                      if (isAllSelected('status', getFilteredOptions('status', statusOptions))) {
                         setSelectedFilters(prev => ({ ...prev, status: [] }));
                       } else {
-                        handleSelectAll('status', statusOptions);
+                        handleSelectAll('status', getFilteredOptions('status', statusOptions));
                       }
                     }}
                   />
@@ -890,7 +960,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
             >
               {(_item, index) => {
                 const market = allDisplayMarkets[index];
-                const isGLMarket = selectedGL && market.gebietsleiter === selectedGL && !isGLSectionCollapsed;
+                const isGLMarket = selectedGL && market.gebietsleiterName === selectedGL && !isGLSectionCollapsed;
                 return (
                   <div
                     onMouseEnter={() => setHoveredMarket(market)}

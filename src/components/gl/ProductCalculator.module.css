@@ -315,6 +315,30 @@
   color: var(--color-text-secondary);
 }
 
+.productPriceInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-shrink: 0;
+}
+
+.palletSize {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  padding: 2px 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.productPrice {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-teal-mid);
+  min-width: 60px;
+  text-align: right;
+}
+
 /* Selected Products */
 .selectedProducts {
   display: flex;

@@ -135,27 +135,29 @@ class MarketService {
     return {
       id: dbMarket.id,
       internalId: dbMarket.internal_id,
-      name: dbMarket.name,
-      address: dbMarket.address || '',
-      city: dbMarket.city || '',
-      postalCode: dbMarket.postal_code || '',
-      chain: dbMarket.chain || '',
-      frequency: dbMarket.frequency || 12,
+      name: dbMarket.name, // Row H
+      address: dbMarket.address || '', // Row K
+      city: dbMarket.city || '', // Row J
+      postalCode: dbMarket.postal_code || '', // Row I
+      chain: dbMarket.chain || '', // Row F: Handelskette (displayed in pills)
+      frequency: dbMarket.frequency || 12, // Row P
       currentVisits: dbMarket.current_visits || 0,
       lastVisitDate: dbMarket.last_visit_date,
       isCompleted: dbMarket.is_completed || false,
-      isActive: dbMarket.is_active ?? true,
-      gebietsleiter: dbMarket.gebietsleiter,
-      channel: dbMarket.channel,
-      banner: dbMarket.banner,
-      branch: dbMarket.branch,
-      subgroup: dbMarket.subgroup,
+      isActive: dbMarket.is_active ?? true, // Row N: Status
+      gebietsleiter: dbMarket.gebietsleiter_id, // UUID - CRITICAL for GL assignment
+      gebietsleiterName: dbMarket.gebietsleiter_name, // Row L
+      gebietsleiterEmail: dbMarket.gebietsleiter_email, // For notifications
+      email: dbMarket.email, // Row M: Market contact email (NOT used anymore)
+      channel: dbMarket.channel, // Row D
+      banner: dbMarket.banner, // Row E
+      branch: dbMarket.branch, // Row O: Filiale
+      subgroup: dbMarket.subgroup, // Row S
       visitDay: dbMarket.visit_day,
-      visitDuration: dbMarket.visit_duration,
+      visitDuration: dbMarket.visit_duration, // Row Q: Besuchsdauer
       customerType: dbMarket.customer_type,
-      phone: dbMarket.phone,
-      email: dbMarket.email,
-      maingroup: dbMarket.maingroup,
+      phone: dbMarket.phone, // Not displayed in UI
+      maingroup: dbMarket.maingroup, // Row R
       coordinates: dbMarket.latitude && dbMarket.longitude ? {
         lat: parseFloat(dbMarket.latitude),
         lng: parseFloat(dbMarket.longitude),
@@ -177,27 +179,29 @@ class MarketService {
     return {
       id: market.id,
       internal_id: market.internalId,
-      name: market.name,
-      address: market.address,
-      city: market.city,
-      postal_code: market.postalCode,
-      chain: market.chain,
-      frequency: market.frequency,
+      name: market.name, // Row H
+      address: market.address, // Row K
+      city: market.city, // Row J
+      postal_code: market.postalCode, // Row I
+      chain: market.chain, // Row F: Handelskette
+      frequency: market.frequency, // Row P
       current_visits: market.currentVisits,
       last_visit_date: market.lastVisitDate,
       is_completed: market.isCompleted,
-      is_active: market.isActive,
-      gebietsleiter: market.gebietsleiter,
-      channel: market.channel,
-      banner: market.banner,
-      branch: market.branch,
-      subgroup: market.subgroup,
+      is_active: market.isActive, // Row N: Status
+      gebietsleiter_id: market.gebietsleiter, // UUID - CRITICAL for GL assignment
+      gebietsleiter_name: market.gebietsleiterName, // Row L
+      gebietsleiter_email: market.gebietsleiterEmail, // For notifications
+      email: market.email, // Row M: Market contact email (NOT used anymore)
+      channel: market.channel, // Row D
+      banner: market.banner, // Row E
+      branch: market.branch, // Row O: Filiale
+      subgroup: market.subgroup, // Row S
       visit_day: market.visitDay,
-      visit_duration: market.visitDuration,
+      visit_duration: market.visitDuration, // Row Q: Besuchsdauer
       customer_type: market.customerType,
-      phone: market.phone,
-      email: market.email,
-      maingroup: market.maingroup,
+      phone: market.phone, // Not displayed in UI
+      maingroup: market.maingroup, // Row R
       latitude: market.coordinates?.lat,
       longitude: market.coordinates?.lng,
     };

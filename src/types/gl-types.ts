@@ -1,10 +1,10 @@
-// GL Dashboard TypeScript Types
+// GL Dashboard Types
 
 export interface User {
   firstName: string;
   lastName: string;
   avatar: string;
-  role: 'gl' | 'admin';
+  role: 'gl';
 }
 
 export interface Bonuses {
@@ -26,13 +26,13 @@ export interface MarketFrequencyAlert {
     current: number;
     required: number;
   };
-  status: 'on-track' | 'at-risk';
-  lastVisitWeeks: number; // weeks since last visit
+  status: 'at-risk' | 'on-track';
+  lastVisitWeeks: number;
 }
 
 export interface PerformanceMetrics {
-  averageVisitDuration: number; // in minutes
-  sellInSuccessRate: number; // percentage
+  averageVisitDuration: number;
+  sellInSuccessRate: number;
   weeklyTrend: Array<{
     week: string;
     sellIns: number;
@@ -42,35 +42,42 @@ export interface PerformanceMetrics {
 export interface GLDashboard {
   user: User;
   bonuses: Bonuses;
-  frequencyAlerts: MarketFrequencyAlert[];
-  performanceMetrics?: PerformanceMetrics;
   quickActions: {
     openVisitsToday: number;
   };
+  frequencyAlerts: MarketFrequencyAlert[];
+  performanceMetrics?: PerformanceMetrics;
 }
 
 export type NavigationTab = 'dashboard' | 'statistics' | 'sell-ins' | 'profile';
 
-export interface WelleData {
+// GL Profile Types
+export interface GLProfile {
   id: string;
-  name: string; // e.g., "KW 48-49" or "Q4 2024"
-  startDate: Date;
-  endDate: Date;
-  billaPlus: ChainStats;
-  spar: ChainStats;
+  name: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  phone: string;
+  email: string;
+  profilePictureUrl: string | null;
+  createdAt: string;
+  // Statistics
+  monthlyVisits: number;
+  totalMarkets: number;
+  mostVisitedMarket: {
+    name: string;
+    chain: string;
+    visitCount: number;
+  };
+  averageVisitDuration: number;
+  sellInSuccessRate: number;
+  topMarkets: Array<{
+    id: string;
+    name: string;
+    chain: string;
+    address: string;
+    visitCount: number;
+    lastVisit: string;
+  }>;
 }
-
-export interface ChainStats {
-  totalMarkets: number; // Total markets for this chain
-  withVorbesteller: number; // Markets with Display or Kartonware
-  displayCount: number; // Markets with Display
-  kartonwareCount: number; // Markets with Kartonware
-  goalPercentage: number; // 80 for Billa+, 60 for Spar
-}
-
-export interface TimeframeOption {
-  id: 'current' | '3months' | 'year' | 'custom';
-  label: string;
-  type: 'welle' | 'average';
-}
-

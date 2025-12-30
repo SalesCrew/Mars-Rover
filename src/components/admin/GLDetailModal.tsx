@@ -426,7 +426,7 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, allMa
 
   // Get available markets (markets not assigned to this GL)
   const availableMarkets = allMarkets.filter(market => 
-    market.gebietsleiter !== gl.name
+    market.gebietsleiterName !== gl.name
   );
 
   // Filter available markets based on search
@@ -441,7 +441,7 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, allMa
 
   // Handle market assignment
   const handleAssignMarket = async (market: AdminMarket) => {
-    const previousGL = market.gebietsleiter || undefined;
+    const previousGL = market.gebietsleiterName || undefined;
     const actionType = previousGL ? 'swap' : 'assign';
     
     // Create action log
@@ -934,9 +934,9 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, allMa
                             <div className={styles.addMarketName}>{market.name || market.address}</div>
                             <div className={styles.addMarketAddress}>{market.postalCode} {market.city}</div>
                           </div>
-                          {market.gebietsleiter && (
+                          {market.gebietsleiterName && (
                             <div className={styles.addMarketCurrentGL}>
-                              Aktuell: {market.gebietsleiter}
+                              Aktuell: {market.gebietsleiterName}
                             </div>
                           )}
                         </div>

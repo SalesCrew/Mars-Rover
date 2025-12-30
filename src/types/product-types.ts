@@ -1,16 +1,13 @@
 export interface Product {
   id: string;
-  name: string;
-  category: 'pets' | 'food';
-  subCategory: string; // e.g., 'cat food', 'dog treats', 'chocolate', 'snacks'
-  price: number; // in EUR
-  weight?: number; // in grams
-  volume?: number; // in ml
-  packageSize: string; // e.g., '400g', '1.5kg', '200ml'
-  palletSize?: number; // units per pallet
-  brand: string; // e.g., 'Whiskas', 'Pedigree', 'Mars', 'Snickers'
-  sku: string; // Stock Keeping Unit
-  orderNumber?: number; // 5-digit order number
+  name: string; // Row A: Artikelbezeichnung
+  department: 'pets' | 'food'; // Mars Pets (Tiernahrung) or Mars Food
+  productType: 'standard' | 'display'; // Standard Products or Displays
+  weight: string; // Row C: Weight (e.g., "150g", "1kg")
+  content?: string; // Row D: Inhalt (only in detailed view, not in list)
+  palletSize?: number; // Row F: Einheiten Pro Palette
+  price: number; // Row K: Price in EUR
+  sku?: string; // Generated or imported SKU
 }
 
 export interface ProductCalculation {

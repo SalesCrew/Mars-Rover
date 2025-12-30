@@ -74,7 +74,7 @@ const SortableMarketItem: React.FC<SortableMarketItemProps> = ({
         className={styles.selectedMarket}
       >
         <span className={styles.selectedMarketOrder}>{index + 1}</span>
-        <span className={styles.selectedMarketName}>{market.name}</span>
+        <span className={styles.selectedMarketName}>{market.chain}</span>
         <span className={styles.selectedMarketTime}>
           {formatTime(totalStopTime)}
         </span>
@@ -396,7 +396,17 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                   <span className={mode === 'single' && !selectedMarket ? styles.dropdownPlaceholder : styles.dropdownText}>
                     {mode === 'single' 
                       ? (selectedMarket 
-                          ? markets.find(m => m.id === selectedMarket)?.name 
+                          ? (() => {
+                              const market = markets.find(m => m.id === selectedMarket);
+                              return market ? (
+                                <>
+                                  <span style={{ fontWeight: 'var(--font-weight-semibold)' }}>{market.chain}</span>
+                                  <span style={{ opacity: 0.5, marginLeft: '8px' }}>
+                                    {market.address}, {market.postalCode} {market.city}
+                                  </span>
+                                </>
+                              ) : 'Markt wählen...';
+                            })()
                           : 'Markt wählen...')
                       : `${selectedMarkets.length} ${selectedMarkets.length === 1 ? 'Markt' : 'Märkte'} ausgewählt`
                     }
@@ -432,7 +442,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                         onClick={() => handleMarketSelect(market.id)}
                       >
                         <div className={styles.itemInfo}>
-                          <div className={styles.itemName}>{market.name}</div>
+                          <div className={styles.itemName}>{market.chain}</div>
                           <div className={styles.itemAddress}>
                             {market.address}, {market.postalCode} {market.city}
                           </div>
@@ -456,7 +466,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                           <Check size={14} weight="bold" color="white" />
                         </div>
                         <div className={styles.itemInfo}>
-                          <div className={styles.itemName}>{market.name}</div>
+                          <div className={styles.itemName}>{market.chain}</div>
                           <div className={styles.itemAddress}>
                             {market.address}, {market.postalCode} {market.city}
                           </div>
@@ -535,7 +545,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                               )}
                             </div>
                             <div className={styles.itemInfo}>
-                              <div className={styles.itemName}>{market.name}</div>
+                              <div className={styles.itemName}>{market.chain}</div>
                               <div className={styles.itemAddress}>
                                 {market.address}, {market.postalCode} {market.city}
                               </div>
@@ -561,7 +571,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                               <Check size={14} weight="bold" color="white" />
                             </div>
                             <div className={styles.itemInfo}>
-                              <div className={styles.itemName}>{market.name}</div>
+                              <div className={styles.itemName}>{market.chain}</div>
                               <div className={styles.itemAddress}>
                                 {market.address}, {market.postalCode} {market.city}
                               </div>
@@ -612,7 +622,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                           <div key={marketId} className={styles.summaryMarketItem}>
                             <div className={styles.summaryMarketNumber}>{index + 1}</div>
                             <div className={styles.summaryMarketInfo}>
-                              <div className={styles.summaryMarketName}>{market.name}</div>
+                              <div className={styles.summaryMarketName}>{market.chain}</div>
                               <div className={styles.summaryMarketAddress}>
                                 {market.address}, {market.postalCode} {market.city}
                               </div>
@@ -647,7 +657,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                     <div key={marketId} className={styles.summaryMarketItem}>
                       <div className={styles.summaryMarketNumber}>{index + 1}</div>
                       <div className={styles.summaryMarketInfo}>
-                        <div className={styles.summaryMarketName}>{market.name}</div>
+                        <div className={styles.summaryMarketName}>{market.chain}</div>
                         <div className={styles.summaryMarketAddress}>
                           {market.address}, {market.postalCode} {market.city}
                         </div>

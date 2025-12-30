@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, CaretDown, MagnifyingGlass, Plus, Minus, Receipt, Check, Storefront, CheckCircle, Package } from '@phosphor-icons/react';
 import type { Product } from '../../types/product-types';
-import { allProducts } from '../../data/productsData';
-import { allMarkets } from '../../data/marketsData';
+import type { Market } from '../../types/market-types';
+import { getAllProducts } from '../../data/productsData';
+import { marketService } from '../../services/marketService';
 import styles from './VorverkaufModal.module.css';
 
 interface VorverkaufModalProps {
@@ -35,11 +36,66 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   const [showMarketConfirmation, setShowMarketConfirmation] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [allMarkets, setAllMarkets] = useState<Market[]>([]);
+  const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   
   const productDropdownRef = useRef<HTMLDivElement>(null);
   const productSearchInputRef = useRef<HTMLInputElement>(null);
   const marketDropdownRef = useRef<HTMLDivElement>(null);
   const marketSearchInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch real markets from database
+  useEffect(() => {
+    const fetchMarkets = async () => {
+      try {
+        setIsLoadingMarkets(true);
+        const dbMarkets = await marketService.getAllMarkets();
+        // Transform to Market type
+        const markets: Market[] = dbMarkets.map(m => ({
+          id: m.id,
+          name: m.name,
+          address: m.address,
+          city: m.city,
+          postalCode: m.postalCode,
+          chain: m.chain || '',
+          frequency: m.frequency || 12,
+          currentVisits: 0,
+          lastVisitDate: '',
+          isCompleted: false,
+        }));
+        setAllMarkets(markets);
+      } catch (error) {
+        console.error('Error fetching markets:', error);
+      } finally {
+        setIsLoadingMarkets(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchMarkets();
+    }
+  }, [isOpen]);
+
+  // Fetch real products from database
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoadingProducts(true);
+        const products = await getAllProducts();
+        setAllProducts(products);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchProducts();
+    }
+  }, [isOpen]);
 
   // Filter products based on search query
   const filteredProducts = useMemo(() => {
@@ -48,25 +104,26 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     
     return allProducts.filter(p => 
       p.name.toLowerCase().includes(query) ||
-      p.brand.toLowerCase().includes(query) ||
-      p.sku.toLowerCase().includes(query) ||
-      p.orderNumber?.toString().includes(query)
+      p.department.toLowerCase().includes(query) ||
+      (p.sku && p.sku.toLowerCase().includes(query))
     );
-  }, [productSearchQuery]);
+  }, [productSearchQuery, allProducts]);
 
   // Group products by category
   const groupedProducts = useMemo(() => {
     const groups: Record<string, Product[]> = {};
     filteredProducts.forEach(product => {
-      const key = `${product.category}-${product.subCategory}`;
+      const key = `${product.department}-${product.productType}`;
       if (!groups[key]) groups[key] = [];
       groups[key].push(product);
     });
     return groups;
   }, [filteredProducts]);
 
-  const getCategoryLabel = (category: string, subCategory: string) => {
-    return `${category} - ${subCategory}`;
+  const getCategoryLabel = (department: string, productType: string) => {
+    const deptLabel = department === 'pets' ? 'Tiernahrung' : 'Lebensmittel';
+    const typeLabel = productType === 'standard' ? 'Standard' : 'Display';
+    return `${deptLabel} - ${typeLabel}`;
   };
 
   const formatPrice = (price: number) => `€${price.toFixed(2)}`;
@@ -81,7 +138,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
       m.address.toLowerCase().includes(query) ||
       m.city.toLowerCase().includes(query)
     );
-  }, [marketSearchQuery]);
+  }, [marketSearchQuery, allMarkets]);
 
   const uncompletedMarkets = filteredMarkets.filter(m => !m.isCompleted);
   const completedMarkets = filteredMarkets.filter(m => m.isCompleted);
@@ -209,7 +266,17 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                 >
                   <span className={selectedMarketId ? styles.dropdownText : styles.dropdownPlaceholder}>
                     {selectedMarketId 
-                      ? allMarkets.find(m => m.id === selectedMarketId)?.name 
+                      ? (() => {
+                          const market = allMarkets.find(m => m.id === selectedMarketId);
+                          return market ? (
+                            <>
+                              <span style={{ fontWeight: 'var(--font-weight-semibold)' }}>{market.chain}</span>
+                              <span style={{ opacity: 0.5, marginLeft: '8px' }}>
+                                {market.address}, {market.postalCode} {market.city}
+                              </span>
+                            </>
+                          ) : 'Markt wählen...';
+                        })()
                       : 'Markt wählen...'}
                   </span>
                   <CaretDown size={16} className={styles.dropdownChevron} />
@@ -244,7 +311,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                             }}
                           >
                             <div className={styles.productInfo}>
-                              <div className={styles.productName}>{market.name}</div>
+                              <div className={styles.productName}>{market.chain}</div>
                               <div className={styles.productDetails}>
                                 {market.address}, {market.postalCode} {market.city}
                               </div>
@@ -271,7 +338,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                               <Check size={14} weight="bold" color="white" />
                             </div>
                             <div className={styles.productInfo}>
-                              <div className={styles.productName}>{market.name}</div>
+                              <div className={styles.productName}>{market.chain}</div>
                               <div className={styles.productDetails}>
                                 {market.address}, {market.postalCode} {market.city}
                               </div>
@@ -375,7 +442,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
           <div className={styles.marketSection}>
             <h3 className={styles.sectionTitle}>Markt</h3>
             <div className={styles.marketCard}>
-              <div className={styles.marketName}>{currentMarket?.name || 'Unbekannt'}</div>
+              <div className={styles.marketName}>{currentMarket?.chain || 'Unbekannt'}</div>
               <div className={styles.marketBadge}>Dokumentiert</div>
             </div>
           </div>
@@ -390,7 +457,8 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                   <div className={styles.productDetails}>
                     <div className={styles.productItemName}>{p.product.name}</div>
                     <div className={styles.productItemMeta}>
-                      {p.quantity}x · {p.product.brand} · {formatPrice(p.product.price * p.quantity)}
+                      {p.quantity}x · {p.product.weight || p.product.content || '-'}
+                      {p.product.palletSize && ` · ${p.product.palletSize} Stk`} · {formatPrice(p.product.price * p.quantity)}
                     </div>
                   </div>
                 </div>
@@ -447,7 +515,17 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
               >
                 <span className={selectedMarketId ? styles.dropdownText : styles.dropdownPlaceholder}>
                   {selectedMarketId 
-                    ? allMarkets.find(m => m.id === selectedMarketId)?.name 
+                    ? (() => {
+                        const market = allMarkets.find(m => m.id === selectedMarketId);
+                        return market ? (
+                          <>
+                            <span style={{ fontWeight: 'var(--font-weight-semibold)' }}>{market.chain}</span>
+                            <span style={{ opacity: 0.5, marginLeft: '8px' }}>
+                              {market.address}, {market.postalCode} {market.city}
+                            </span>
+                          </>
+                        ) : 'Markt wählen...';
+                      })()
                     : 'Markt wählen...'}
                 </span>
                 <CaretDown size={16} className={styles.dropdownChevron} />
@@ -482,7 +560,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                           }}
                         >
                           <div className={styles.productInfo}>
-                            <div className={styles.productName}>{market.name}</div>
+                            <div className={styles.productName}>{market.chain}</div>
                             <div className={styles.productDetails}>
                               {market.address}, {market.postalCode} {market.city}
                             </div>
@@ -509,7 +587,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                             <Check size={14} weight="bold" color="white" />
                           </div>
                           <div className={styles.productInfo}>
-                            <div className={styles.productName}>{market.name}</div>
+                            <div className={styles.productName}>{market.chain}</div>
                             <div className={styles.productDetails}>
                               {market.address}, {market.postalCode} {market.city}
                             </div>
@@ -555,11 +633,11 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                   </div>
 
                   {Object.entries(groupedProducts).map(([key, products]) => {
-                    const [category, subCategory] = key.split('-');
+                    const [department, productType] = key.split('-');
                     return (
                       <div key={key} className={styles.dropdownSection}>
                         <div className={styles.categoryLabel}>
-                          {getCategoryLabel(category, subCategory)}
+                          {getCategoryLabel(department, productType)}
                         </div>
                         {products.map(product => (
                           <button
@@ -575,9 +653,14 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                             <div className={styles.productInfo}>
                               <div className={styles.productName}>{product.name}</div>
                               <div className={styles.productDetails}>
-                                {product.orderNumber && <span className={styles.orderNumber}>#{product.orderNumber}</span>}
-                                {product.brand} · {product.packageSize} · {formatPrice(product.price)}
+                                {product.weight || product.content || '-'}
                               </div>
+                            </div>
+                            <div className={styles.productPriceInfo}>
+                              {product.palletSize && (
+                                <span className={styles.palletSize}>{product.palletSize} Stk</span>
+                              )}
+                              <span className={styles.productPrice}>{formatPrice(product.price)}</span>
                             </div>
                           </button>
                         ))}
@@ -596,8 +679,8 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                     <div className={styles.productCardInfo}>
                       <div className={styles.productCardName}>{p.product.name}</div>
                       <div className={styles.productCardMeta}>
-                        {p.product.orderNumber && <span className={styles.orderNumberBadge}>#{p.product.orderNumber}</span>}
-                        {p.product.brand} · {p.product.packageSize}
+                        {p.product.weight || p.product.content || '-'}
+                        {p.product.palletSize && ` · ${p.product.palletSize} Stk`}
                       </div>
                     </div>
                     <div className={styles.quantityControls}>
