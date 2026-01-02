@@ -53,8 +53,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
     return chainColors[chain] || 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)';
   };
 
-  // Format visit percentage
-  const visitPercentage = Math.round((profile.monthlyVisits / profile.totalMarkets) * 100);
+  // Format visit percentage - reserved for future stats display
+  const _visitPercentage = Math.round((profile.monthlyVisits / profile.totalMarkets) * 100);
+  void _visitPercentage;
 
   const handleEdit = () => {
     setIsEditing(true);

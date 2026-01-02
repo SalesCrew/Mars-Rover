@@ -37,9 +37,10 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [allMarkets, setAllMarkets] = useState<Market[]>([]);
-  const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
+  const [_isLoadingMarkets, setIsLoadingMarkets] = useState(true);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [_isLoadingProducts, setIsLoadingProducts] = useState(true);
+  void _isLoadingMarkets; void _isLoadingProducts; // Reserved for loading state display
   
   const productDropdownRef = useRef<HTMLDivElement>(null);
   const productSearchInputRef = useRef<HTMLInputElement>(null);

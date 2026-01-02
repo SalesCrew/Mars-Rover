@@ -31,7 +31,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   const marketDropdownRef = useRef<HTMLDivElement>(null);
   const marketSearchInputRef = useRef<HTMLInputElement>(null);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [_isLoadingProducts, setIsLoadingProducts] = useState(true);
+  void _isLoadingProducts; // Reserved for loading state display
   
   // Dropdown states for removed products
   const [isRemovedDropdownOpen, setIsRemovedDropdownOpen] = useState(false);

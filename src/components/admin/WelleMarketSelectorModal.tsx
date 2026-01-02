@@ -118,9 +118,9 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
     return true;
   });
 
-  const uniqueChains = Array.from(new Set(markets.map(m => m.chain).filter(Boolean)));
-  const uniqueGLs = Array.from(new Set(markets.map(m => m.gebietsleiterName).filter(Boolean)));
-  const uniqueSubgroups = Array.from(new Set(markets.map(m => m.subgroup).filter(Boolean)));
+  const uniqueChains = Array.from(new Set(markets.map(m => m.chain).filter((c): c is string => Boolean(c))));
+  const uniqueGLs = Array.from(new Set(markets.map(m => m.gebietsleiterName).filter((n): n is string => Boolean(n))));
+  const uniqueSubgroups = Array.from(new Set(markets.map(m => m.subgroup).filter((s): s is string => Boolean(s))));
   const statusOptions = ['Aktiv', 'Inaktiv'];
 
   const toggleMarketSelection = (marketId: string) => {

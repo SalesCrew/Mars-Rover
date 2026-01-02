@@ -7,17 +7,19 @@ import { wellenService } from '../../services/wellenService';
 interface DisplayItem {
   id: string;
   name: string;
-  targetNumber: number;
-  currentNumber: number;
-  picture: string | null;
+  targetNumber?: number;
+  currentNumber?: number;
+  picture?: string | null;
+  itemValue?: number | null;
 }
 
 interface KartonwareItem {
   id: string;
   name: string;
-  targetNumber: number;
-  currentNumber: number;
-  picture: string | null;
+  targetNumber?: number;
+  currentNumber?: number;
+  picture?: string | null;
+  itemValue?: number | null;
 }
 
 interface KWDay {
@@ -35,11 +37,15 @@ interface Welle {
   status: 'upcoming' | 'active' | 'past';
   displayCount: number;
   kartonwareCount: number;
-  kwDays: KWDay[];
+  kwDays?: KWDay[];
   displays?: DisplayItem[];
   kartonwareItems?: KartonwareItem[];
   totalGLs?: number;
   participatingGLs?: number;
+  goalType?: 'percentage' | 'value';
+  goalPercentage?: number | null;
+  goalValue?: number | null;
+  assignedMarketIds?: string[];
 }
 
 interface WelleDetailModalProps {
@@ -51,7 +57,7 @@ interface WelleDetailModalProps {
 export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClose, onDelete }) => {
   const [deleteClickCount, setDeleteClickCount] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
-  const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
@@ -216,8 +222,10 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
               </h3>
               <div className={styles.itemsList}>
                 {welle.displays.map(display => {
-                  const progress = (display.currentNumber / display.targetNumber) * 100;
-                  const isComplete = display.currentNumber >= display.targetNumber;
+                  const currentNum = display.currentNumber || 0;
+                  const targetNum = display.targetNumber || 1;
+                  const progress = (currentNum / targetNum) * 100;
+                  const isComplete = currentNum >= targetNum;
                   
                   return (
                     <div key={display.id} className={styles.itemCard}>
@@ -269,8 +277,10 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
               </h3>
               <div className={styles.itemsList}>
                 {welle.kartonwareItems.map(item => {
-                  const progress = (item.currentNumber / item.targetNumber) * 100;
-                  const isComplete = item.currentNumber >= item.targetNumber;
+                  const currentNum = item.currentNumber || 0;
+                  const targetNum = item.targetNumber || 1;
+                  const progress = (currentNum / targetNum) * 100;
+                  const isComplete = currentNum >= targetNum;
                   
                   return (
                     <div key={item.id} className={styles.itemCard}>
@@ -320,7 +330,7 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
               Verkaufstage
             </h3>
             <div className={styles.scheduleGrid}>
-              {welle.kwDays.map((kw, idx) => (
+              {(welle.kwDays || []).map((kw, idx) => (
                 <div key={idx} className={styles.scheduleCard}>
                   <div className={styles.scheduleKW}>{kw.kw}</div>
                   <div className={styles.scheduleDays}>

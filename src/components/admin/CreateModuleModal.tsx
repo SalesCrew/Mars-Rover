@@ -5,7 +5,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Module, QuestionInterface, QuestionType, QuestionCondition } from './FragebogenPage';
-import { QUESTION_TYPES, getQuestionTypeLabel, getQuestionTypeColor } from './questionTypes';
+import { QUESTION_TYPES, getQuestionTypeLabel } from './questionTypes';
 import styles from './CreateModuleModal.module.css';
 
 interface CreateModuleModalProps {
@@ -286,7 +286,7 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
                     setStep('questions');
                   }
                 }}
-                disabled={!moduleName.trim() || (originalModuleName && moduleName.trim() === originalModuleName)}
+                disabled={!moduleName.trim() || Boolean(originalModuleName && moduleName.trim() === originalModuleName)}
               >
                 Weiter zu Fragen
               </button>
@@ -389,7 +389,7 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
               </div>
 
               <div className={styles.reviewQuestions}>
-                {questions.map((question, index) => {
+                {questions.map((question, _index) => {
                   const config = QUESTION_TYPES[question.type];
                   const Icon = config.icon;
                   
@@ -1424,7 +1424,7 @@ const ConditionalLogicEditor: React.FC<ConditionalLogicEditorProps> = ({
     return [{ value: 'equals', label: 'ist gleich' }];
   };
 
-  const requiresAnswerInput = (triggerQuestionId: string, operator: string): boolean => {
+  const requiresAnswerInput = (triggerQuestionId: string, _operator: string): boolean => {
     const triggerQ = allQuestions.find(q => q.id === triggerQuestionId);
     if (!triggerQ) return false;
     
@@ -1540,7 +1540,7 @@ const ConditionalLogicEditor: React.FC<ConditionalLogicEditorProps> = ({
                       />
                     ) : (
                       <CustomDropdown
-                        value={condition.triggerAnswer}
+                        value={String(condition.triggerAnswer ?? '')}
                         options={[
                           { value: '', label: '-- Antwort wählen --' },
                           ...availableAnswers.map(answer => ({ value: answer, label: answer }))

@@ -56,12 +56,17 @@ export const AdminDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Filter states
-  const [chainDateRange, setChainDateRange] = useState({ start: '', end: '' });
+  const [_chainDateRange, setChainDateRange] = useState({ start: '', end: '' });
   const [chainSelectedGLs, setChainSelectedGLs] = useState<string[]>([]);
-  const [chainSelectedType, setChainSelectedType] = useState<'all' | 'displays' | 'kartonware'>('all');
+  const [_chainSelectedType, setChainSelectedType] = useState<'all' | 'displays' | 'kartonware'>('all');
   
   const [waveSelectedGLs, setWaveSelectedGLs] = useState<string[]>([]);
-  const [waveSelectedType, setWaveSelectedType] = useState<'all' | 'displays' | 'kartonware'>('all');
+  const [_waveSelectedType, setWaveSelectedType] = useState<'all' | 'displays' | 'kartonware'>('all');
+  
+  // Suppress unused variable warnings (will be used when filter logic is implemented)
+  void _chainDateRange;
+  void _chainSelectedType;
+  void _waveSelectedType;
 
   // Fetch GLs
   useEffect(() => {

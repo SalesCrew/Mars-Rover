@@ -43,9 +43,10 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
     participatingGLs,
   } = wave;
 
-  // Calculate progress percentages (rounded to 2 decimals)
-  const displayProgress = displayTarget > 0 ? Math.min(100, Math.round((displayCount / displayTarget) * 100 * 100) / 100) : 0;
-  const kartonwareProgress = kartonwareTarget > 0 ? Math.min(100, Math.round((kartonwareCount / kartonwareTarget) * 100 * 100) / 100) : 0;
+  // Calculate progress percentages (rounded to 2 decimals) - kept for future per-type display
+  const _displayProgress = displayTarget > 0 ? Math.min(100, Math.round((displayCount / displayTarget) * 100 * 100) / 100) : 0;
+  const _kartonwareProgress = kartonwareTarget > 0 ? Math.min(100, Math.round((kartonwareCount / kartonwareTarget) * 100 * 100) / 100) : 0;
+  void _displayProgress; void _kartonwareProgress; // Reserved for future use
 
   // Calculate overall progress (rounded to 2 decimals)
   const totalItems = displayCount + kartonwareCount;

@@ -34,9 +34,9 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   });
 
   // Get unique values
-  const uniqueBanners = Array.from(new Set(allMarkets.map(m => m.banner).filter(Boolean))).sort();
-  const uniqueChains = Array.from(new Set(allMarkets.map(m => m.chain).filter(Boolean))).sort();
-  const uniqueBranches = Array.from(new Set(allMarkets.map(m => m.branch).filter(Boolean))).sort();
+  const uniqueBanners = Array.from(new Set(allMarkets.map(m => m.banner).filter((b): b is string => Boolean(b)))).sort();
+  const uniqueChains = Array.from(new Set(allMarkets.map(m => m.chain).filter((c): c is string => Boolean(c)))).sort();
+  const uniqueBranches = Array.from(new Set(allMarkets.map(m => m.branch).filter((b): b is string => Boolean(b)))).sort();
   const statusOptions = ['Aktiv', 'Inaktiv'];
   const frequencyOptions = ['Täglich', 'Wöchentlich', '2x Woche', 'Monatlich'];
 
@@ -45,7 +45,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (openDropdown) {
         const ref = dropdownRefs.current[openDropdown];
-        if (ref && !ref.current.contains(event.target as Node)) {
+        if (ref && !ref.contains(event.target as Node)) {
           setOpenDropdown(null);
         }
       }
@@ -217,7 +217,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
           {/* Row 7: Status & Frequenz */}
           <div className={styles.row}>
             {renderDropdown('status', 'Status', statusOptions, formData.isActive ? 'Aktiv' : 'Inaktiv', 'status')}
-            {renderDropdown('frequency', 'Frequenz', frequencyOptions, formData.frequency, 'frequency')}
+            {renderDropdown('frequency', 'Frequenz', frequencyOptions, formData.frequency?.toString(), 'frequency')}
           </div>
         </div>
 

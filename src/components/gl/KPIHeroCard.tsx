@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import CountUp from './CountUp';
-import type { ChainStats } from '../../types/gl-types';
+import type { ChainData } from '../../types/gl-types';
 import styles from './KPIHeroCard.module.css';
 
 interface KPIHeroCardProps {
   chain: 'billa' | 'spar';
-  data: ChainStats;
+  data: ChainData;
 }
 
 export const KPIHeroCard: React.FC<KPIHeroCardProps> = ({ chain, data }) => {

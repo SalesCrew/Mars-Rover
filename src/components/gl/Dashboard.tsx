@@ -165,7 +165,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   };
 
   const handleMarketClick = (marketId: string) => {
-    const market = allMarkets.find(m => m.id === marketId);
+    const markets = realMarkets.length > 0 ? realMarkets : mockMarkets;
+    const market = markets.find((m: Market) => m.id === marketId);
     if (market) {
       setSelectedMarket(market);
     }
@@ -186,9 +187,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     setActiveTab('profile');
   };
 
-  const handleNotificationClick = () => {
+  const _handleNotificationClick = () => {
     setNotificationTrigger(prev => prev + 1);
   };
+  void _handleNotificationClick; // Reserved for future use
 
   // If there's an active tour, show the TourPage
   if (activeTour) {

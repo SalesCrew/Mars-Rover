@@ -2,8 +2,6 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { X, CalendarBlank, Package, Info, MagnifyingGlass, Check, Plus, Minus, Image as ImageIcon, CheckCircle, TrendUp } from '@phosphor-icons/react';
 import { RingLoader } from 'react-spinners';
 import styles from './VorbestellerModal.module.css';
-import whatsappImage1 from '../../assets/WhatsApp Bild 2025-12-02 um 10.09.48_d79a87f9.jpg';
-import whatsappImage2 from '../../assets/WhatsApp Bild 2025-12-02 um 13.38.24_a1836ccf.jpg';
 import type { Market } from '../../types/market-types';
 import { wellenService, type Welle } from '../../services/wellenService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,76 +12,21 @@ interface VorbestellerModalProps {
   onClose: () => void;
 }
 
-interface Vorbesteller {
-  id: string;
-  image: string;
-  timeSlot: string;
-  items: number;
-  marktName: string;
-  deliveryWeeks: string;
-  coverageGoal: number;
-  currentCoverage: number;
-  totalMarkets: number;
-}
+// Mock data removed - using real data from database
 
-const mockVorbesteller: Vorbesteller[] = [
-  {
-    id: '1',
-    image: whatsappImage1,
-    timeSlot: 'Mo&Di KW45',
-    items: 12,
-    marktName: 'Billa+',
-    deliveryWeeks: 'KW47 - KW48',
-    coverageGoal: 80,
-    currentCoverage: 65,
-    totalMarkets: 120,
-  },
-  {
-    id: '2',
-    image: whatsappImage2,
-    timeSlot: 'DO&Fr KW46',
-    items: 8,
-    marktName: 'Spar',
-    deliveryWeeks: 'KW48 - KW49',
-    coverageGoal: 60,
-    currentCoverage: 58,
-    totalMarkets: 95,
-  },
-  {
-    id: '3',
-    image: whatsappImage1,
-    timeSlot: 'Mo&Di KW47',
-    items: 15,
-    marktName: 'Spar',
-    deliveryWeeks: 'KW49 - KW50',
-    coverageGoal: 60,
-    currentCoverage: 42,
-    totalMarkets: 80,
-  },
-  {
-    id: '4',
-    image: whatsappImage2,
-    timeSlot: 'Mi&Fr KW48',
-    items: 6,
-    marktName: 'Billa+',
-    deliveryWeeks: 'KW50 - KW51',
-    coverageGoal: 80,
-    currentCoverage: 72,
-    totalMarkets: 120,
-  },
-];
-
-interface MarketWithQuantity {
-  market: Market;
-  quantity: number;
-}
+// Reserved for future use
+// interface MarketWithQuantity {
+//   market: Market;
+//   quantity: number;
+// }
 
 export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const [wellen, setWellen] = useState<Welle[]>([]);
   const [allMarkets, setAllMarkets] = useState<Market[]>([]);
   const [isLoadingWellen, setIsLoadingWellen] = useState(true);
-  const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
+  const [_isLoadingMarkets, setIsLoadingMarkets] = useState(true);
+  void _isLoadingMarkets; // Reserved for loading state display
   const [flippedCardId, setFlippedCardId] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showMarketSelection, setShowMarketSelection] = useState(false);
@@ -131,7 +74,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
           name: m.name,
           address: m.address,
           city: m.city,
-          postalCode: m.postal_code,
+          postalCode: m.postalCode,
           chain: m.chain || '',
           frequency: m.frequency || 12,
           currentVisits: 0,

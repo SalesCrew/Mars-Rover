@@ -5,7 +5,7 @@ import styles from './ModuleDetailModal.module.css';
 interface Question {
   id: string;
   moduleId: string;
-  type: 'text' | 'textarea' | 'multiple_choice' | 'checkbox' | 'rating' | 'yesno';
+  type: 'text' | 'textarea' | 'multiple_choice' | 'checkbox' | 'rating' | 'yesno' | 'slider' | 'image' | 'open_numeric' | 'dropdown' | 'single_choice' | 'likert' | 'photo_upload' | 'matrix' | 'open_text' | 'barcode_scanner';
   questionText: string;
   required: boolean;
   order: number;

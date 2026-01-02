@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, PencilSimple, Stack, Question, Storefront, Check, MagnifyingGlass, Funnel, Archive, CheckCircle } from '@phosphor-icons/react';
 import { adminMarkets } from '../../data/adminMarketsData';
-import type { AdminMarket } from '../../types/market-types';
+// AdminMarket type available if needed from market-types
 import styles from './FragebogenDetailModal.module.css';
 
 interface Question {
   id: string;
   moduleId: string;
-  type: 'text' | 'textarea' | 'multiple_choice' | 'checkbox' | 'rating' | 'yesno';
+  type: 'text' | 'textarea' | 'multiple_choice' | 'checkbox' | 'rating' | 'yesno' | 'slider' | 'image' | 'open_numeric' | 'dropdown' | 'single_choice' | 'likert' | 'photo_upload' | 'matrix' | 'open_text' | 'barcode_scanner';
   questionText: string;
   required: boolean;
   order: number;
@@ -386,11 +386,11 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
 
         {/* Questions Content */}
         <div className={styles.modalContent} ref={scrollContainerRef}>
-          {modules.map((module, moduleIndex) => (
+          {modules.map((module, _moduleIndex) => (
             <div 
               key={module.id} 
               className={styles.moduleSection}
-              ref={el => moduleRefs.current[module.id] = el}
+              ref={el => { moduleRefs.current[module.id] = el; }}
             >
               <div className={styles.moduleSectionHeader}>
                 <Stack size={20} weight="fill" />
@@ -472,7 +472,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
               <div className={styles.marketFilters}>
                 <div className={styles.filterRow}>
                   {/* Chain Filter */}
-                  <div className={styles.filterButtonWrapper} ref={el => filterRefs.current.chain = el}>
+                  <div className={styles.filterButtonWrapper} ref={el => { filterRefs.current.chain = el; }}>
                     <button
                       className={styles.filterButton}
                       onClick={() => setOpenFilter(openFilter === 'chain' ? null : 'chain')}
@@ -512,7 +512,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                   </div>
 
                   {/* PLZ Filter */}
-                  <div className={styles.filterButtonWrapper} ref={el => filterRefs.current.plz = el}>
+                  <div className={styles.filterButtonWrapper} ref={el => { filterRefs.current.plz = el; }}>
                     <button
                       className={styles.filterButton}
                       onClick={() => setOpenFilter(openFilter === 'plz' ? null : 'plz')}
@@ -552,7 +552,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                   </div>
 
                   {/* Adresse Filter */}
-                  <div className={styles.filterButtonWrapper} ref={el => filterRefs.current.adresse = el}>
+                  <div className={styles.filterButtonWrapper} ref={el => { filterRefs.current.adresse = el; }}>
                     <button
                       className={styles.filterButton}
                       onClick={() => setOpenFilter(openFilter === 'adresse' ? null : 'adresse')}
@@ -592,7 +592,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                   </div>
 
                   {/* GL Filter */}
-                  <div className={styles.filterButtonWrapper} ref={el => filterRefs.current.gebietsleiter = el}>
+                  <div className={styles.filterButtonWrapper} ref={el => { filterRefs.current.gebietsleiter = el; }}>
                     <button
                       className={styles.filterButton}
                       onClick={() => setOpenFilter(openFilter === 'gebietsleiter' ? null : 'gebietsleiter')}
@@ -632,7 +632,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                   </div>
 
                   {/* Subgroup Filter */}
-                  <div className={styles.filterButtonWrapper} ref={el => filterRefs.current.subgroup = el}>
+                  <div className={styles.filterButtonWrapper} ref={el => { filterRefs.current.subgroup = el; }}>
                     <button
                       className={styles.filterButton}
                       onClick={() => setOpenFilter(openFilter === 'subgroup' ? null : 'subgroup')}
@@ -672,7 +672,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                   </div>
 
                   {/* Status Filter */}
-                  <div className={styles.filterButtonWrapper} ref={el => filterRefs.current.status = el}>
+                  <div className={styles.filterButtonWrapper} ref={el => { filterRefs.current.status = el; }}>
                     <button
                       className={styles.filterButton}
                       onClick={() => setOpenFilter(openFilter === 'status' ? null : 'status')}

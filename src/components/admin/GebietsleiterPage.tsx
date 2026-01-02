@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { User, Phone, Envelope, MapPin, X, Image } from '@phosphor-icons/react';
 import { GLDetailModal } from './GLDetailModal';
-import { gebietsleiterService, type Gebietsleiter } from '../../services/gebietsleiterService';
+import { gebietsleiterService } from '../../services/gebietsleiterService';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './GebietsleiterPage.module.css';
 
@@ -111,7 +111,7 @@ Das Mars Rover Team`;
     
     try {
       // Create GL account in database
-      const newGL = await gebietsleiterService.createGebietsleiter({
+      await gebietsleiterService.createGebietsleiter({
       name: formData.name,
       address: formData.address,
       postalCode: formData.postalCode,

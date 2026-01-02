@@ -37,19 +37,19 @@ interface KWDay {
 interface WelleDisplayItem {
   id: string;
   name: string;
-  targetNumber: number;
-  currentNumber: number;
-  picture: string | null;
-  itemValue?: number; // Only used when wave goalType is 'value'
+  targetNumber?: number;
+  currentNumber?: number;
+  picture?: string | null;
+  itemValue?: number | null; // Only used when wave goalType is 'value'
 }
 
 interface WelleKartonwareItem {
   id: string;
   name: string;
-  targetNumber: number;
-  currentNumber: number;
-  picture: string | null;
-  itemValue?: number; // Only used when wave goalType is 'value'
+  targetNumber?: number;
+  currentNumber?: number;
+  picture?: string | null;
+  itemValue?: number | null; // Only used when wave goalType is 'value'
 }
 
 interface Welle {
@@ -62,14 +62,14 @@ interface Welle {
   status: 'upcoming' | 'active' | 'past';
   displayCount: number;
   kartonwareCount: number;
-  kwDays: KWDay[];
+  kwDays?: KWDay[];
   displays?: WelleDisplayItem[];
   kartonwareItems?: WelleKartonwareItem[];
   totalGLs?: number;
   participatingGLs?: number;
   goalType: 'percentage' | 'value'; // Wave-level goal type
-  goalPercentage?: number; // For percentage goals (e.g., 80%)
-  goalValue?: number; // For value goals (e.g., €7500)
+  goalPercentage?: number | null; // For percentage goals (e.g., 80%)
+  goalValue?: number | null; // For value goals (e.g., €7500)
   assignedMarketIds?: string[]; // IDs of assigned markets
 }
 
@@ -80,7 +80,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 }) => {
   // State for wellen list
   const [wellenList, setWellenList] = useState<Welle[]>([]);
-  const [isLoadingWellen, setIsLoadingWellen] = useState(true);
+  const [_isLoadingWellen, setIsLoadingWellen] = useState(true);
+  void _isLoadingWellen; // Reserved for loading state display
 
   // Load wellen from database
   useEffect(() => {
@@ -281,7 +282,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       setDisplays(welle.displays.map(d => ({
         id: d.id,
         name: d.name,
-        targetNumber: d.targetNumber.toString(),
+        targetNumber: (d.targetNumber || 0).toString(),
         picture: null,
         itemValue: d.itemValue?.toString()
       })));
@@ -292,14 +293,14 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       setKartonwareItems(welle.kartonwareItems.map(k => ({
         id: k.id,
         name: k.name,
-        targetNumber: k.targetNumber.toString(),
+        targetNumber: (k.targetNumber || 0).toString(),
         picture: null,
         itemValue: k.itemValue?.toString()
       })));
     }
     
     // Load KW days
-    setKwDays(welle.kwDays);
+    setKwDays(welle.kwDays || []);
     
     // Open the modal
     onOpenCreateWelleModal();
@@ -490,7 +491,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                     </div>
 
                     <div className={styles.welleKWDays}>
-                      {welle.kwDays.map((kw, idx) => (
+                      {(welle.kwDays || []).map((kw, idx) => (
                         <div key={idx} className={styles.kwDayItem}>
                           <span className={styles.kwLabel}>{kw.kw}:</span>
                           <span className={styles.kwDaysList}>{kw.days.join(', ')}</span>
@@ -566,7 +567,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                     </div>
 
                     <div className={styles.welleKWDays}>
-                      {welle.kwDays.map((kw, idx) => (
+                      {(welle.kwDays || []).map((kw, idx) => (
                         <div key={idx} className={styles.kwDayItem}>
                           <span className={styles.kwLabel}>{kw.kw}:</span>
                           <span className={styles.kwDaysList}>{kw.days.join(', ')}</span>
@@ -642,7 +643,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                     </div>
 
                     <div className={styles.welleKWDays}>
-                      {welle.kwDays.map((kw, idx) => (
+                      {(welle.kwDays || []).map((kw, idx) => (
                         <div key={idx} className={styles.kwDayItem}>
                           <span className={styles.kwLabel}>{kw.kw}:</span>
                           <span className={styles.kwDaysList}>{kw.days.join(', ')}</span>

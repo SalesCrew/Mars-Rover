@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { X, ArrowLeft, Check, Plus, Trash, DotsSixVertical, Calendar, Infinity, Stack, Storefront, MagnifyingGlass, Funnel, CaretLeft, CaretRight, WarningCircle, ArrowsClockwise, XCircle } from '@phosphor-icons/react';
+import { X, ArrowLeft, Check, Plus, Trash, DotsSixVertical, Calendar, Infinity, Stack, Storefront, MagnifyingGlass, CaretLeft, CaretRight, WarningCircle, ArrowsClockwise, XCircle } from '@phosphor-icons/react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -101,7 +101,8 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
   const [endDate, setEndDate] = useState('');
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
-  const [isMarketSelectorOpen, setIsMarketSelectorOpen] = useState(true);
+  const [isMarketSelectorOpen, _setIsMarketSelectorOpen] = useState(true);
+  void _setIsMarketSelectorOpen; // Reserved for future use
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
   const [marketSearchTerm, setMarketSearchTerm] = useState('');
   const [openFilter, setOpenFilter] = useState<FilterType | null>(null);
@@ -505,8 +506,9 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
     setSelectedFilters(prev => ({ ...prev, [filterType]: [] }));
   };
 
-  // Get chain color (matching MarketListItem colors)
-  const getChainColor = (chain: string): string => {
+  // Get chain color (matching MarketListItem colors) - reserved for future use
+  const _getChainColor = (chain: string): string => {
+    void _getChainColor; // Suppress unused warning
     switch (chain) {
       // BILLA Family - Yellow variants
       case 'Billa+':

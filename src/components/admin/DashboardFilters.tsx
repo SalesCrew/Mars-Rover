@@ -76,7 +76,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     }
   };
 
-  const checkDropdownPosition = (ref: React.RefObject<HTMLDivElement>) => {
+  const checkDropdownPosition = (ref: React.RefObject<HTMLDivElement | null>) => {
     if (ref.current) {
       const rect = ref.current.getBoundingClientRect();
       const dropdownWidth = 180; // min-width from CSS

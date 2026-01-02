@@ -11,13 +11,17 @@ interface GL {
   id: string;
   name: string;
   address: string;
-  postalCode: string;
+  postalCode?: string;
+  postal_code?: string;
   city: string;
   phone: string;
   email: string;
-  profilePicture: string | null;
-  password: string;
-  createdAt: Date;
+  profilePicture?: string | null;
+  profile_picture_url?: string | null;
+  password?: string;
+  createdAt?: Date;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface GLDetailModalProps {

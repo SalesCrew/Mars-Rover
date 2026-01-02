@@ -51,6 +51,46 @@ export interface GLDashboard {
 
 export type NavigationTab = 'dashboard' | 'statistics' | 'sell-ins' | 'profile';
 
+// Chain Statistics Types
+export interface ChainStats {
+  chain: string;
+  color: string;
+  current: number;
+  target: number;
+  percentage: number;
+  totalMarkets: number;
+  withVorbesteller: number;
+  displayCount: number;
+  kartonwareCount: number;
+  goalPercentage: number;
+}
+
+// Chain Data for Welle
+export interface ChainData {
+  totalMarkets: number;
+  withVorbesteller: number;
+  displayCount: number;
+  kartonwareCount: number;
+  goalPercentage: number;
+}
+
+// Welle Data Types for statistics
+export interface WelleData {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  billaPlus: ChainData;
+  spar: ChainData;
+}
+
+// Timeframe Options
+export interface TimeframeOption {
+  id: string;
+  label: string;
+  type: 'welle' | 'average';
+}
+
 // GL Profile Types
 export interface GLProfile {
   id: string;
