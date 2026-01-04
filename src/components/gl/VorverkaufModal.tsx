@@ -106,7 +106,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     if (!query) return allProducts.slice(0, 30);
     return allProducts.filter(p => 
       p.name.toLowerCase().includes(query) ||
-      p.brand?.toLowerCase().includes(query) ||
+      p.department?.toLowerCase().includes(query) ||
       p.sku?.toLowerCase().includes(query)
     ).slice(0, 30);
   }, [takeOutSearchQuery, allProducts]);
@@ -116,7 +116,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     if (!query) return allProducts.slice(0, 30);
     return allProducts.filter(p => 
       p.name.toLowerCase().includes(query) ||
-      p.brand?.toLowerCase().includes(query) ||
+      p.department?.toLowerCase().includes(query) ||
       p.sku?.toLowerCase().includes(query)
     ).slice(0, 30);
   }, [replaceSearchQuery, allProducts]);
@@ -207,24 +207,24 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   const getSuggestions = (): SuggestionBundle[] => {
     if (takeOutProducts.length === 0) return [];
     
-    const takeOutBrands = new Set(takeOutProducts.map(p => p.product.brand).filter(Boolean));
+    const takeOutDepts = new Set(takeOutProducts.map(p => p.product.department).filter(Boolean));
     const takeOutTotal = takeOutProducts.reduce((sum, p) => sum + p.product.price * p.quantity, 0);
     const avgPrice = takeOutTotal / takeOutProducts.length;
     
     const suggestions: SuggestionBundle[] = [];
     
-    // Single product suggestions (same brand or similar price)
+    // Single product suggestions (same department or similar price)
     const singleMatches = allProducts
       .filter(p => !takeOutProducts.some(t => t.product.id === p.id))
       .filter(p => !replaceWithProducts.some(r => r.product.id === p.id))
-      .filter(p => takeOutBrands.has(p.brand) || Math.abs(p.price - avgPrice) < avgPrice * 0.4)
+      .filter(p => takeOutDepts.has(p.department) || Math.abs(p.price - avgPrice) < avgPrice * 0.4)
       .slice(0, 4);
     
     singleMatches.forEach(product => {
       suggestions.push({
         type: 'single',
         title: product.name,
-        description: `${product.brand || ''} · ${product.weight || product.content || ''} · €${product.price.toFixed(2)}`,
+        description: `${product.weight || product.content || ''} · €${product.price.toFixed(2)}`,
         products: [product],
         totalValue: product.price
       });
@@ -569,7 +569,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                         onClick={() => handleAddTakeOut(product)}
                       >
                         <strong>{product.name}</strong>
-                        <span>{product.brand} · {formatPrice(product.price)}</span>
+                        <span>{product.weight || product.content} · {formatPrice(product.price)}</span>
                       </button>
                     ))}
                   </div>
@@ -637,7 +637,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                         onClick={() => handleAddReplace(product)}
                       >
                         <strong>{product.name}</strong>
-                        <span>{product.brand} · {formatPrice(product.price)}</span>
+                        <span>{product.weight || product.content} · {formatPrice(product.price)}</span>
                       </button>
                     ))}
                   </div>
