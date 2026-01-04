@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:3001/api';
+import { API_BASE_URL } from '../config/database';
+
+const API_URL = API_BASE_URL;
 
 export interface Gebietsleiter {
   id: string;
