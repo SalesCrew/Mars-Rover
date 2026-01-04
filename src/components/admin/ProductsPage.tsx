@@ -4,7 +4,7 @@ import { getAllProducts } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
 import styles from './ProductsPage.module.css';
 
-type FilterType = 'department' | 'productType' | 'price';
+type FilterType = 'department' | 'productType' | 'weight' | 'price';
 
 export const ProductsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,21 +17,25 @@ export const ProductsPage: React.FC = () => {
   const [selectedFilters, setSelectedFilters] = useState<{
     department: string[];
     productType: string[];
+    weight: string[];
     price: string[];
   }>({
     department: [],
     productType: [],
+    weight: [],
     price: []
   });
   const [searchTerms, setSearchTerms] = useState<Record<FilterType, string>>({
     department: '',
     productType: '',
+    weight: '',
     price: ''
   });
 
   const filterRefs = {
     department: useRef<HTMLDivElement>(null),
     productType: useRef<HTMLDivElement>(null),
+    weight: useRef<HTMLDivElement>(null),
     price: useRef<HTMLDivElement>(null)
   };
 
@@ -43,6 +47,19 @@ export const ProductsPage: React.FC = () => {
   
   const uniqueProductTypes = useMemo(() => 
     [...new Set(products.map(p => p.productType))].sort(), 
+    [products, refreshKey]
+  );
+
+  const uniqueWeights = useMemo(() => 
+    [...new Set(products.map(p => p.weight))].sort((a, b) => {
+      // Custom sort: numbers first, then alphabetically
+      const aNum = parseFloat(a);
+      const bNum = parseFloat(b);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return aNum - bNum;
+      }
+      return a.localeCompare(b);
+    }), 
     [products, refreshKey]
   );
 
@@ -93,6 +110,11 @@ export const ProductsPage: React.FC = () => {
     // Product Type filter
     if (selectedFilters.productType.length > 0) {
       filtered = filtered.filter(p => selectedFilters.productType.includes(p.productType));
+    }
+
+    // Weight filter
+    if (selectedFilters.weight.length > 0) {
+      filtered = filtered.filter(p => selectedFilters.weight.includes(p.weight));
     }
 
     // Price filter
@@ -157,12 +179,14 @@ export const ProductsPage: React.FC = () => {
     setSelectedFilters({
       department: [],
       productType: [],
+      weight: [],
       price: []
     });
     setSearchQuery('');
     setSearchTerms({
       department: '',
       productType: '',
+      weight: '',
       price: ''
     });
   };
@@ -170,6 +194,7 @@ export const ProductsPage: React.FC = () => {
   const hasActiveFilters = 
     selectedFilters.department.length > 0 ||
     selectedFilters.productType.length > 0 ||
+    selectedFilters.weight.length > 0 ||
     selectedFilters.price.length > 0 ||
     searchQuery.trim().length > 0;
 
@@ -390,9 +415,58 @@ export const ProductsPage: React.FC = () => {
             )}
           </div>
 
-          {/* Weight */}
-          <div className={styles.headerCell}>
-            <span>Gewicht</span>
+          {/* Weight/Size */}
+          <div 
+            className={`${styles.headerCell} ${selectedFilters.weight.length > 0 ? styles.headerCellActive : ''}`}
+            ref={filterRefs.weight}
+          >
+            <span>Gewicht/Größe</span>
+            <button
+              className={`${styles.filterButton} ${selectedFilters.weight.length > 0 ? styles.filterButtonActive : ''}`}
+              onClick={() => setOpenFilter(openFilter === 'weight' ? null : 'weight')}
+            >
+              <FunnelSimple size={14} weight={selectedFilters.weight.length > 0 ? 'fill' : 'regular'} />
+            </button>
+            {openFilter === 'weight' && (
+              <div className={styles.filterDropdown}>
+                <div className={styles.searchInputWrapper}>
+                  <input
+                    type="text"
+                    placeholder="Suchen..."
+                    className={styles.searchInput}
+                    value={searchTerms.weight}
+                    onChange={(e) => handleSearchChange('weight', e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <label className={styles.filterOption}>
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected('weight', getFilteredOptions('weight', uniqueWeights))}
+                    onChange={() => {
+                      if (isAllSelected('weight', getFilteredOptions('weight', uniqueWeights))) {
+                        setSelectedFilters(prev => ({ ...prev, weight: [] }));
+                      } else {
+                        handleSelectAll('weight', getFilteredOptions('weight', uniqueWeights));
+                      }
+                    }}
+                  />
+                  <span className={styles.filterOptionLabel}>
+                    <strong>Alle</strong>
+                  </span>
+                </label>
+                {getFilteredOptions('weight', uniqueWeights).map(weight => (
+                  <label key={weight} className={styles.filterOption}>
+                    <input
+                      type="checkbox"
+                      checked={selectedFilters.weight.includes(weight)}
+                      onChange={() => handleFilterToggle('weight', weight)}
+                    />
+                    <span className={styles.filterOptionLabel}>{weight}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Price */}
