@@ -30,7 +30,7 @@ interface GLDetailModalProps {
   allMarkets?: AdminMarket[];
 }
 
-type TabType = 'details' | 'billa' | 'spar' | 'spt' | 'markets' | 'statistics';
+type TabType = 'details' | 'billa' | 'spar' | 'interspar' | 'hagebau' | 'spt' | 'markets' | 'statistics';
 
 // Extended mock data for charts (20 KWs)
 // Displays: Values can only increase or stay the same (never decrease)
@@ -305,6 +305,8 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, allMa
   const [activeTab, setActiveTab] = useState<TabType>('details');
   const [billaTimeframe, setBillaTimeframe] = useState<'current' | '3months' | 'year'>('current');
   const [sparTimeframe, setSparTimeframe] = useState<'current' | '3months' | 'year'>('current');
+  const [intersparTimeframe, setIntersparTimeframe] = useState<'current' | '3months' | 'year'>('current');
+  const [hagebauTimeframe, setHagebauTimeframe] = useState<'current' | '3months' | 'year'>('current');
   const [marketSearchTerm, setMarketSearchTerm] = useState('');
   const [selectedChainFilter, setSelectedChainFilter] = useState<string[]>([]);
   const [isAddMarketsModalOpen, setIsAddMarketsModalOpen] = useState(false);
@@ -469,8 +471,10 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, allMa
 
   const tabs: { id: TabType; label: string }[] = [
     { id: 'details', label: 'Details' },
-    { id: 'billa', label: 'Billa+' },
+    { id: 'billa', label: 'Billa' },
     { id: 'spar', label: 'Spar' },
+    { id: 'interspar', label: 'Interspar' },
+    { id: 'hagebau', label: 'Hagebau' },
     { id: 'spt', label: 'SPT' },
     { id: 'markets', label: 'Märkte' },
     { id: 'statistics', label: 'Statistiken' },
@@ -668,7 +672,7 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, allMa
             <div className={styles.chainContent}>
               {/* Timeframe Selector */}
               <div className={styles.chainHeader}>
-                <h3 className={styles.chainTitle}>Billa+ Performance</h3>
+                <h3 className={styles.chainTitle}>Billa Performance</h3>
                 {renderTimeframeSelector(billaTimeframe, setBillaTimeframe)}
               </div>
 
@@ -677,7 +681,7 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, allMa
                 <div className={styles.sectionLabel}>Displays</div>
                 <div className={styles.chainRow}>
                   <div className={styles.chainKPI}>
-                    {renderKPICard('Billa+', 28, 35, 'displays')}
+                    {renderKPICard('Billa', 28, 35, 'displays')}
                   </div>
                   <div className={styles.chainChart}>
                     <LineChart data={mockKWData} type="displays" />
@@ -693,7 +697,7 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, allMa
                     <LineChart data={mockKWData} type="kartonware" />
                   </div>
                   <div className={styles.chainKPI}>
-                    {renderKPICard('Billa+', 20, 25, 'kartonware')}
+                    {renderKPICard('Billa', 20, 25, 'kartonware')}
                   </div>
                 </div>
               </div>
@@ -730,6 +734,78 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, allMa
                   </div>
                   <div className={styles.chainKPI}>
                     {renderKPICard('Spar', 12, 15, 'kartonware')}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'interspar' && (
+            <div className={styles.chainContent}>
+              {/* Timeframe Selector */}
+              <div className={styles.chainHeader}>
+                <h3 className={styles.chainTitle}>Interspar Performance</h3>
+                {renderTimeframeSelector(intersparTimeframe, setIntersparTimeframe)}
+              </div>
+
+              {/* Displays: KPI left, Chart right */}
+              <div className={styles.chainSection}>
+                <div className={styles.sectionLabel}>Displays</div>
+                <div className={styles.chainRow}>
+                  <div className={styles.chainKPI}>
+                    {renderKPICard('Interspar', 12, 15, 'displays')}
+                  </div>
+                  <div className={styles.chainChart}>
+                    <LineChart data={mockKWData.map(d => ({ ...d, displays: Math.floor(d.displays * 0.45) }))} type="displays" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Kartonware: Chart left, KPI right */}
+              <div className={styles.chainSection}>
+                <div className={styles.sectionLabel}>Kartonware</div>
+                <div className={styles.chainRow}>
+                  <div className={styles.chainChart}>
+                    <LineChart data={mockKWData.map(d => ({ ...d, kartonware: Math.floor(d.kartonware * 0.45) }))} type="kartonware" />
+                  </div>
+                  <div className={styles.chainKPI}>
+                    {renderKPICard('Interspar', 9, 12, 'kartonware')}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'hagebau' && (
+            <div className={styles.chainContent}>
+              {/* Timeframe Selector */}
+              <div className={styles.chainHeader}>
+                <h3 className={styles.chainTitle}>Hagebau Performance</h3>
+                {renderTimeframeSelector(hagebauTimeframe, setHagebauTimeframe)}
+              </div>
+
+              {/* Displays: KPI left, Chart right */}
+              <div className={styles.chainSection}>
+                <div className={styles.sectionLabel}>Displays</div>
+                <div className={styles.chainRow}>
+                  <div className={styles.chainKPI}>
+                    {renderKPICard('Hagebau', 8, 10, 'displays')}
+                  </div>
+                  <div className={styles.chainChart}>
+                    <LineChart data={mockKWData.map(d => ({ ...d, displays: Math.floor(d.displays * 0.3) }))} type="displays" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Kartonware: Chart left, KPI right */}
+              <div className={styles.chainSection}>
+                <div className={styles.sectionLabel}>Kartonware</div>
+                <div className={styles.chainRow}>
+                  <div className={styles.chainChart}>
+                    <LineChart data={mockKWData.map(d => ({ ...d, kartonware: Math.floor(d.kartonware * 0.3) }))} type="kartonware" />
+                  </div>
+                  <div className={styles.chainKPI}>
+                    {renderKPICard('Hagebau', 6, 8, 'kartonware')}
                   </div>
                 </div>
               </div>

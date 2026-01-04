@@ -31,6 +31,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+
 // Request logging for API routes
 app.use((req, _res, next) => {
   const now = new Date().toISOString();
