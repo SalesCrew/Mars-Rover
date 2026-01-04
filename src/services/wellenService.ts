@@ -77,9 +77,11 @@ export interface UpdateWelleDTO extends CreateWelleDTO {
 
 export interface UpdateProgressDTO {
   gebietsleiter_id: string;
+  market_id?: string;
   item_type: 'display' | 'kartonware';
   item_id: string;
   current_number: number;
+  photo_url?: string;
 }
 
 class WellenService {
