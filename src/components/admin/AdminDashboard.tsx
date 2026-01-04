@@ -100,23 +100,39 @@ export const AdminDashboard: React.FC = () => {
     fetchGLs();
   }, []);
 
-  // Fetch dashboard data
+  // Fetch chain averages (re-fetch when GL filter changes)
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchChainAverages = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
-        // Fetch chain averages
-        const chainRes = await fetch(`${API_BASE_URL}/wellen/dashboard/chain-averages`);
+        // Build URL with GL filter if selected
+        const glParam = chainSelectedGLs.length > 0 ? `?glIds=${chainSelectedGLs.join(',')}` : '';
+        const chainRes = await fetch(`${API_BASE_URL}/wellen/dashboard/chain-averages${glParam}`);
         if (!chainRes.ok) {
           throw new Error('Failed to fetch chain averages');
         }
         const chainData = await chainRes.json();
         setChainAverages(chainData);
+      } catch (error: any) {
+        console.error('Error fetching chain averages:', error);
+        setError(error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-        // Fetch waves
-        const wavesRes = await fetch(`${API_BASE_URL}/wellen/dashboard/waves`);
+    fetchChainAverages();
+  }, [chainSelectedGLs]);
+
+  // Fetch waves (re-fetch when GL filter changes)
+  useEffect(() => {
+    const fetchWaves = async () => {
+      try {
+        // Build URL with GL filter if selected
+        const glParam = waveSelectedGLs.length > 0 ? `?glIds=${waveSelectedGLs.join(',')}` : '';
+        const wavesRes = await fetch(`${API_BASE_URL}/wellen/dashboard/waves${glParam}`);
         if (!wavesRes.ok) {
           throw new Error('Failed to fetch waves');
         }
@@ -129,15 +145,13 @@ export const AdminDashboard: React.FC = () => {
         setActiveWaves(active);
         setFinishedWaves(finished);
       } catch (error: any) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error fetching waves:', error);
         setError(error.message);
-      } finally {
-        setIsLoading(false);
       }
     };
 
-    fetchDashboardData();
-  }, []);
+    fetchWaves();
+  }, [waveSelectedGLs]);
 
   return (
     <>
@@ -165,13 +179,17 @@ export const AdminDashboard: React.FC = () => {
         ) : (
           <div className={styles.averagesGrid}>
             {chainAverages.map(chain => {
-              // Adjust goal if GL filter is active
-              const glCount = chainSelectedGLs.length > 0 ? chainSelectedGLs.length : availableGLs.length || 1;
-              const adjustedChain = {
+              // Only adjust if specific GLs are selected (not when "all" is selected)
+              // When no filter is active, show full goal
+              // When filter is active, show proportional goal for selected GLs
+              const isFiltered = chainSelectedGLs.length > 0;
+              const totalGLs = availableGLs.length || 1;
+              const adjustedChain = isFiltered ? {
                 ...chain,
-                goalPercentage: chain.goalPercentage ? chain.goalPercentage / glCount : undefined,
-                goalValue: chain.goalValue ? chain.goalValue / glCount : undefined,
-              };
+                // Divide goal by total GLs, then multiply by number of selected GLs
+                goalPercentage: chain.goalPercentage ? (chain.goalPercentage / totalGLs) * chainSelectedGLs.length : undefined,
+                goalValue: chain.goalValue ? (chain.goalValue / totalGLs) * chainSelectedGLs.length : undefined,
+              } : chain; // When no filter, use original values
               return <ChainAverageCard key={chain.chainName} data={adjustedChain} />;
             })}
           </div>
@@ -200,13 +218,14 @@ export const AdminDashboard: React.FC = () => {
         ) : (
           <div className={styles.wavesGrid}>
             {activeWaves.map(wave => {
-              // Adjust goal if GL filter is active
-              const glCount = waveSelectedGLs.length > 0 ? waveSelectedGLs.length : availableGLs.length || 1;
-              const adjustedWave = {
+              // Only adjust if specific GLs are selected (not when "all" is selected)
+              const isFiltered = waveSelectedGLs.length > 0;
+              const totalGLs = availableGLs.length || 1;
+              const adjustedWave = isFiltered ? {
                 ...wave,
-                goalPercentage: wave.goalPercentage ? wave.goalPercentage / glCount : undefined,
-                goalValue: wave.goalValue ? wave.goalValue / glCount : undefined,
-              };
+                goalPercentage: wave.goalPercentage ? (wave.goalPercentage / totalGLs) * waveSelectedGLs.length : undefined,
+                goalValue: wave.goalValue ? (wave.goalValue / totalGLs) * waveSelectedGLs.length : undefined,
+              } : wave; // When no filter, use original values
               return <WaveProgressCard key={wave.id} wave={adjustedWave} onClick={() => setSelectedWave(wave)} />;
             })}
           </div>
