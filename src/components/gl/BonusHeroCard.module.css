@@ -68,6 +68,18 @@
   background-clip: text;
 }
 
+.loadingValue {
+  font-size: var(--font-size-5xl);
+  font-weight: var(--font-weight-bold);
+  color: #d1d5db;
+  line-height: var(--line-height-tight);
+}
+
+.loadingValueSmall {
+  color: #d1d5db;
+  font-weight: 600;
+}
+
 .percentageContainer {
   display: flex;
   align-items: center;

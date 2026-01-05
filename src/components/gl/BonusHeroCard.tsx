@@ -1,15 +1,15 @@
 import React from 'react';
 import { Receipt, CalendarCheck, MapPin } from '@phosphor-icons/react';
 import type { Bonuses } from '../../types/gl-types';
-import CountUp from './CountUp';
 import styles from './BonusHeroCard.module.css';
 
 interface BonusHeroCardProps {
-  bonuses: Bonuses;
+  bonuses: Bonuses | null;
+  isLoading?: boolean;
   onClick?: () => void;
 }
 
-export const BonusHeroCard: React.FC<BonusHeroCardProps> = ({ bonuses, onClick }) => {
+export const BonusHeroCard: React.FC<BonusHeroCardProps> = ({ bonuses, isLoading, onClick }) => {
   const [progressAnimated, setProgressAnimated] = React.useState(false);
 
   React.useEffect(() => {
@@ -25,9 +25,9 @@ export const BonusHeroCard: React.FC<BonusHeroCardProps> = ({ bonuses, onClick }
     return `${sign}${value.toFixed(1)}%`;
   };
 
-  const sellInsProgress = progressAnimated ? (bonuses.sellIns / 60) * 100 : 0;
-  const preOrdersProgress = progressAnimated ? (bonuses.preOrders / 40) * 100 : 0;
-  const marketsProgress = progressAnimated ? (bonuses.marketsVisited.current / bonuses.marketsVisited.target) * 100 : 0;
+  const sellInsProgress = progressAnimated && bonuses ? (bonuses.sellIns / 60) * 100 : 0;
+  const preOrdersProgress = progressAnimated && bonuses ? (bonuses.preOrders / 40) * 100 : 0;
+  const marketsProgress = progressAnimated && bonuses ? (bonuses.marketsVisited.current / bonuses.marketsVisited.target) * 100 : 0;
 
   return (
       <div 
@@ -45,11 +45,15 @@ export const BonusHeroCard: React.FC<BonusHeroCardProps> = ({ bonuses, onClick }
       <div className={styles.topSection}>
         <span className={styles.label}>Jahresumsatz</span>
         <div className={styles.amountContainer}>
-          <span className={styles.amount}>
-            €<CountUp from={0} to={bonuses.yearTotal} duration={1.5} separator="." />
-          </span>
+          {isLoading ? (
+            <span className={styles.loadingValue}>—</span>
+          ) : (
+            <span className={styles.amount}>
+              €{bonuses?.yearTotal.toLocaleString('de-DE') ?? '—'}
+            </span>
+          )}
         </div>
-        {bonuses.percentageChange !== 0 && (
+        {!isLoading && bonuses && bonuses.percentageChange !== 0 && (
           <div className={styles.percentageContainer}>
             <span className={`${styles.percentage} ${bonuses.percentageChange >= 0 ? styles.positive : styles.negative}`}>
               {formatPercentage(bonuses.percentageChange)}
@@ -65,7 +69,7 @@ export const BonusHeroCard: React.FC<BonusHeroCardProps> = ({ bonuses, onClick }
             <span className={styles.statIconContainer}>
               <Receipt size={18} weight="regular" />
             </span>
-            <CountUp from={0} to={bonuses.sellIns} duration={1.2} delay={0.2} />
+            {isLoading ? <span className={styles.loadingValueSmall}>—</span> : bonuses?.sellIns ?? '—'}
           </div>
           <div className={styles.statProgress}>
             <div className={styles.statProgressBar} style={{ width: `${sellInsProgress}%` }}></div>
@@ -78,7 +82,7 @@ export const BonusHeroCard: React.FC<BonusHeroCardProps> = ({ bonuses, onClick }
             <span className={styles.statIconContainer}>
               <CalendarCheck size={18} weight="regular" />
             </span>
-            <CountUp from={0} to={bonuses.preOrders} duration={1.2} delay={0.3} />
+            {isLoading ? <span className={styles.loadingValueSmall}>—</span> : bonuses?.preOrders ?? '—'}
           </div>
           <div className={styles.statProgress}>
             <div className={styles.statProgressBar} style={{ width: `${preOrdersProgress}%` }}></div>
@@ -91,8 +95,14 @@ export const BonusHeroCard: React.FC<BonusHeroCardProps> = ({ bonuses, onClick }
             <span className={styles.statIconContainer}>
               <MapPin size={18} weight="regular" />
             </span>
-            <CountUp from={0} to={bonuses.marketsVisited.current} duration={1.2} delay={0.4} />
-            <span className={styles.statTarget}>/{bonuses.marketsVisited.target}</span>
+            {isLoading ? (
+              <span className={styles.loadingValueSmall}>—</span>
+            ) : (
+              <>
+                {bonuses?.marketsVisited.current ?? '—'}
+                <span className={styles.statTarget}>/{bonuses?.marketsVisited.target ?? '—'}</span>
+              </>
+            )}
           </div>
           <div className={styles.statProgress}>
             <div className={styles.statProgressBar} style={{ width: `${marketsProgress}%` }}></div>

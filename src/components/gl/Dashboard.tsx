@@ -279,7 +279,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             <>
               {/* Bonus Hero Card */}
               <section className={styles.section}>
-                <BonusHeroCard bonuses={realBonuses || data.bonuses} onClick={handleBonusClick} />
+                <BonusHeroCard bonuses={realBonuses} isLoading={!realBonuses} onClick={handleBonusClick} />
               </section>
 
               {/* Quick Actions */}

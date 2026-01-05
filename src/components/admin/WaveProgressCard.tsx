@@ -1,6 +1,5 @@
 import React from 'react';
 import { CalendarBlank, Package, Users, Storefront, CheckCircle } from '@phosphor-icons/react';
-import CountUp from '../gl/CountUp';
 import styles from './WaveProgressCard.module.css';
 
 interface WaveProgressData {
@@ -88,14 +87,14 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
         {goalType === 'percentage' ? (
           <>
             <div className={`${styles.goalValue} ${goalMet ? styles.goalValueSuccess : ''}`}>
-              <CountUp from={0} to={overallProgress} duration={1.5} delay={0.2} />%
+              {overallProgress}%
             </div>
             <div className={styles.goalLabel}>von {goalPercentage}% Ziel</div>
           </>
         ) : (
           <>
             <div className={`${styles.goalValue} ${goalMet ? styles.goalValueSuccess : ''}`}>
-              €<CountUp from={0} to={currentValue || 0} duration={1.5} delay={0.2} separator="," />
+              €{(currentValue || 0).toLocaleString('de-DE')}
             </div>
             <div className={styles.goalLabel}>von €{(goalValue || 0).toLocaleString('de-DE')} Ziel</div>
           </>
@@ -111,9 +110,9 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
           </div>
           <div className={styles.progressCount}>
             {goalType === 'percentage' ? (
-              <><CountUp from={0} to={overallProgress} duration={1.2} delay={0.3} />% erreicht</>
+              <>{overallProgress}% erreicht</>
             ) : (
-              <>€<CountUp from={0} to={currentValue || 0} duration={1.2} delay={0.3} separator="," /> erreicht</>
+              <>€{(currentValue || 0).toLocaleString('de-DE')} erreicht</>
             )}
           </div>
         </div>
@@ -131,7 +130,7 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
           <Storefront size={16} weight="fill" />
           <div className={styles.footerMetricInfo}>
             <div className={styles.footerMetricValue}>
-              <CountUp from={0} to={assignedMarkets} duration={1.2} delay={0.5} />
+              {assignedMarkets}
             </div>
             <div className={styles.footerMetricLabel}>Märkte</div>
           </div>
@@ -140,7 +139,7 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
           <Users size={16} weight="fill" />
           <div className={styles.footerMetricInfo}>
             <div className={styles.footerMetricValue}>
-              <CountUp from={0} to={participatingGLs} duration={1.2} delay={0.6} />
+              {participatingGLs}
             </div>
             <div className={styles.footerMetricLabel}>GLs</div>
           </div>
@@ -149,7 +148,7 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
           <Package size={16} weight="fill" />
           <div className={styles.footerMetricInfo}>
             <div className={styles.footerMetricValue}>
-              <CountUp from={0} to={totalItems} duration={1.2} delay={0.7} />
+              {totalItems}
             </div>
             <div className={styles.footerMetricLabel}>Artikel</div>
           </div>

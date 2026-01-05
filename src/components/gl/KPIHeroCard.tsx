@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, CheckCircle, WarningCircle } from '@phosphor-icons/react';
-import CountUp from './CountUp';
 import type { ChainData } from '../../types/gl-types';
 import styles from './KPIHeroCard.module.css';
 
@@ -52,7 +51,7 @@ export const KPIHeroCard: React.FC<KPIHeroCardProps> = ({ chain, data }) => {
         <span className={styles.chainLabel}>{config.name}</span>
         <div className={styles.percentageContainer}>
           <span className={`${styles.percentage} ${isGoalMet ? styles.percentageSuccess : ''}`}>
-            <CountUp from={0} to={currentPercentage} duration={1.5} delay={0.2} />%
+            {currentPercentage}%
           </span>
         </div>
         <span className={styles.goalLabel}>(Ziel: {data.goalPercentage}%)</span>
@@ -76,7 +75,7 @@ export const KPIHeroCard: React.FC<KPIHeroCardProps> = ({ chain, data }) => {
             <MapPin size={14} weight="regular" />
           </div>
           <div className={styles.statValue}>
-            <CountUp from={0} to={data.totalMarkets} duration={1.2} delay={0.4} />
+            {data.totalMarkets}
           </div>
           <span className={styles.statLabel}>Märkte</span>
         </div>
@@ -87,7 +86,7 @@ export const KPIHeroCard: React.FC<KPIHeroCardProps> = ({ chain, data }) => {
             <CheckCircle size={14} weight="regular" />
           </div>
           <div className={styles.statValue}>
-            <CountUp from={0} to={data.withVorbesteller} duration={1.2} delay={0.5} />
+            {data.withVorbesteller}
           </div>
           <span className={styles.statLabel}>mit Vorbesteller</span>
           <span className={styles.statSubLabel}>
@@ -101,7 +100,7 @@ export const KPIHeroCard: React.FC<KPIHeroCardProps> = ({ chain, data }) => {
             <WarningCircle size={14} weight="regular" />
           </div>
           <div className={styles.statValue}>
-            <CountUp from={0} to={stillNeeded} duration={1.2} delay={0.6} />
+            {stillNeeded}
           </div>
           <span className={styles.statLabel}>fehlen noch</span>
         </div>

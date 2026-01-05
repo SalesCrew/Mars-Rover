@@ -1,6 +1,5 @@
 import React from 'react';
 import { TrendUp, TrendDown, Storefront, ChartBar } from '@phosphor-icons/react';
-import CountUp from '../gl/CountUp';
 import styles from './ChainAverageCard.module.css';
 
 interface ChainAverageData {
@@ -68,14 +67,14 @@ export const ChainAverageCard: React.FC<ChainAverageCardProps> = ({ data }) => {
         {goalType === 'percentage' ? (
           <>
             <div className={`${styles.value} ${goalMet ? styles.valueSuccess : ''}`}>
-              <CountUp from={0} to={currentPercentage || 0} duration={1.5} delay={0.2} />%
+              {currentPercentage || 0}%
             </div>
             <div className={styles.goal}>von {goalPercentage}%</div>
           </>
         ) : (
           <>
             <div className={`${styles.value} ${goalMet ? styles.valueSuccess : ''}`}>
-              €<CountUp from={0} to={currentValue || 0} duration={1.5} delay={0.2} separator="," />
+              €{(currentValue || 0).toLocaleString('de-DE')}
             </div>
             <div className={styles.goal}>von €{(goalValue || 0).toLocaleString('de-DE')}</div>
           </>
@@ -98,7 +97,7 @@ export const ChainAverageCard: React.FC<ChainAverageCardProps> = ({ data }) => {
           </div>
           <div className={styles.metricInfo}>
             <div className={styles.metricValue}>
-              <CountUp from={0} to={totalMarkets} duration={1.2} delay={0.4} />
+              {totalMarkets}
             </div>
             <div className={styles.metricLabel}>Gesamt</div>
           </div>
@@ -109,7 +108,7 @@ export const ChainAverageCard: React.FC<ChainAverageCardProps> = ({ data }) => {
           </div>
           <div className={styles.metricInfo}>
             <div className={styles.metricValue}>
-              <CountUp from={0} to={marketsWithProgress} duration={1.2} delay={0.5} />
+              {marketsWithProgress}
             </div>
             <div className={styles.metricLabel}>Mit Fortschritt</div>
           </div>
@@ -120,7 +119,7 @@ export const ChainAverageCard: React.FC<ChainAverageCardProps> = ({ data }) => {
           </div>
           <div className={styles.metricInfo}>
             <div className={styles.metricValue}>
-              <CountUp from={0} to={remainingMarkets} duration={1.2} delay={0.6} />
+              {remainingMarkets}
             </div>
             <div className={styles.metricLabel}>Fehlen noch</div>
           </div>

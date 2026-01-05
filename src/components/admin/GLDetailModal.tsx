@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { X, User, Phone, Envelope, MapPin, TrendUp, TrendDown, Plus } from '@phosphor-icons/react';
-import CountUp from '../gl/CountUp';
 import { MarketListItem } from './MarketListItem';
 import type { AdminMarket } from '../../types/market-types';
 import { actionHistoryService } from '../../services/actionHistoryService';
@@ -527,7 +526,7 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
 
         <div className={styles.kpiMain}>
           <div className={styles.kpiValue}>
-            <CountUp from={0} to={currentValue} duration={1.2} />
+            {currentValue}
           </div>
           <div className={styles.kpiGoal}>/ {goalValue}</div>
         </div>
@@ -1000,7 +999,7 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
                   </div>
                   <div className={styles.statsHeroContent}>
                     <div className={styles.statsHeroValue}>
-                      <CountUp from={0} to={142} duration={1.2} />
+                      142
                     </div>
                     <div className={styles.statsHeroLabel}>Besuchte Märkte</div>
                     <div className={styles.statsHeroSubtext}>in diesem Jahr</div>
@@ -1015,7 +1014,7 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
                   </div>
                   <div className={styles.statsHeroContent}>
                     <div className={styles.statsHeroValue}>
-                      <CountUp from={0} to={87} duration={1.2} />
+                      87
                     </div>
                     <div className={styles.statsHeroLabel}>Fragebögen</div>
                     <div className={styles.statsHeroSubtext}>ausgefüllt</div>
