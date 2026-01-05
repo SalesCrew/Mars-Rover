@@ -149,3 +149,15 @@
 .checkbox:hover {
   border-color: #3B82F6;
 }
+
+/* Alle Option */
+.alleOption {
+  font-weight: 600;
+}
+
+/* Dropdown Divider */
+.dropdownDivider {
+  height: 1px;
+  background: rgba(226, 232, 240, 0.8);
+  margin: 4px 0;
+}

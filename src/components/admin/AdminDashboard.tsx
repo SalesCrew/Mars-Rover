@@ -62,17 +62,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
   const [selectedWave, setSelectedWave] = useState<WaveProgress | null>(null);
 
   // Filter states
-  const [_chainDateRange, setChainDateRange] = useState({ start: '', end: '' });
+  const [chainDateRange, setChainDateRange] = useState({ start: '', end: '' });
   const [chainSelectedGLs, setChainSelectedGLs] = useState<string[]>([]);
-  const [_chainSelectedType, setChainSelectedType] = useState<'all' | 'displays' | 'kartonware'>('all');
+  const [chainSelectedType, setChainSelectedType] = useState<'all' | 'displays' | 'kartonware'>('all');
   
   const [waveSelectedGLs, setWaveSelectedGLs] = useState<string[]>([]);
-  const [_waveSelectedType, setWaveSelectedType] = useState<'all' | 'displays' | 'kartonware'>('all');
-  
-  // Suppress unused variable warnings (will be used when filter logic is implemented)
-  void _chainDateRange;
-  void _chainSelectedType;
-  void _waveSelectedType;
+  const [waveSelectedType, setWaveSelectedType] = useState<'all' | 'displays' | 'kartonware'>('all');
 
   // Fetch GLs
   useEffect(() => {
@@ -104,16 +99,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
     fetchGLs();
   }, []);
 
-  // Fetch chain averages (re-fetch when GL filter changes)
+  // Fetch chain averages (re-fetch when filters change)
   useEffect(() => {
     const fetchChainAverages = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
-        // Build URL with GL filter if selected
-        const glParam = chainSelectedGLs.length > 0 ? `?glIds=${chainSelectedGLs.join(',')}` : '';
-        const chainRes = await fetch(`${API_BASE_URL}/wellen/dashboard/chain-averages${glParam}`);
+        // Build URL with filters
+        const params = new URLSearchParams();
+        
+        // Handle GL filter
+        if (chainSelectedGLs.length > 0) {
+          if (chainSelectedGLs.includes('__none__')) {
+            params.set('glIds', '__none__');
+          } else {
+            params.set('glIds', chainSelectedGLs.join(','));
+          }
+        }
+        
+        // Date range filter
+        if (chainDateRange.start) {
+          params.set('startDate', chainDateRange.start);
+        }
+        if (chainDateRange.end) {
+          params.set('endDate', chainDateRange.end);
+        }
+        
+        // Type filter
+        if (chainSelectedType !== 'all') {
+          params.set('itemType', chainSelectedType);
+        }
+        
+        const queryString = params.toString();
+        const chainRes = await fetch(`${API_BASE_URL}/wellen/dashboard/chain-averages${queryString ? `?${queryString}` : ''}`);
         if (!chainRes.ok) {
           throw new Error('Failed to fetch chain averages');
         }
@@ -128,15 +147,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
     };
 
     fetchChainAverages();
-  }, [chainSelectedGLs]);
+  }, [chainSelectedGLs, chainDateRange, chainSelectedType]);
 
-  // Fetch waves (re-fetch when GL filter changes)
+  // Fetch waves (re-fetch when filters change)
   useEffect(() => {
     const fetchWaves = async () => {
       try {
-        // Build URL with GL filter if selected
-        const glParam = waveSelectedGLs.length > 0 ? `?glIds=${waveSelectedGLs.join(',')}` : '';
-        const wavesRes = await fetch(`${API_BASE_URL}/wellen/dashboard/waves${glParam}`);
+        // Build URL with filters
+        const params = new URLSearchParams();
+        
+        // Handle GL filter
+        if (waveSelectedGLs.length > 0) {
+          if (waveSelectedGLs.includes('__none__')) {
+            params.set('glIds', '__none__');
+          } else {
+            params.set('glIds', waveSelectedGLs.join(','));
+          }
+        }
+        
+        // Type filter
+        if (waveSelectedType !== 'all') {
+          params.set('itemType', waveSelectedType);
+        }
+        
+        const queryString = params.toString();
+        const wavesRes = await fetch(`${API_BASE_URL}/wellen/dashboard/waves${queryString ? `?${queryString}` : ''}`);
         if (!wavesRes.ok) {
           throw new Error('Failed to fetch waves');
         }
@@ -155,7 +190,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
     };
 
     fetchWaves();
-  }, [waveSelectedGLs]);
+  }, [waveSelectedGLs, waveSelectedType]);
 
   return (
     <>
@@ -183,18 +218,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
         ) : (
           <div className={styles.averagesGrid}>
             {chainAverages.map(chain => {
-              // When no GL filter is active, show the original chain data from backend
-              // When filter is active, backend returns filtered data, but we adjust the goal proportionally
-              const isFiltered = chainSelectedGLs.length > 0;
+              // Check if specific GLs are selected (not "Alle" and not "none")
+              const hasSpecificGLFilter = chainSelectedGLs.length > 0 && !chainSelectedGLs.includes('__none__');
               const totalGLs = availableGLs.length || 1;
               
-              // Only adjust goal when filtering - backend already filters the currentValue
-              const adjustedChain = isFiltered ? {
+              // Only adjust goal when specific GLs are selected
+              const adjustedChain = hasSpecificGLFilter ? {
                 ...chain,
                 // Goal is proportional: (full goal / total GLs) * selected GLs
                 goalPercentage: chain.goalPercentage ? (chain.goalPercentage / totalGLs) * chainSelectedGLs.length : undefined,
                 goalValue: chain.goalValue ? (chain.goalValue / totalGLs) * chainSelectedGLs.length : undefined,
-              } : chain; // No filter = show original backend values
+              } : chain; // No filter or "none" = show original backend values
               
               return <ChainAverageCard key={chain.chainName} data={adjustedChain} />;
             })}
@@ -224,18 +258,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
         ) : (
           <div className={styles.wavesGrid}>
             {activeWaves.map(wave => {
-              // When no GL filter is active, show original wave data from backend
-              // When filter is active, backend returns filtered data, we adjust goal proportionally
-              const isFiltered = waveSelectedGLs.length > 0;
+              // Check if specific GLs are selected (not "Alle" and not "none")
+              const hasSpecificGLFilter = waveSelectedGLs.length > 0 && !waveSelectedGLs.includes('__none__');
               const totalGLs = availableGLs.length || 1;
               
-              // Only adjust goal when filtering - backend already filters the currentValue
-              const adjustedWave = isFiltered ? {
+              // Only adjust goal when specific GLs are selected
+              const adjustedWave = hasSpecificGLFilter ? {
                 ...wave,
                 // Goal is proportional: (full goal / total GLs) * selected GLs
                 goalPercentage: wave.goalPercentage ? (wave.goalPercentage / totalGLs) * waveSelectedGLs.length : undefined,
                 goalValue: wave.goalValue ? (wave.goalValue / totalGLs) * waveSelectedGLs.length : undefined,
-              } : wave; // No filter = show original backend values
+              } : wave; // No filter or "none" = show original backend values
               
               return <WaveProgressCard key={wave.id} wave={adjustedWave} onClick={() => setSelectedWave(wave)} onEdit={onEditWave} />;
             })}
@@ -251,13 +284,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
           </div>
           <div className={styles.wavesGrid}>
             {finishedWaves.map(wave => {
-              // Adjust goal if GL filter is active
-              const glCount = waveSelectedGLs.length > 0 ? waveSelectedGLs.length : availableGLs.length || 1;
-              const adjustedWave = {
+              // Check if specific GLs are selected (not "Alle" and not "none")
+              const hasSpecificGLFilter = waveSelectedGLs.length > 0 && !waveSelectedGLs.includes('__none__');
+              const totalGLs = availableGLs.length || 1;
+              
+              const adjustedWave = hasSpecificGLFilter ? {
                 ...wave,
-                goalPercentage: wave.goalPercentage ? wave.goalPercentage / glCount : undefined,
-                goalValue: wave.goalValue ? wave.goalValue / glCount : undefined,
-              };
+                goalPercentage: wave.goalPercentage ? (wave.goalPercentage / totalGLs) * waveSelectedGLs.length : undefined,
+                goalValue: wave.goalValue ? (wave.goalValue / totalGLs) * waveSelectedGLs.length : undefined,
+              } : wave;
               return <WaveProgressCard key={wave.id} wave={adjustedWave} isFinished onClick={() => setSelectedWave(wave)} onEdit={onEditWave} />;
             })}
           </div>

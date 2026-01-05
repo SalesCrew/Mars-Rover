@@ -18,6 +18,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
 }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [alleGLsSelected, setAlleGLsSelected] = useState(true);
   const [selectedGLs, setSelectedGLs] = useState<string[]>([]);
   const [selectedType, setSelectedType] = useState<'all' | 'displays' | 'kartonware'>('all');
   const [isGLDropdownOpen, setIsGLDropdownOpen] = useState(false);
@@ -100,13 +101,40 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     setIsTypeDropdownOpen(!isTypeDropdownOpen);
   };
 
+  const handleAlleGLsToggle = () => {
+    const newAlleState = !alleGLsSelected;
+    setAlleGLsSelected(newAlleState);
+    if (newAlleState) {
+      // When "Alle" is selected, clear individual selections and pass empty array (meaning all)
+      setSelectedGLs([]);
+      if (onGLFilterChange) {
+        onGLFilterChange([]);
+      }
+    } else {
+      // When "Alle" is deselected, no GLs are selected
+      setSelectedGLs([]);
+      if (onGLFilterChange) {
+        onGLFilterChange(['__none__']); // Special value to indicate no GLs selected
+      }
+    }
+  };
+
   const handleGLToggle = (glId: string) => {
+    // When toggling individual GLs, deactivate "Alle"
+    setAlleGLsSelected(false);
+    
     const newSelection = selectedGLs.includes(glId)
       ? selectedGLs.filter(id => id !== glId)
       : [...selectedGLs, glId];
     setSelectedGLs(newSelection);
+    
     if (onGLFilterChange) {
-      onGLFilterChange(newSelection);
+      // If no GLs selected after toggle, pass special value
+      if (newSelection.length === 0) {
+        onGLFilterChange(['__none__']);
+      } else {
+        onGLFilterChange(newSelection);
+      }
     }
   };
 
@@ -152,11 +180,27 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
               onClick={handleGLDropdownToggle}
             >
               <Users size={14} weight="regular" />
-              <span>{selectedGLs.length > 0 ? `${selectedGLs.length} GLs` : 'Alle GLs'}</span>
+              <span>
+                {alleGLsSelected 
+                  ? 'Alle GLs' 
+                  : selectedGLs.length > 0 
+                    ? `${selectedGLs.length} GLs` 
+                    : 'Keine GLs'}
+              </span>
               <CaretDown size={12} weight="bold" />
             </button>
             {isGLDropdownOpen && (
               <div className={`${styles.dropdownMenu} ${glDropdownAlignRight ? styles.dropdownMenuRight : ''}`}>
+                <label className={`${styles.dropdownItem} ${styles.alleOption}`}>
+                  <input
+                    type="checkbox"
+                    checked={alleGLsSelected}
+                    onChange={handleAlleGLsToggle}
+                    className={styles.checkbox}
+                  />
+                  <span>Alle</span>
+                </label>
+                <div className={styles.dropdownDivider} />
                 {availableGLs.map((gl) => (
                   <label key={gl.id} className={styles.dropdownItem}>
                     <input
