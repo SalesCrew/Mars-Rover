@@ -31,7 +31,7 @@ interface MenuItem {
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [selectedPage, setSelectedPage] = useState<AdminPage>('dashboard');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isHistorieModalOpen, setIsHistorieModalOpen] = useState(false);
   const [isCreateGLModalOpen, setIsCreateGLModalOpen] = useState(false);
