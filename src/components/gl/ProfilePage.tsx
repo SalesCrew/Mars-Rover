@@ -12,10 +12,16 @@ import {
   ClipboardText,
   Question,
   PencilSimple,
-  FloppyDisk
+  FloppyDisk,
+  Lock,
+  Eye,
+  EyeSlash,
+  Check,
+  X
 } from '@phosphor-icons/react';
 import Aurora from './Aurora';
 import type { GLProfile } from '../../types/gl-types';
+import { API_BASE_URL } from '../../config/database';
 import styles from './ProfilePage.module.css';
 
 interface ProfilePageProps {
@@ -31,6 +37,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
     phone: profile.phone,
     email: profile.email,
   });
+
+  // Password change state
+  const [isPasswordSectionOpen, setIsPasswordSectionOpen] = useState(false);
+  const [passwordStep, setPasswordStep] = useState<'current' | 'new'>('current');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Format creation date
   const createdDate = new Date(profile.createdAt);
@@ -71,6 +90,73 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
 
   const handleChange = (field: keyof typeof editedData, value: string) => {
     setEditedData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordError('');
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Die Passwörter stimmen nicht überein');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      setPasswordError('Passwort muss mindestens 6 Zeichen lang sein');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/gebietsleiter/${profile.id}/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setPasswordError(data.error || 'Fehler beim Ändern des Passworts');
+        return;
+      }
+
+      setPasswordSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      
+      // Reset after 2 seconds
+      setTimeout(() => {
+        setPasswordSuccess(false);
+        setIsPasswordSectionOpen(false);
+        setPasswordStep('current');
+      }, 2000);
+    } catch (error) {
+      setPasswordError('Verbindungsfehler');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleCancelPasswordChange = () => {
+    setIsPasswordSectionOpen(false);
+    setPasswordStep('current');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError('');
+    setPasswordSuccess(false);
+  };
+
+  const handleCurrentPasswordSubmit = () => {
+    if (currentPassword.length > 0) {
+      setPasswordStep('new');
+      setPasswordError('');
+    }
   };
 
   return (
@@ -198,6 +284,129 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
                 <span>Speichern</span>
               </button>
             )}
+
+            {/* Password Change Section */}
+            <div className={styles.passwordSection}>
+              {!isPasswordSectionOpen ? (
+                <button 
+                  className={styles.passwordTrigger}
+                  onClick={() => setIsPasswordSectionOpen(true)}
+                >
+                  <Lock size={16} weight="regular" />
+                  <span>Passwort ändern</span>
+                </button>
+              ) : passwordSuccess ? (
+                <div className={styles.passwordSuccess}>
+                  <Check size={20} weight="bold" />
+                  <span>Passwort erfolgreich geändert</span>
+                </div>
+              ) : (
+                <div className={styles.passwordForm}>
+                  <div className={styles.passwordHeader}>
+                    <Lock size={16} weight="regular" />
+                    <span>Passwort ändern</span>
+                    <button 
+                      className={styles.passwordClose}
+                      onClick={handleCancelPasswordChange}
+                    >
+                      <X size={16} weight="bold" />
+                    </button>
+                  </div>
+
+                  {passwordStep === 'current' ? (
+                    <div className={styles.passwordInputGroup}>
+                      <label className={styles.passwordLabel}>Aktuelles Passwort</label>
+                      <div className={styles.passwordInputWrapper}>
+                        <input
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          className={styles.passwordInput}
+                          placeholder="••••••••"
+                          onKeyDown={(e) => e.key === 'Enter' && handleCurrentPasswordSubmit()}
+                        />
+                        <button 
+                          className={styles.passwordToggle}
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          type="button"
+                        >
+                          {showCurrentPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                      <button 
+                        className={styles.passwordNext}
+                        onClick={handleCurrentPasswordSubmit}
+                        disabled={!currentPassword}
+                      >
+                        Weiter
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={styles.passwordInputGroup}>
+                      <div className={styles.passwordFieldGroup}>
+                        <label className={styles.passwordLabel}>Neues Passwort</label>
+                        <div className={styles.passwordInputWrapper}>
+                          <input
+                            type={showNewPassword ? 'text' : 'password'}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className={styles.passwordInput}
+                            placeholder="••••••••"
+                          />
+                          <button 
+                            className={styles.passwordToggle}
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            type="button"
+                          >
+                            {showNewPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className={styles.passwordFieldGroup}>
+                        <label className={styles.passwordLabel}>Passwort bestätigen</label>
+                        <div className={styles.passwordInputWrapper}>
+                          <input
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className={styles.passwordInput}
+                            placeholder="••••••••"
+                          />
+                          <button 
+                            className={styles.passwordToggle}
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            type="button"
+                          >
+                            {showConfirmPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {passwordError && (
+                        <div className={styles.passwordError}>{passwordError}</div>
+                      )}
+
+                      <div className={styles.passwordActions}>
+                        <button 
+                          className={styles.passwordBack}
+                          onClick={() => setPasswordStep('current')}
+                        >
+                          Zurück
+                        </button>
+                        <button 
+                          className={styles.passwordSubmit}
+                          onClick={handlePasswordChange}
+                          disabled={!newPassword || !confirmPassword || isChangingPassword}
+                        >
+                          {isChangingPassword ? 'Wird geändert...' : 'Passwort ändern'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Statistics Grid */}
