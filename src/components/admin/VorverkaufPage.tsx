@@ -168,6 +168,10 @@ export const VorverkaufPage: React.FC = () => {
           <span className={styles.statValue}>{entries.filter(e => e.reason === 'Listungslücke').length}</span>
           <span className={styles.statLabel}>Listungslücke</span>
         </div>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>{entries.filter(e => e.reason === 'Platzierung').length}</span>
+          <span className={styles.statLabel}>Platzierung</span>
+        </div>
       </div>
 
       {/* Entries list */}
