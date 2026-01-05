@@ -305,7 +305,7 @@ export const TourPage: React.FC<TourPageProps> = ({ route, user, onBack }) => {
         />
       </div>
 
-      <Header firstName={user.firstName} avatar={user.avatar} onDevPanelToggle={() => devPanelToggleRef.current?.()} />
+      <Header firstName={user.firstName} avatar={user.avatar} />
       
       <main className={styles.main}>
         <div className={styles.container}>

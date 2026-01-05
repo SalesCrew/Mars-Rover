@@ -270,6 +270,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         avatar={glProfileData?.profile_picture_url || data.user.avatar}
         onLogout={handleLogout}
         onProfileClick={handleProfileClick}
+        onLogoClick={() => setActiveTab('dashboard')}
       />
 
       {/* Main Content */}

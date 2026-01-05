@@ -5,19 +5,19 @@ import styles from './Header.module.css';
 interface HeaderProps {
   firstName: string;
   avatar: string;
-  onDevPanelToggle?: () => void;
   onLogout?: () => void;
   onProfileClick?: () => void;
+  onLogoClick?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onDevPanelToggle, onLogout, onProfileClick }) => {
+export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onLogout, onProfileClick, onLogoClick }) => {
   return (
     <header className={styles.header}>
       <div className={styles.headerContent}>
         <button 
           className={styles.appName}
-          onClick={onDevPanelToggle}
-          aria-label="Toggle Dev Panel"
+          onClick={onLogoClick}
+          aria-label="Go to Dashboard"
         >
           Mars Rover
         </button>

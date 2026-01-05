@@ -49,7 +49,7 @@ export interface GLDashboard {
   performanceMetrics?: PerformanceMetrics;
 }
 
-export type NavigationTab = 'dashboard' | 'statistics' | 'sell-ins' | 'profile';
+export type NavigationTab = 'dashboard' | 'statistics' | 'profile';
 
 // Chain Statistics Types
 export interface ChainStats {
