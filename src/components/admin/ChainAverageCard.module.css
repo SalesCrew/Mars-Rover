@@ -3,15 +3,16 @@
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(250, 251, 252, 0.85));
   border: 1px solid rgba(226, 232, 240, 0.6);
   border-radius: 16px;
-  padding: 24px;
+  padding: 20px;
   box-shadow: 
     0 1px 3px rgba(0, 0, 0, 0.03),
     0 2px 8px rgba(0, 0, 0, 0.02);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  min-height: 220px;
+  gap: 14px;
+  min-height: 200px;
+  min-width: 0;
 }
 
 .card:hover {
@@ -61,12 +62,12 @@
 .mainDisplay {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  margin: 8px 0;
+  gap: 8px;
+  margin: 6px 0;
 }
 
 .value {
-  font-size: 48px;
+  font-size: 42px;
   font-weight: 800;
   line-height: 1;
   background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
@@ -146,7 +147,7 @@
 .metrics {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
   padding-top: 12px;
   border-top: 1px solid rgba(226, 232, 240, 0.5);
 }
@@ -154,12 +155,13 @@
 .metric {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 8px;
+  gap: 6px;
+  padding: 8px 6px;
   background: linear-gradient(135deg, rgba(249, 250, 251, 0.8), rgba(255, 255, 255, 0.6));
   border: 1px solid rgba(226, 232, 240, 0.6);
-  border-radius: 10px;
+  border-radius: 8px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 0;
 }
 
 .metric:hover {
@@ -175,15 +177,22 @@
   flex-shrink: 0;
 }
 
+.metricIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .metricInfo {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .metricValue {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: #1F2937;
   line-height: 1;
@@ -191,10 +200,13 @@
 }
 
 .metricLabel {
-  font-size: 10px;
+  font-size: 9px;
   color: #9CA3AF;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
