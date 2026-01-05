@@ -57,6 +57,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedBundles, setExpandedBundles] = useState<Set<number>>(new Set());
   
   const [allMarkets, setAllMarkets] = useState<Market[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -203,24 +204,33 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     ));
   };
 
-  // Get smart suggestions - single products and bundles
+  // Get smart suggestions - single products and bundles (category-aware)
   const getSuggestions = (): SuggestionBundle[] => {
     if (takeOutProducts.length === 0) return [];
     
-    const takeOutDepts = new Set(takeOutProducts.map(p => p.product.department).filter(Boolean));
+    const takeOutDepts = takeOutProducts.map(p => p.product.department).filter(Boolean);
+    const mainDept = takeOutDepts.length > 0 ? takeOutDepts[0] : null;
     const takeOutTotal = takeOutProducts.reduce((sum, p) => sum + p.product.price * p.quantity, 0);
-    const avgPrice = takeOutTotal / takeOutProducts.length;
+    const avgPrice = takeOutTotal / takeOutProducts.reduce((sum, p) => sum + p.quantity, 0);
     
     const suggestions: SuggestionBundle[] = [];
+    const usedProductIds = new Set<string>();
     
-    // Single product suggestions (same department or similar price)
-    const singleMatches = allProducts
+    // Get available products (excluding already selected)
+    const availableProducts = allProducts
       .filter(p => !takeOutProducts.some(t => t.product.id === p.id))
-      .filter(p => !replaceWithProducts.some(r => r.product.id === p.id))
-      .filter(p => takeOutDepts.has(p.department) || Math.abs(p.price - avgPrice) < avgPrice * 0.4)
-      .slice(0, 4);
+      .filter(p => !replaceWithProducts.some(r => r.product.id === p.id));
     
-    singleMatches.forEach(product => {
+    // Priority 1: Same department, similar price (best matches)
+    const sameDeptSimilarPrice = availableProducts
+      .filter(p => p.department === mainDept)
+      .filter(p => Math.abs(p.price - avgPrice) < avgPrice * 0.5)
+      .sort((a, b) => Math.abs(a.price - avgPrice) - Math.abs(b.price - avgPrice))
+      .slice(0, 3);
+    
+    sameDeptSimilarPrice.forEach(product => {
+      if (usedProductIds.has(product.id)) return;
+      usedProductIds.add(product.id);
       suggestions.push({
         type: 'single',
         title: product.name,
@@ -230,34 +240,73 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
       });
     });
     
-    // Bundle suggestions (2-3 products that match total value)
-    if (takeOutTotal > 10) {
-      const potentialBundleProducts = allProducts
-        .filter(p => !takeOutProducts.some(t => t.product.id === p.id))
-        .filter(p => !replaceWithProducts.some(r => r.product.id === p.id))
+    // Priority 2: Same department, any price
+    const sameDeptAnyPrice = availableProducts
+      .filter(p => p.department === mainDept && !usedProductIds.has(p.id))
+      .sort((a, b) => Math.abs(a.price - avgPrice) - Math.abs(b.price - avgPrice))
+      .slice(0, 3);
+    
+    sameDeptAnyPrice.forEach(product => {
+      if (usedProductIds.has(product.id)) return;
+      usedProductIds.add(product.id);
+      suggestions.push({
+        type: 'single',
+        title: product.name,
+        description: `${product.weight || product.content || ''} · €${product.price.toFixed(2)}`,
+        products: [product],
+        totalValue: product.price
+      });
+    });
+    
+    // Priority 3: Bundles (2 products from same department that match total value)
+    if (takeOutTotal > 5) {
+      const bundleCandidates = availableProducts
+        .filter(p => p.department === mainDept && !usedProductIds.has(p.id))
         .filter(p => p.price < takeOutTotal * 0.8)
-        .slice(0, 20);
+        .slice(0, 15);
       
-      // Try to find a 2-product bundle close to total value
-      for (let i = 0; i < Math.min(potentialBundleProducts.length, 10); i++) {
-        for (let j = i + 1; j < Math.min(potentialBundleProducts.length, 15); j++) {
-          const bundleTotal = potentialBundleProducts[i].price + potentialBundleProducts[j].price;
-          if (Math.abs(bundleTotal - takeOutTotal) < takeOutTotal * 0.25) {
-            suggestions.push({
+      const bundlesFound: SuggestionBundle[] = [];
+      
+      for (let i = 0; i < bundleCandidates.length && bundlesFound.length < 3; i++) {
+        for (let j = i + 1; j < bundleCandidates.length; j++) {
+          const bundleTotal = bundleCandidates[i].price + bundleCandidates[j].price;
+          const diff = Math.abs(bundleTotal - takeOutTotal);
+          
+          if (diff < takeOutTotal * 0.3) {
+            bundlesFound.push({
               type: 'bundle',
-              title: `Bundle: ${potentialBundleProducts[i].name.slice(0, 20)}... + 1`,
-              description: `2 Produkte · Wert: €${bundleTotal.toFixed(2)}`,
-              products: [potentialBundleProducts[i], potentialBundleProducts[j]],
+              title: `${bundleCandidates[i].name.slice(0, 25)}...`,
+              description: `+ ${bundleCandidates[j].name.slice(0, 20)}... · €${bundleTotal.toFixed(2)}`,
+              products: [bundleCandidates[i], bundleCandidates[j]],
               totalValue: bundleTotal
             });
             break;
           }
         }
-        if (suggestions.filter(s => s.type === 'bundle').length >= 2) break;
       }
+      
+      bundlesFound.forEach(b => suggestions.push(b));
     }
     
-    return suggestions.slice(0, 6);
+    // Priority 4: Similar price from any department (fill up to 8-10)
+    if (suggestions.length < 8) {
+      const similarPriceAnyDept = availableProducts
+        .filter(p => !usedProductIds.has(p.id))
+        .sort((a, b) => Math.abs(a.price - avgPrice) - Math.abs(b.price - avgPrice))
+        .slice(0, 8 - suggestions.length);
+      
+      similarPriceAnyDept.forEach(product => {
+        suggestions.push({
+          type: 'single',
+          title: product.name,
+          description: `${product.weight || product.content || ''} · €${product.price.toFixed(2)}`,
+          products: [product],
+          totalValue: product.price
+        });
+      });
+    }
+    
+    return suggestions.slice(0, 10);
   };
 
   const handleAddSuggestion = (suggestion: SuggestionBundle) => {
@@ -320,63 +369,155 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
 
   if (!isOpen) return null;
 
-  // Suggestions Modal - Clean compact design
+  // Suggestions Modal - Clean professional design
   if (showSuggestions) {
     const suggestions = getSuggestions();
+    const mainDept = takeOutProducts[0]?.product.department;
+    const deptLabel = mainDept === 'pets' ? 'Tiernahrung' : mainDept === 'food' ? 'Lebensmittel' : 'Produkte';
     
     return (
       <div className={styles.modalOverlay} onClick={() => setShowSuggestions(false)}>
         <div className={styles.suggestionsModal} onClick={(e) => e.stopPropagation()}>
           <div className={styles.suggestionsHeader}>
-            <Lightbulb size={24} weight="duotone" className={styles.suggestionsHeaderIcon} />
-            <div className={styles.suggestionsHeaderText}>
-              <h2>Ersatzvorschläge</h2>
-              <p>Basierend auf Warenwert €{getTakeOutTotal().toFixed(2)}</p>
+            <div className={styles.suggestionsHeaderTop}>
+              <div className={styles.suggestionsHeaderLeft}>
+                <Lightbulb size={22} weight="duotone" className={styles.suggestionsHeaderIcon} />
+                <div className={styles.suggestionsHeaderText}>
+                  <h2>Ersatzvorschläge</h2>
+                  <p>Passende {deptLabel} für €{getTakeOutTotal().toFixed(2)} Warenwert</p>
+                </div>
+              </div>
+              <button className={styles.closeBtn} onClick={() => setShowSuggestions(false)}>
+                <X size={18} />
+              </button>
             </div>
-            <button className={styles.closeBtn} onClick={() => setShowSuggestions(false)}>
-              <X size={18} />
-            </button>
+            
+            {/* Progress indicator */}
+            <div className={styles.valueProgress}>
+              <div className={styles.valueProgressInfo}>
+                <span>Ersetzt: €{getReplaceTotal().toFixed(2)}</span>
+                <span className={styles.valueProgressTarget}>Ziel: €{getTakeOutTotal().toFixed(2)}</span>
+              </div>
+              <div className={styles.valueProgressBar}>
+                <div 
+                  className={styles.valueProgressFill}
+                  style={{ 
+                    width: `${Math.min(100, (getReplaceTotal() / getTakeOutTotal()) * 100)}%`,
+                    background: getReplaceTotal() >= getTakeOutTotal() ? '#10B981' : '#3B82F6'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* What's being replaced summary */}
+          <div className={styles.replaceSummary}>
+            <div className={styles.replaceSummaryLabel}>
+              <span>Entnommen:</span>
+              <strong>{takeOutProducts.length} {takeOutProducts.length === 1 ? 'Produkt' : 'Produkte'}</strong>
+            </div>
+            <div className={styles.replaceSummaryItems}>
+              {takeOutProducts.slice(0, 3).map(p => (
+                <span key={p.product.id} className={styles.replaceSummaryChip}>
+                  {p.product.name.slice(0, 20)}{p.product.name.length > 20 ? '...' : ''} ×{p.quantity}
+                </span>
+              ))}
+              {takeOutProducts.length > 3 && (
+                <span className={styles.replaceSummaryMore}>+{takeOutProducts.length - 3} weitere</span>
+              )}
+            </div>
           </div>
 
           <div className={styles.suggestionsBody}>
+            <div className={styles.suggestionsSectionTitle}>Vorgeschlagene Ersatzprodukte</div>
+            
             {suggestions.length > 0 ? (
-              <div className={styles.suggestionGrid}>
-                {suggestions.map((suggestion, idx) => (
-                  <button
-                    key={idx}
-                    className={`${styles.suggestionCard} ${suggestion.type === 'bundle' ? styles.bundleCard : ''}`}
-                    onClick={() => handleAddSuggestion(suggestion)}
-                  >
-                    <div className={styles.suggestionCardIcon}>
-                      {suggestion.type === 'bundle' ? <Lightning size={16} weight="fill" /> : <Package size={16} />}
+              <div className={styles.suggestionsList}>
+                {suggestions.map((suggestion, idx) => {
+                  const isBundle = suggestion.type === 'bundle';
+                  const isExpanded = expandedBundles.has(idx);
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className={`${styles.suggestionItem} ${isBundle ? styles.bundleItem : ''} ${isExpanded ? styles.bundleExpanded : ''}`}
+                    >
+                      <div 
+                        className={styles.suggestionItemMain}
+                        onClick={() => {
+                          if (isBundle) {
+                            setExpandedBundles(prev => {
+                              const next = new Set(prev);
+                              if (next.has(idx)) next.delete(idx);
+                              else next.add(idx);
+                              return next;
+                            });
+                          }
+                        }}
+                        style={{ cursor: isBundle ? 'pointer' : 'default' }}
+                      >
+                        <div className={styles.suggestionItemLeft}>
+                          <div className={styles.suggestionItemIcon}>
+                            {isBundle ? <Lightning size={18} weight="fill" /> : <Package size={18} />}
+                          </div>
+                          <div className={styles.suggestionItemInfo}>
+                            <span className={styles.suggestionItemTitle}>
+                              {isBundle ? `Bundle: ${suggestion.products.length} Produkte` : suggestion.title}
+                            </span>
+                            <span className={styles.suggestionItemMeta}>
+                              {isBundle && !isExpanded ? 'Klicken zum Anzeigen' : suggestion.description}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={styles.suggestionItemRight}>
+                          <span className={styles.suggestionItemPrice}>€{suggestion.totalValue.toFixed(2)}</span>
+                          <button 
+                            className={styles.suggestionAddBtn}
+                            onClick={(e) => { e.stopPropagation(); handleAddSuggestion(suggestion); }}
+                          >
+                            <Plus size={16} weight="bold" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {isBundle && isExpanded && (
+                        <div className={styles.bundleProducts}>
+                          {suggestion.products.map((product, pIdx) => (
+                            <div key={pIdx} className={styles.bundleProductItem}>
+                              <span className={styles.bundleProductName}>{product.name}</span>
+                              <span className={styles.bundleProductPrice}>€{product.price.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className={styles.suggestionCardContent}>
-                      <span className={styles.suggestionCardTitle}>{suggestion.title}</span>
-                      <span className={styles.suggestionCardMeta}>{suggestion.description}</span>
-                    </div>
-                    <Plus size={16} className={styles.suggestionCardAdd} />
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             ) : (
-              <div className={styles.noSuggestionsCompact}>
-                <Package size={32} weight="thin" />
-                <span>Keine Vorschläge</span>
+              <div className={styles.noSuggestions}>
+                <Package size={40} weight="thin" />
+                <span>Keine passenden Vorschläge gefunden</span>
               </div>
             )}
 
             {replaceWithProducts.length > 0 && (
               <div className={styles.selectedSection}>
-                <div className={styles.selectedHeader}>
+                <div className={styles.selectedSectionTitle}>
+                  <Check size={16} weight="bold" />
                   <span>Ausgewählt ({replaceWithProducts.length})</span>
-                  <span className={styles.selectedTotal}>{formatPrice(getReplaceTotal())}</span>
+                  <span className={styles.selectedTotal}>€{getReplaceTotal().toFixed(2)}</span>
                 </div>
-                <div className={styles.selectedChips}>
+                <div className={styles.selectedList}>
                   {replaceWithProducts.map(p => (
-                    <div key={p.product.id} className={styles.selectedChip}>
-                      <span>{p.product.name.slice(0, 25)}{p.product.name.length > 25 ? '...' : ''}</span>
-                      <button onClick={(e) => { e.stopPropagation(); handleRemoveReplace(p.product.id); }}>
-                        <X size={12} />
+                    <div key={p.product.id} className={styles.selectedItem}>
+                      <span className={styles.selectedItemName}>{p.product.name}</span>
+                      <span className={styles.selectedItemPrice}>€{(p.product.price * p.quantity).toFixed(2)}</span>
+                      <button 
+                        className={styles.selectedItemRemove}
+                        onClick={(e) => { e.stopPropagation(); handleRemoveReplace(p.product.id); }}
+                      >
+                        <X size={14} />
                       </button>
                     </div>
                   ))}
@@ -385,7 +526,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
             )}
           </div>
 
-          <div className={styles.suggestionsActions}>
+          <div className={styles.suggestionsFooter}>
             <button 
               className={styles.btnSecondary}
               onClick={() => { setShowSuggestions(false); setShowMarketConfirmation(true); }}
@@ -395,6 +536,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
             <button 
               className={styles.btnPrimary}
               onClick={() => { setShowSuggestions(false); setShowMarketConfirmation(true); }}
+              disabled={replaceWithProducts.length === 0}
             >
               Weiter <ArrowRight size={16} />
             </button>
@@ -404,46 +546,111 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     );
   }
 
-  // Market Confirmation Modal - Compact
+  // Market Confirmation Modal - Matching ProductCalculator style
   if (showMarketConfirmation) {
     const selectedMarket = allMarkets.find(m => m.id === selectedMarketId);
     
     return (
-      <div className={styles.modalOverlay} onClick={() => setShowMarketConfirmation(false)}>
+      <div className={styles.confirmOverlay} onClick={() => setShowMarketConfirmation(false)}>
         <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
           <div className={styles.confirmHeader}>
-            <Storefront size={20} weight="duotone" />
-            <span>Markt bestätigen</span>
+            <div className={styles.confirmIconWrapper}>
+              <Storefront size={36} weight="duotone" />
+            </div>
+            <div className={styles.confirmTitleGroup}>
+              <h2 className={styles.confirmTitle}>Markt bestätigen</h2>
+              <p className={styles.confirmSubtitle}>Ist dies der richtige Markt für diesen Vorverkauf?</p>
+            </div>
           </div>
           
-          <div className={styles.confirmBody}>
-            <div className={styles.confirmMarket}>
-              <strong>{selectedMarket?.chain}</strong>
-              <span>{selectedMarket?.address}, {selectedMarket?.city}</span>
+          {/* Content */}
+          <div className={styles.confirmContent}>
+            {/* Market Selection */}
+            <div className={styles.confirmSection}>
+              <label className={styles.confirmLabel}>Ausgewählter Markt</label>
+              <div className={styles.marketDropdownContainer} ref={marketDropdownRef}>
+                <button
+                  className={`${styles.marketDropdownBtn} ${isMarketDropdownOpen ? styles.open : ''}`}
+                  onClick={() => setIsMarketDropdownOpen(!isMarketDropdownOpen)}
+                >
+                  <span className={styles.marketDropdownText}>
+                    {selectedMarket ? (
+                      <>
+                        <strong>{selectedMarket.chain}</strong>
+                        <span>{selectedMarket.address}, {selectedMarket.postalCode} {selectedMarket.city}</span>
+                      </>
+                    ) : 'Markt wählen...'}
+                  </span>
+                  <CaretDown size={16} className={styles.marketDropdownChevron} />
+                </button>
+                
+                {isMarketDropdownOpen && (
+                  <div className={styles.marketDropdownMenu}>
+                    <div className={styles.marketDropdownSearch}>
+                      <MagnifyingGlass size={16} />
+                      <input
+                        type="text"
+                        placeholder="Markt suchen..."
+                        value={marketSearchQuery}
+                        onChange={(e) => setMarketSearchQuery(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className={styles.marketDropdownList}>
+                      {filteredMarkets.slice(0, 15).map((market) => (
+                        <button
+                          key={market.id}
+                          className={`${styles.marketDropdownItem} ${market.id === selectedMarketId ? styles.active : ''}`}
+                          onClick={() => {
+                            setSelectedMarketId(market.id);
+                            setIsMarketDropdownOpen(false);
+                            setMarketSearchQuery('');
+                          }}
+                        >
+                          <div className={styles.marketDropdownItemInfo}>
+                            <div className={styles.marketDropdownItemName}>{market.chain}</div>
+                            <div className={styles.marketDropdownItemAddress}>{market.address}, {market.postalCode} {market.city}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             
-            <div className={styles.confirmStats}>
-              <div className={styles.confirmStat}>
-                <span>Entnommen</span>
-                <strong>{takeOutProducts.length} · {formatPrice(getTakeOutTotal())}</strong>
+            {/* Exchange Summary */}
+            <div className={styles.exchangeSummary}>
+              <div className={styles.exchangeRow}>
+                <div className={styles.exchangeLabel}>Entnommen</div>
+                <div className={styles.exchangeValue}>
+                  <span className={styles.exchangeCount}>{takeOutProducts.reduce((sum, p) => sum + p.quantity, 0)}×</span>
+                  <strong>{formatPrice(getTakeOutTotal())}</strong>
+                </div>
               </div>
-              <div className={styles.confirmStat}>
-                <span>Ersetzt</span>
-                <strong>{replaceWithProducts.length} · {formatPrice(getReplaceTotal())}</strong>
+              <div className={styles.exchangeRow}>
+                <div className={styles.exchangeLabel}>Ersetzt</div>
+                <div className={styles.exchangeValue}>
+                  <span className={styles.exchangeCount}>{replaceWithProducts.reduce((sum, p) => sum + p.quantity, 0)}×</span>
+                  <strong>{formatPrice(getReplaceTotal())}</strong>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className={styles.confirmActions}>
-            <button className={styles.btnSecondary} onClick={() => setShowMarketConfirmation(false)}>
-              Zurück
+          {/* Footer */}
+          <div className={styles.confirmFooter}>
+            <button className={styles.confirmBtnSecondary} onClick={() => setShowMarketConfirmation(false)}>
+              Abbrechen
             </button>
             <button 
-              className={styles.btnSuccess} 
+              className={styles.confirmBtnSuccess} 
               onClick={handleConfirmSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !selectedMarketId}
             >
-              {isSubmitting ? '...' : <><Check size={16} /> Bestätigen</>}
+              <Check size={18} weight="bold" />
+              {isSubmitting ? 'Speichern...' : 'Markt bestätigen'}
             </button>
           </div>
         </div>
@@ -451,17 +658,53 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     );
   }
 
-  // Success Modal
+  // Success Modal - Matching VorbestellerModal style
   if (showConfirmation) {
     return (
-      <div className={styles.modalOverlay} onClick={handleCloseConfirmation}>
+      <div className={styles.successOverlay} onClick={handleCloseConfirmation}>
         <div className={`${styles.successModal} ${isAnimating ? styles.successAnimated : ''}`} onClick={(e) => e.stopPropagation()}>
-          <CheckCircle size={56} weight="fill" className={styles.successIcon} />
-          <h2>Erfasst!</h2>
-          <p>{getTotalQuantity()} Produkte dokumentiert</p>
-          <button className={styles.btnPrimary} onClick={handleCloseConfirmation}>
-            Fertig
-          </button>
+          <div className={styles.successContent}>
+            {/* Success Icon */}
+            <div className={styles.successIconWrapper}>
+              <CheckCircle size={72} weight="fill" className={styles.successCheckIcon} />
+            </div>
+
+            {/* Title */}
+            <div className={styles.successHeader}>
+              <h2 className={styles.successTitle}>Hervorragende Leistung!</h2>
+              <p className={styles.successSubtext}>Vorverkauf erfolgreich dokumentiert</p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className={styles.successStats}>
+              <div className={styles.successStat}>
+                <div className={styles.successStatIcon}>
+                  <Package size={20} weight="fill" />
+                </div>
+                <div className={styles.successStatInfo}>
+                  <div className={styles.successStatValue}>{getTotalQuantity()}</div>
+                  <div className={styles.successStatLabel}>Produkte</div>
+                </div>
+              </div>
+
+              <div className={styles.successStat}>
+                <div className={styles.successStatIcon}>
+                  <Receipt size={20} weight="fill" />
+                </div>
+                <div className={styles.successStatInfo}>
+                  <div className={styles.successStatValue}>€{(getTakeOutTotal() + getReplaceTotal()).toFixed(0)}</div>
+                  <div className={styles.successStatLabel}>Warenwert</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className={styles.successFooter}>
+            <button className={styles.successBtn} onClick={handleCloseConfirmation}>
+              Zurück zum Dashboard
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -581,18 +824,23 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
               <div className={styles.productsList}>
                 {takeOutProducts.map(p => (
                   <div key={p.product.id} className={styles.productRow}>
+                    <button className={styles.removeBtn} onClick={() => handleRemoveTakeOut(p.product.id)}>
+                      <X size={12} />
+                    </button>
                     <div className={styles.productInfo}>
                       <span className={styles.productName}>{p.product.name}</span>
-                      <span className={styles.productMeta}>{formatPrice(p.product.price)}</span>
+                      <span className={styles.productMeta}>{p.product.weight || p.product.content}</span>
                     </div>
-                    <div className={styles.qtyControls}>
-                      <button onClick={() => handleUpdateTakeOutQty(p.product.id, -1)}><Minus size={12} /></button>
-                      <span>{p.quantity}</span>
-                      <button onClick={() => handleUpdateTakeOutQty(p.product.id, 1)}><Plus size={12} /></button>
+                    <span className={styles.productPrice}>{formatPrice(p.product.price * p.quantity)}</span>
+                    <div className={styles.quantityControls}>
+                      <button className={styles.quantityBtn} onClick={() => handleUpdateTakeOutQty(p.product.id, -1)}>
+                        <Minus size={14} weight="bold" />
+                      </button>
+                      <span className={styles.quantityValue}>{p.quantity}</span>
+                      <button className={styles.quantityBtn} onClick={() => handleUpdateTakeOutQty(p.product.id, 1)}>
+                        <Plus size={14} weight="bold" />
+                      </button>
                     </div>
-                    <button className={styles.removeBtn} onClick={() => handleRemoveTakeOut(p.product.id)}>
-                      <X size={14} />
-                    </button>
                   </div>
                 ))}
                 <div className={styles.productsTotal}>
@@ -649,18 +897,23 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
               <div className={`${styles.productsList} ${styles.replaceList}`}>
                 {replaceWithProducts.map(p => (
                   <div key={p.product.id} className={styles.productRow}>
+                    <button className={styles.removeBtn} onClick={() => handleRemoveReplace(p.product.id)}>
+                      <X size={12} />
+                    </button>
                     <div className={styles.productInfo}>
                       <span className={styles.productName}>{p.product.name}</span>
-                      <span className={styles.productMeta}>{formatPrice(p.product.price)}</span>
+                      <span className={styles.productMeta}>{p.product.weight || p.product.content}</span>
                     </div>
-                    <div className={styles.qtyControls}>
-                      <button onClick={() => handleUpdateReplaceQty(p.product.id, -1)}><Minus size={12} /></button>
-                      <span>{p.quantity}</span>
-                      <button onClick={() => handleUpdateReplaceQty(p.product.id, 1)}><Plus size={12} /></button>
+                    <span className={styles.productPrice}>{formatPrice(p.product.price * p.quantity)}</span>
+                    <div className={styles.quantityControls}>
+                      <button className={styles.quantityBtn} onClick={() => handleUpdateReplaceQty(p.product.id, -1)}>
+                        <Minus size={14} weight="bold" />
+                      </button>
+                      <span className={styles.quantityValue}>{p.quantity}</span>
+                      <button className={styles.quantityBtn} onClick={() => handleUpdateReplaceQty(p.product.id, 1)}>
+                        <Plus size={14} weight="bold" />
+                      </button>
                     </div>
-                    <button className={styles.removeBtn} onClick={() => handleRemoveReplace(p.product.id)}>
-                      <X size={14} />
-                    </button>
                   </div>
                 ))}
                 <div className={styles.productsTotal}>
