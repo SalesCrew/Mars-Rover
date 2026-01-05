@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { X, FunnelSimple, MagnifyingGlass, CheckCircle, Storefront, CaretDown, CaretUp } from '@phosphor-icons/react';
 import { marketService } from '../../services/marketService';
+import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './WelleMarketSelectorModal.module.css';
 
@@ -107,16 +108,25 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
     return options.length > 0 && options.every(opt => selectedFilters[type].includes(opt));
   };
 
-  const filteredMarkets = markets.filter(market => {
-    if (selectedFilters.chain.length > 0 && !selectedFilters.chain.includes(market.chain)) return false;
-    if (selectedFilters.gebietsleiter.length > 0 && !selectedFilters.gebietsleiter.includes(market.gebietsleiterName || '')) return false;
-    if (selectedFilters.subgroup.length > 0 && !selectedFilters.subgroup.includes(market.subgroup || '')) return false;
-    if (selectedFilters.status.length > 0) {
-      const statusValue = market.isActive ? 'Aktiv' : 'Inaktiv';
-      if (!selectedFilters.status.includes(statusValue)) return false;
-    }
-    return true;
-  });
+  const filteredMarkets = useMemo(() => {
+    return markets.filter(market => {
+      if (selectedFilters.chain.length > 0 && !selectedFilters.chain.includes(market.chain)) return false;
+      if (selectedFilters.gebietsleiter.length > 0 && !selectedFilters.gebietsleiter.includes(market.gebietsleiterName || '')) return false;
+      if (selectedFilters.subgroup.length > 0 && !selectedFilters.subgroup.includes(market.subgroup || '')) return false;
+      if (selectedFilters.status.length > 0) {
+        const statusValue = market.isActive ? 'Aktiv' : 'Inaktiv';
+        if (!selectedFilters.status.includes(statusValue)) return false;
+      }
+      return true;
+    });
+  }, [markets, selectedFilters]);
+
+  // Create a map for quick market lookup
+  const marketMap = useMemo(() => {
+    const map = new Map<string, AdminMarket>();
+    filteredMarkets.forEach(m => map.set(m.id, m));
+    return map;
+  }, [filteredMarkets]);
 
   const uniqueChains = Array.from(new Set(markets.map(m => m.chain).filter((c): c is string => Boolean(c))));
   const uniqueGLs = Array.from(new Set(markets.map(m => m.gebietsleiterName).filter((n): n is string => Boolean(n))));
@@ -133,7 +143,14 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
 
   const handleSelectAllFiltered = () => {
     const filteredMarketIds = filteredMarkets.map(m => m.id);
-    setTempSelectedIds(filteredMarketIds);
+    const allFilteredSelected = filteredMarketIds.every(id => tempSelectedIds.includes(id));
+    if (allFilteredSelected) {
+      // Deselect all filtered markets
+      setTempSelectedIds(prev => prev.filter(id => !filteredMarketIds.includes(id)));
+    } else {
+      // Select all filtered markets (add to existing selection)
+      setTempSelectedIds(prev => [...new Set([...prev, ...filteredMarketIds])]);
+    }
   };
 
   const handleConfirm = () => {
@@ -371,30 +388,41 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
           ) : filteredMarkets.length === 0 ? (
             <div className={styles.emptyState}>Keine Märkte gefunden</div>
           ) : (
-            filteredMarkets.map(market => (
-              <button
-                key={market.id}
-                className={`${styles.marketItem} ${tempSelectedIds.includes(market.id) ? styles.marketItemSelected : ''}`}
-                onClick={() => toggleMarketSelection(market.id)}
-              >
-                <div className={styles.marketCheckbox}>
-                  <div className={styles.checkbox}>
-                    {tempSelectedIds.includes(market.id) && <CheckCircle size={18} weight="fill" />}
-                  </div>
-                </div>
-                <div className={styles.marketInfo}>
-                  <span className={styles.marketChain}>{market.chain}</span>
-                  <span className={styles.marketSeparator}>•</span>
-                  <span className={styles.marketAddress}>{market.address}, {market.postalCode} {market.city}</span>
-                  {market.gebietsleiterName && (
-                    <>
+            <VirtualizedAnimatedList
+              items={filteredMarkets.map(m => m.id)}
+              showGradients={false}
+              enableArrowNavigation={false}
+              displayScrollbar={true}
+              estimateSize={56}
+            >
+              {(marketId) => {
+                const market = marketMap.get(marketId);
+                if (!market) return null;
+                return (
+                  <button
+                    className={`${styles.marketItem} ${tempSelectedIds.includes(market.id) ? styles.marketItemSelected : ''}`}
+                    onClick={() => toggleMarketSelection(market.id)}
+                  >
+                    <div className={styles.marketCheckbox}>
+                      <div className={styles.checkbox}>
+                        {tempSelectedIds.includes(market.id) && <CheckCircle size={18} weight="fill" />}
+                      </div>
+                    </div>
+                    <div className={styles.marketInfo}>
+                      <span className={styles.marketChain}>{market.chain}</span>
                       <span className={styles.marketSeparator}>•</span>
-                      <span className={styles.marketGL}>{market.gebietsleiterName}</span>
-                    </>
-                  )}
-                </div>
-              </button>
-            ))
+                      <span className={styles.marketAddress}>{market.address}, {market.postalCode} {market.city}</span>
+                      {market.gebietsleiterName && (
+                        <>
+                          <span className={styles.marketSeparator}>•</span>
+                          <span className={styles.marketGL}>{market.gebietsleiterName}</span>
+                        </>
+                      )}
+                    </div>
+                  </button>
+                );
+              }}
+            </VirtualizedAnimatedList>
           )}
         </div>
 
