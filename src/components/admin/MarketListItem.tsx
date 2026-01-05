@@ -162,8 +162,8 @@ export const MarketListItem: React.FC<MarketListItemProps> = ({ market, onClick 
       </div>
       
       <div className={styles.addressCell}>
-        <div className={styles.addressStreet}>{market.address}</div>
-        <div className={styles.addressCity}>{market.postalCode} {market.city}</div>
+        <div className={styles.addressStreet}>{market.city}</div>
+        <div className={styles.addressCity}>{market.postalCode}, {market.address}</div>
       </div>
 
       <div className={styles.gebietsleiterCell}>
