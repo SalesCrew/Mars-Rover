@@ -1,6 +1,8 @@
 import type { Product } from '../types/product-types';
 import { productService } from '../services/productService';
 
+export type { Product };
+
 // In-memory cache
 let productsCache: Product[] = [];
 let isLoaded = false;

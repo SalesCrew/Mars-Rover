@@ -1034,19 +1034,46 @@
   overflow: hidden;
 }
 
-.pastItemsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
-  padding: 24px 32px;
+.pastItemsContent {
   overflow-y: auto;
-  max-height: 380px;
+  max-height: calc(80vh - 80px);
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
-.pastItemsGrid::-webkit-scrollbar {
+.pastItemsContent::-webkit-scrollbar {
   display: none;
+}
+
+.pastItemsSection {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+}
+
+.pastItemsSection:last-child {
+  border-bottom: none;
+}
+
+.pastItemsSectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 8px;
+}
+
+.pastItemsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  padding: 8px;
+}
+
+.pastItemPrice {
+  font-size: 12px;
+  color: #10B981;
+  font-weight: 600;
 }
 
 .pastItemCard {

@@ -6,6 +6,7 @@ import { CustomDatePicker } from './CustomDatePicker';
 import { WelleDetailModal } from './WelleDetailModal';
 import { WelleMarketSelectorModal } from './WelleMarketSelectorModal';
 import { wellenService } from '../../services/wellenService';
+import { getAllProducts, type Product } from '../../data/productsData';
 
 interface VorbestellerPageProps {
   isCreateWelleModalOpen: boolean;
@@ -99,6 +100,21 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     loadWellen();
   }, []);
 
+  // Load product displays (displays from products table)
+  useEffect(() => {
+    const loadProductDisplays = async () => {
+      try {
+        const products = await getAllProducts();
+        // Filter only displays (productType === 'display')
+        const displays = products.filter(p => p.productType === 'display');
+        setProductDisplays(displays);
+      } catch (error) {
+        console.error('Error loading product displays:', error);
+      }
+    };
+    loadProductDisplays();
+  }, []);
+
   const [selectedWelle, setSelectedWelle] = useState<Welle | null>(null);
 
   const [editingWelle, setEditingWelle] = useState<Welle | null>(null);
@@ -106,6 +122,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   const [pastItemType, setPastItemType] = useState<'display' | 'kartonware' | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTypes, setSelectedTypes] = useState<('display' | 'kartonware')[]>([]);
+  const [productDisplays, setProductDisplays] = useState<Product[]>([]);
   
   // Wave details
   const [waveName, setWaveName] = useState('');
@@ -347,6 +364,19 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       };
       setKartonwareItems(prev => [...prev, newKartonware]);
     }
+    handleClosePastItems();
+  };
+
+  // Handle selecting a product display (from products table)
+  const handleSelectProductDisplay = (product: Product) => {
+    const newDisplay: DisplayItem = {
+      id: Date.now().toString(),
+      name: product.name,
+      targetNumber: '',
+      picture: null,
+      itemValue: product.price?.toString()
+    };
+    setDisplays(prev => [...prev, newDisplay]);
     handleClosePastItems();
   };
 
@@ -1283,7 +1313,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
           <div className={styles.pastItemsModal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>
-                {pastItemType === 'display' ? 'Display aus vergangenen Wellen' : 'Kartonware aus vergangenen Wellen'}
+                {pastItemType === 'display' ? 'Display hinzufügen' : 'Kartonware aus vergangenen Wellen'}
               </h3>
               <button 
                 className={styles.modalClose}
@@ -1293,47 +1323,91 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
               </button>
             </div>
 
-            <div className={styles.pastItemsGrid}>
-              {pastItemType === 'display' && getAllPastDisplays().map((item) => (
-                <button
-                  key={item.id}
-                  className={styles.pastItemCard}
-                  onClick={() => handleSelectPastItem(item)}
-                >
-                  <div className={styles.pastItemImage}>
-                    {item.picture ? (
-                      <img src={item.picture} alt={item.name} />
-                    ) : (
-                      <div className={styles.pastItemImagePlaceholder}>
-                        <CheckCircle size={32} weight="regular" />
-                      </div>
-                    )}
+            <div className={styles.pastItemsContent}>
+              {/* Product Displays Section (only for display type) */}
+              {pastItemType === 'display' && productDisplays.length > 0 && (
+                <div className={styles.pastItemsSection}>
+                  <h4 className={styles.pastItemsSectionTitle}>Aus Produktliste</h4>
+                  <div className={styles.pastItemsGrid}>
+                    {productDisplays.map((product) => (
+                      <button
+                        key={product.id}
+                        className={styles.pastItemCard}
+                        onClick={() => handleSelectProductDisplay(product)}
+                      >
+                        <div className={styles.pastItemImage}>
+                          <div className={styles.pastItemImagePlaceholder}>
+                            <Package size={32} weight="regular" />
+                          </div>
+                        </div>
+                        <div className={styles.pastItemName}>{product.name}</div>
+                        <div className={styles.pastItemPrice}>€{product.price?.toFixed(2)}</div>
+                      </button>
+                    ))}
                   </div>
-                  <div className={styles.pastItemName}>{item.name}</div>
-                </button>
-              ))}
-              {pastItemType === 'kartonware' && getAllPastKartonware().map((item) => (
-                <button
-                  key={item.id}
-                  className={styles.pastItemCard}
-                  onClick={() => handleSelectPastItem(item)}
-                >
-                  <div className={styles.pastItemImage}>
-                    {item.picture ? (
-                      <img src={item.picture} alt={item.name} />
-                    ) : (
-                      <div className={styles.pastItemImagePlaceholder}>
-                        <Package size={32} weight="regular" />
-                      </div>
-                    )}
+                </div>
+              )}
+
+              {/* Past Wellen Items Section */}
+              {pastItemType === 'display' && getAllPastDisplays().length > 0 && (
+                <div className={styles.pastItemsSection}>
+                  <h4 className={styles.pastItemsSectionTitle}>Aus vergangenen Wellen</h4>
+                  <div className={styles.pastItemsGrid}>
+                    {getAllPastDisplays().map((item) => (
+                      <button
+                        key={item.id}
+                        className={styles.pastItemCard}
+                        onClick={() => handleSelectPastItem(item)}
+                      >
+                        <div className={styles.pastItemImage}>
+                          {item.picture ? (
+                            <img src={item.picture} alt={item.name} />
+                          ) : (
+                            <div className={styles.pastItemImagePlaceholder}>
+                              <CheckCircle size={32} weight="regular" />
+                            </div>
+                          )}
+                        </div>
+                        <div className={styles.pastItemName}>{item.name}</div>
+                      </button>
+                    ))}
                   </div>
-                  <div className={styles.pastItemName}>{item.name}</div>
-                </button>
-              ))}
-              {((pastItemType === 'display' && getAllPastDisplays().length === 0) ||
-                (pastItemType === 'kartonware' && getAllPastKartonware().length === 0)) && (
+                </div>
+              )}
+
+              {/* Kartonware from past wellen */}
+              {pastItemType === 'kartonware' && (
+                <div className={styles.pastItemsGrid}>
+                  {getAllPastKartonware().map((item) => (
+                    <button
+                      key={item.id}
+                      className={styles.pastItemCard}
+                      onClick={() => handleSelectPastItem(item)}
+                    >
+                      <div className={styles.pastItemImage}>
+                        {item.picture ? (
+                          <img src={item.picture} alt={item.name} />
+                        ) : (
+                          <div className={styles.pastItemImagePlaceholder}>
+                            <Package size={32} weight="regular" />
+                          </div>
+                        )}
+                      </div>
+                      <div className={styles.pastItemName}>{item.name}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {pastItemType === 'display' && getAllPastDisplays().length === 0 && productDisplays.length === 0 && (
                 <div className={styles.emptyPastItems}>
-                  <p>Keine vergangenen {pastItemType === 'display' ? 'Displays' : 'Kartonware'} gefunden</p>
+                  <p>Keine Displays gefunden</p>
+                </div>
+              )}
+              {pastItemType === 'kartonware' && getAllPastKartonware().length === 0 && (
+                <div className={styles.emptyPastItems}>
+                  <p>Keine vergangenen Kartonware gefunden</p>
                 </div>
               )}
             </div>
