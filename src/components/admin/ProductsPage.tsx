@@ -226,6 +226,9 @@ export const ProductsPage: React.FC = () => {
       weight: '',
       price: ''
     });
+    // Reset sort to default
+    setSortField('name');
+    setSortDirection('asc');
   };
 
   const hasActiveFilters = 
@@ -233,7 +236,8 @@ export const ProductsPage: React.FC = () => {
     selectedFilters.productType.length > 0 ||
     selectedFilters.weight.length > 0 ||
     selectedFilters.price.length > 0 ||
-    searchQuery.trim().length > 0;
+    searchQuery.trim().length > 0 ||
+    sortField !== 'name' || sortDirection !== 'asc';
 
   // Click outside to close dropdowns
   useEffect(() => {
