@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { MapPin, FunnelSimple, X, CaretDown, CaretUp, WarningCircle } from '@phosphor-icons/react';
+import { MapPin, FunnelSimple, X, CaretDown, CaretUp, WarningCircle, SortAscending, SortDescending } from '@phosphor-icons/react';
 import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
 import { MarketListItem } from './MarketListItem';
 import { MarketListSkeleton } from './MarketListSkeleton';
@@ -14,6 +14,7 @@ import type { AdminMarket } from '../../types/market-types';
 import styles from './MarketsPage.module.css';
 
 type FilterType = 'chain' | 'id' | 'adresse' | 'gebietsleiter' | 'subgroup' | 'status';
+type MarketSortField = 'name' | 'chain' | 'city' | 'postalCode' | 'gebietsleiter';
 
 interface MarketsPageProps {
   importedMarkets?: AdminMarket[];
@@ -59,6 +60,12 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
     subgroup: [],
     status: []
   });
+
+  // Sorting state
+  const [sortField, setSortField] = useState<MarketSortField>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   const filterRefs = {
     chain: useRef<HTMLDivElement>(null),
@@ -243,8 +250,32 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
       }
 
       return true;
+    }).sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name, 'de');
+          break;
+        case 'chain':
+          comparison = a.chain.localeCompare(b.chain, 'de');
+          break;
+        case 'city':
+          comparison = a.city.localeCompare(b.city, 'de');
+          break;
+        case 'postalCode':
+          comparison = a.postalCode.localeCompare(b.postalCode, 'de');
+          break;
+        case 'gebietsleiter':
+          const glA = a.gebietsleiterName || '';
+          const glB = b.gebietsleiterName || '';
+          comparison = glA.localeCompare(glB, 'de');
+          break;
+        default:
+          comparison = 0;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [markets, selectedFilters, selectedGL]);
+  }, [markets, selectedFilters, selectedGL, sortField, sortDirection]);
 
   // Separate markets into GL's markets and other markets
   const glMarkets = useMemo(() => {
@@ -300,6 +331,35 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [openFilter]);
+
+  // Close sort dropdown on click outside
+  useEffect(() => {
+    const handleSortClickOutside = (event: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setIsSortDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleSortClickOutside);
+    return () => document.removeEventListener('mousedown', handleSortClickOutside);
+  }, []);
+
+  const marketSortOptions: { field: MarketSortField; label: string }[] = [
+    { field: 'name', label: 'Name' },
+    { field: 'chain', label: 'Handelskette' },
+    { field: 'city', label: 'Stadt' },
+    { field: 'postalCode', label: 'PLZ' },
+    { field: 'gebietsleiter', label: 'Gebietsleiter' }
+  ];
+
+  const handleSortChange = (field: MarketSortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setIsSortDropdownOpen(false);
+  };
 
   const handleMarketClick = async (market: AdminMarket) => {
     // If in add mode and a GL is selected
@@ -606,6 +666,48 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
 
       {/* Markets List Container */}
       <div className={styles.listContainer}>
+        {/* Sort & Stats Bar */}
+        <div className={styles.controlsBar}>
+          <div className={styles.sortDropdownWrapper} ref={sortDropdownRef}>
+            <button 
+              className={styles.sortButton}
+              onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+            >
+              {sortDirection === 'asc' ? (
+                <SortAscending size={18} weight="bold" />
+              ) : (
+                <SortDescending size={18} weight="bold" />
+              )}
+              <span>{marketSortOptions.find(o => o.field === sortField)?.label}</span>
+              <CaretDown size={14} weight="bold" className={`${styles.sortCaret} ${isSortDropdownOpen ? styles.sortCaretOpen : ''}`} />
+            </button>
+            {isSortDropdownOpen && (
+              <div className={styles.sortDropdown}>
+                {marketSortOptions.map(option => (
+                  <button
+                    key={option.field}
+                    className={`${styles.sortOption} ${sortField === option.field ? styles.sortOptionActive : ''}`}
+                    onClick={() => handleSortChange(option.field)}
+                  >
+                    <span>{option.label}</span>
+                    {sortField === option.field && (
+                      sortDirection === 'asc' ? (
+                        <SortAscending size={16} weight="bold" />
+                      ) : (
+                        <SortDescending size={16} weight="bold" />
+                      )
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className={styles.marketStats}>
+            <MapPin size={18} weight="regular" />
+            <span>{filteredMarkets.length} Märkte</span>
+          </div>
+        </div>
+
         {/* List Header */}
         <div className={styles.listHeader}>
           <div ref={filterRefs.chain} className={`${styles.headerCell} ${selectedFilters.chain.length > 0 ? styles.headerCellActive : ''}`}>

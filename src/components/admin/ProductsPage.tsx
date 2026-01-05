@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { FunnelSimple, X, MagnifyingGlass, Package, CaretDown } from '@phosphor-icons/react';
+import { FunnelSimple, X, MagnifyingGlass, Package, CaretDown, SortAscending, SortDescending } from '@phosphor-icons/react';
 import { getAllProducts, deleteProduct } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
 import styles from './ProductsPage.module.css';
 
 type FilterType = 'department' | 'productType' | 'weight' | 'price';
+type SortField = 'name' | 'department' | 'price' | 'weight';
 
 type ModalDropdownType = 'department' | 'productType';
 
@@ -39,6 +40,12 @@ export const ProductsPage: React.FC = () => {
     weight: '',
     price: ''
   });
+
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   const filterRefs = {
     department: useRef<HTMLDivElement>(null),
@@ -139,8 +146,30 @@ export const ProductsPage: React.FC = () => {
       });
     }
 
+    // Apply sorting
+    filtered = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name, 'de');
+          break;
+        case 'department':
+          comparison = a.department.localeCompare(b.department, 'de');
+          break;
+        case 'price':
+          comparison = a.price - b.price;
+          break;
+        case 'weight':
+          comparison = a.weight.localeCompare(b.weight, 'de');
+          break;
+        default:
+          comparison = 0;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+
     return filtered;
-  }, [searchQuery, selectedFilters, products, refreshKey]);
+  }, [searchQuery, selectedFilters, products, refreshKey, sortField, sortDirection]);
 
   // Listen for product updates
   useEffect(() => {
@@ -225,6 +254,34 @@ export const ProductsPage: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [openFilter]);
+
+  // Close sort dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setIsSortDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const sortOptions: { field: SortField; label: string }[] = [
+    { field: 'name', label: 'Name' },
+    { field: 'department', label: 'Abteilung' },
+    { field: 'price', label: 'Preis' },
+    { field: 'weight', label: 'Gewicht' }
+  ];
+
+  const handleSortChange = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setIsSortDropdownOpen(false);
+  };
 
   const formatPrice = (price: number) => `€${price.toFixed(2)}`;
 
@@ -329,6 +386,40 @@ export const ProductsPage: React.FC = () => {
               >
                 <X size={16} weight="bold" />
               </button>
+            )}
+          </div>
+          <div className={styles.sortDropdownWrapper} ref={sortDropdownRef}>
+            <button 
+              className={styles.sortButton}
+              onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+            >
+              {sortDirection === 'asc' ? (
+                <SortAscending size={18} weight="bold" />
+              ) : (
+                <SortDescending size={18} weight="bold" />
+              )}
+              <span>{sortOptions.find(o => o.field === sortField)?.label}</span>
+              <CaretDown size={14} weight="bold" className={`${styles.sortCaret} ${isSortDropdownOpen ? styles.sortCaretOpen : ''}`} />
+            </button>
+            {isSortDropdownOpen && (
+              <div className={styles.sortDropdown}>
+                {sortOptions.map(option => (
+                  <button
+                    key={option.field}
+                    className={`${styles.sortOption} ${sortField === option.field ? styles.sortOptionActive : ''}`}
+                    onClick={() => handleSortChange(option.field)}
+                  >
+                    <span>{option.label}</span>
+                    {sortField === option.field && (
+                      sortDirection === 'asc' ? (
+                        <SortAscending size={16} weight="bold" />
+                      ) : (
+                        <SortDescending size={16} weight="bold" />
+                      )
+                    )}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
           <div className={styles.searchStats}>
