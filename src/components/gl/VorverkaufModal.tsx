@@ -6,6 +6,7 @@ import { getAllProducts } from '../../data/productsData';
 import { marketService } from '../../services/marketService';
 import { vorverkaufService } from '../../services/vorverkaufService';
 import { useAuth } from '../../contexts/AuthContext';
+import VirtualizedAnimatedList from './VirtualizedAnimatedList';
 import styles from './VorverkaufModal.module.css';
 
 interface VorverkaufModalProps {
@@ -131,6 +132,13 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
       m.address.toLowerCase().includes(query)
     );
   }, [marketSearchQuery, allMarkets]);
+
+  // Market map for virtualized list lookups
+  const marketMap = useMemo(() => {
+    const map = new Map<string, Market>();
+    filteredMarkets.forEach(m => map.set(m.id, m));
+    return map;
+  }, [filteredMarkets]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -598,22 +606,33 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                       />
                     </div>
                     <div className={styles.marketDropdownList}>
-                      {filteredMarkets.map((market) => (
-                        <button
-                          key={market.id}
-                          className={`${styles.marketDropdownItem} ${market.id === selectedMarketId ? styles.active : ''}`}
-                          onClick={() => {
-                            setSelectedMarketId(market.id);
-                            setIsMarketDropdownOpen(false);
-                            setMarketSearchQuery('');
-                          }}
-                        >
-                          <div className={styles.marketDropdownItemInfo}>
-                            <div className={styles.marketDropdownItemName}>{market.chain}</div>
-                            <div className={styles.marketDropdownItemAddress}>{market.address}, {market.postalCode} {market.city}</div>
-                          </div>
-                        </button>
-                      ))}
+                      <VirtualizedAnimatedList
+                        items={filteredMarkets.map(m => m.id)}
+                        showGradients={false}
+                        enableArrowNavigation={false}
+                        displayScrollbar={true}
+                        estimateSize={52}
+                      >
+                        {(marketId) => {
+                          const market = marketMap.get(marketId);
+                          if (!market) return null;
+                          return (
+                            <button
+                              className={`${styles.marketDropdownItem} ${market.id === selectedMarketId ? styles.active : ''}`}
+                              onClick={() => {
+                                setSelectedMarketId(market.id);
+                                setIsMarketDropdownOpen(false);
+                                setMarketSearchQuery('');
+                              }}
+                            >
+                              <div className={styles.marketDropdownItemInfo}>
+                                <div className={styles.marketDropdownItemName}>{market.chain}</div>
+                                <div className={styles.marketDropdownItemAddress}>{market.address}, {market.postalCode} {market.city}</div>
+                              </div>
+                            </button>
+                          );
+                        }}
+                      </VirtualizedAnimatedList>
                     </div>
                   </div>
                 )}
@@ -758,20 +777,31 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                     />
                   </div>
                   <div className={styles.dropdownList}>
-                    {filteredMarkets.map((market) => (
-                      <button
-                        key={market.id}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          setSelectedMarketId(market.id);
-                          setIsMarketDropdownOpen(false);
-                          setMarketSearchQuery('');
-                        }}
-                      >
-                        <strong>{market.chain}</strong>
-                        <span>{market.address}, {market.city}</span>
-                      </button>
-                    ))}
+                    <VirtualizedAnimatedList
+                      items={filteredMarkets.map(m => m.id)}
+                      showGradients={false}
+                      enableArrowNavigation={false}
+                      displayScrollbar={true}
+                      estimateSize={48}
+                    >
+                      {(marketId) => {
+                        const market = marketMap.get(marketId);
+                        if (!market) return null;
+                        return (
+                          <button
+                            className={styles.dropdownOption}
+                            onClick={() => {
+                              setSelectedMarketId(market.id);
+                              setIsMarketDropdownOpen(false);
+                              setMarketSearchQuery('');
+                            }}
+                          >
+                            <strong>{market.chain}</strong>
+                            <span>{market.address}, {market.city}</span>
+                          </button>
+                        );
+                      }}
+                    </VirtualizedAnimatedList>
                   </div>
                 </div>
               )}

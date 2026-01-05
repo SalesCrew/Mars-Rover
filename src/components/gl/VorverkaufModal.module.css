@@ -206,8 +206,16 @@
 }
 
 .dropdownList {
-  max-height: 220px;
-  overflow-y: auto;
+  height: 220px;
+  overflow: hidden;
+}
+
+.dropdownList :global(.scroll-list-container) {
+  height: 100%;
+}
+
+.dropdownList :global(.scroll-list) {
+  height: 100%;
 }
 
 .dropdownOption {
@@ -1054,8 +1062,16 @@
 }
 
 .marketDropdownList {
-  max-height: 220px;
-  overflow-y: auto;
+  height: 220px;
+  overflow: hidden;
+}
+
+.marketDropdownList :global(.scroll-list-container) {
+  height: 100%;
+}
+
+.marketDropdownList :global(.scroll-list) {
+  height: 100%;
 }
 
 .marketDropdownItem {
