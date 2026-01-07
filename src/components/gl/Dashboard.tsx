@@ -322,7 +322,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
       {/* Preorder Notification - Only on dashboard */}
       {activeTab === 'dashboard' && (
-        <PreorderNotification trigger={notificationTrigger} />
+        <PreorderNotification 
+          trigger={notificationTrigger} 
+          onOpenVorbesteller={() => setIsVorbestellerOpen(true)}
+        />
       )}
 
       {/* Market Selection Modal */}
