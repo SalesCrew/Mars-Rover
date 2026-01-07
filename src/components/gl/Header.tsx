@@ -1,5 +1,5 @@
 import React from 'react';
-import { SignOut, Bug } from '@phosphor-icons/react';
+import { SignOut, Bug, User } from '@phosphor-icons/react';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -11,7 +11,19 @@ interface HeaderProps {
   onBugReport?: () => void;
 }
 
+// Check if avatar is a real URL (not a placeholder like pravatar)
+const isRealAvatar = (url: string): boolean => {
+  if (!url) return false;
+  // Exclude known placeholder services
+  if (url.includes('pravatar.cc')) return false;
+  if (url.includes('placeholder')) return false;
+  if (url.includes('ui-avatars.com')) return false;
+  return true;
+};
+
 export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onLogout, onProfileClick, onLogoClick, onBugReport }) => {
+  const hasRealAvatar = isRealAvatar(avatar);
+  
   return (
     <header className={styles.header}>
       <div className={styles.headerContent}>
@@ -51,7 +63,13 @@ export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onLogout, onP
             aria-label="Profil"
             onClick={onProfileClick}
           >
-            <img src={avatar} alt={firstName} />
+            {hasRealAvatar ? (
+              <img src={avatar} alt={firstName} />
+            ) : (
+              <div className={styles.avatarPlaceholder}>
+                <User size={20} weight="bold" />
+              </div>
+            )}
           </button>
         </div>
       </div>
