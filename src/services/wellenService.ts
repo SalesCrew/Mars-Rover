@@ -88,13 +88,11 @@ class WellenService {
   private baseUrl = `${API_BASE_URL}/wellen`;
 
   /**
-   * Get all wellen
+   * Get all wellen with retry for resilience
    */
-  async getAllWellen(): Promise<Welle[]> {
-    // #region agent log
-    const debugStartTime = Date.now();
-    fetch('http://127.0.0.1:7242/ingest/35f7e71b-d3fc-4c62-8097-9c7adee771ff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'wellenService.ts:getAllWellen:start',message:'Starting getAllWellen fetch',data:{baseUrl:this.baseUrl,timestamp:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-    // #endregion
+  async getAllWellen(retryCount = 0): Promise<Welle[]> {
+    const maxRetries = 2;
+    
     try {
       const response = await fetch(this.baseUrl, {
         method: 'GET',
@@ -103,25 +101,28 @@ class WellenService {
         },
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/35f7e71b-d3fc-4c62-8097-9c7adee771ff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'wellenService.ts:getAllWellen:response',message:'Got response',data:{status:response.status,ok:response.ok,statusText:response.statusText,duration:Date.now()-debugStartTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
-      // #endregion
-
       if (!response.ok) {
         throw new Error(`Failed to fetch wellen: ${response.statusText}`);
       }
 
       const data = await response.json();
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/35f7e71b-d3fc-4c62-8097-9c7adee771ff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'wellenService.ts:getAllWellen:data',message:'Parsed JSON data',data:{wellenCount:data?.length||0,isArray:Array.isArray(data),totalDuration:Date.now()-debugStartTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,E'})}).catch(()=>{});
-      // #endregion
+      // If we got an empty array and haven't retried yet, try once more
+      // This handles potential cold-start/stale connection issues
+      if (Array.isArray(data) && data.length === 0 && retryCount < maxRetries) {
+        console.log(`Wellen returned empty, retrying (attempt ${retryCount + 2}/${maxRetries + 1})...`);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay
+        return this.getAllWellen(retryCount + 1);
+      }
       
       return data;
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/35f7e71b-d3fc-4c62-8097-9c7adee771ff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'wellenService.ts:getAllWellen:error',message:'Fetch error occurred',data:{error:String(error),duration:Date.now()-debugStartTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
-      // #endregion
+      // Retry on network errors
+      if (retryCount < maxRetries) {
+        console.log(`Wellen fetch failed, retrying (attempt ${retryCount + 2}/${maxRetries + 1})...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return this.getAllWellen(retryCount + 1);
+      }
       console.error('Error fetching wellen:', error);
       throw error;
     }
