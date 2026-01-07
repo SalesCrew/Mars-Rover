@@ -11,6 +11,7 @@ import { marketService } from '../../services/marketService';
 import { actionHistoryService } from '../../services/actionHistoryService';
 import { gebietsleiterService } from '../../services/gebietsleiterService';
 import type { AdminMarket } from '../../types/market-types';
+import { API_BASE_URL } from '../../config/database';
 import styles from './MarketsPage.module.css';
 
 type FilterType = 'chain' | 'id' | 'adresse' | 'gebietsleiter' | 'subgroup' | 'status';
@@ -661,7 +662,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
     setIsBackfilling(true);
     setBackfillResult(null);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://marsrover-ba-production.up.railway.app'}/api/markets/backfill-gl-ids`, {
+      const response = await fetch(`${API_BASE_URL}/markets/backfill-gl-ids`, {
         method: 'POST',
       });
       const data = await response.json();
