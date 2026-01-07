@@ -279,20 +279,21 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
         0
       );
 
+      // Target is only 10% of removed value
+      const targetReplacementValue = totalRemovedValue * 0.1;
+
+      // Get the department(s) of removed products - only replace with same department
+      const removedDepartments = new Set(removedProducts.map(p => p.product.department));
+
       const newSuggestions: ReplacementSuggestion[] = [];
 
-      // If available products are specified, calculate combinations
-      if (availableProducts.length > 0) {
-        // Generate all possible combinations
-        const combinations = generateCombinations(availableProducts, totalRemovedValue);
+      // Filter products to only include same department (Tiernahrung->Tiernahrung, Lebensmittel->Lebensmittel)
+      const eligibleProducts = (availableProducts.length > 0 ? availableProducts : allProducts.map(p => ({ product: p, quantity: 1 })))
+        .filter(p => removedDepartments.has(p.product.department));
+
+      if (eligibleProducts.length > 0) {
+        const combinations = generateCombinations(eligibleProducts, targetReplacementValue);
         newSuggestions.push(...combinations.slice(0, 5)); // Top 5 suggestions
-      } else {
-        // Generate suggestions from all products
-        const allCombinations = generateCombinations(
-          allProducts.map(p => ({ product: p, quantity: 1 })),
-          totalRemovedValue
-        );
-        newSuggestions.push(...allCombinations.slice(0, 5));
       }
 
       setSuggestions(newSuggestions);
@@ -312,44 +313,46 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   ): ReplacementSuggestion[] => {
     const singleProductSuggestions: ReplacementSuggestion[] = [];
     const multiProductSuggestions: ReplacementSuggestion[] = [];
-    const removedCategory = removedProducts[0]?.product.department;
-    const removedBrand = removedProducts[0]?.product.name; // Use name as brand identifier
+    const removedDepartment = removedProducts[0]?.product.department;
+    const removedProductType = removedProducts[0]?.product.productType; // standard vs display
+    const removedProductName = removedProducts[0]?.product.name;
 
-    // Strategy 1: Single product match
+    // Strategy 1: Single product match (prioritize same productType for similarity)
     products.forEach(p => {
-      const quantity = Math.ceil(targetValue / p.product.price);
+      const quantity = Math.max(1, Math.ceil(targetValue / p.product.price));
       const totalValue = p.product.price * quantity;
       const valueDiff = Math.abs(totalValue - targetValue);
       
-      if (valueDiff <= targetValue * 0.2) { // Within 20%
+      // Allow wider tolerance (50%) since we're only replacing 10% of value
+      if (valueDiff <= targetValue * 0.5 || totalValue >= targetValue * 0.8) {
         singleProductSuggestions.push({
           id: `single-${p.product.id}`,
           products: [{ product: p.product, quantity }],
           totalValue,
           valueDifference: valueDiff,
-          matchScore: calculateMatchScore(p.product, removedCategory, removedBrand, valueDiff, targetValue),
-          categoryMatch: p.product.department === removedCategory,
-          brandMatch: p.product.name === removedBrand,
+          matchScore: calculateMatchScore(p.product, removedDepartment, removedProductType, removedProductName, valueDiff, targetValue),
+          categoryMatch: p.product.department === removedDepartment,
+          brandMatch: p.product.productType === removedProductType,
         });
       }
     });
 
-    // Strategy 2: Two-product combinations
-    for (let i = 0; i < products.length; i++) {
-      for (let j = i + 1; j < products.length; j++) {
+    // Strategy 2: Two-product combinations (bundle)
+    for (let i = 0; i < Math.min(products.length, 20); i++) { // Limit for performance
+      for (let j = i + 1; j < Math.min(products.length, 20); j++) {
         const p1 = products[i];
         const p2 = products[j];
         
-        // Try different quantity combinations
-        for (let q1 = 1; q1 <= 8; q1++) {
-          for (let q2 = 1; q2 <= 8; q2++) {
+        // Try different quantity combinations (smaller quantities since 10% target)
+        for (let q1 = 1; q1 <= 3; q1++) {
+          for (let q2 = 1; q2 <= 3; q2++) {
             const totalValue = p1.product.price * q1 + p2.product.price * q2;
             const valueDiff = Math.abs(totalValue - targetValue);
             
-            if (valueDiff <= targetValue * 0.2) { // Within 20%
+            if (valueDiff <= targetValue * 0.5 || totalValue >= targetValue * 0.8) {
               const avgScore = (
-                calculateMatchScore(p1.product, removedCategory, removedBrand, 0, targetValue) +
-                calculateMatchScore(p2.product, removedCategory, removedBrand, 0, targetValue)
+                calculateMatchScore(p1.product, removedDepartment, removedProductType, removedProductName, 0, targetValue) +
+                calculateMatchScore(p2.product, removedDepartment, removedProductType, removedProductName, 0, targetValue)
               ) / 2;
               
               multiProductSuggestions.push({
@@ -360,9 +363,9 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                 ],
                 totalValue,
                 valueDifference: valueDiff,
-                matchScore: avgScore - (valueDiff / targetValue) * 15,
-                categoryMatch: p1.product.department === removedCategory || p2.product.department === removedCategory,
-                brandMatch: p1.product.name === removedBrand || p2.product.name === removedBrand,
+                matchScore: avgScore - (valueDiff / targetValue) * 10,
+                categoryMatch: p1.product.department === removedDepartment && p2.product.department === removedDepartment,
+                brandMatch: p1.product.productType === removedProductType || p2.product.productType === removedProductType,
               });
             }
           }
@@ -381,7 +384,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
     // Take 2 best single products
     mixedSuggestions.push(...singleProductSuggestions.slice(0, 2));
     
-    // Take 3 best multi-product combinations
+    // Take 3 best multi-product combinations (bundles)
     mixedSuggestions.push(...multiProductSuggestions.slice(0, 3));
     
     // If we don't have enough multi-product suggestions, fill with more single products
@@ -398,28 +401,34 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
 
   const calculateMatchScore = (
     product: Product,
-    targetCategory: string | undefined,
-    targetBrand: string | undefined,
+    targetDepartment: string | undefined,
+    targetProductType: string | undefined,
+    targetProductName: string | undefined,
     valueDiff: number,
     targetValue: number
   ): number => {
-    let score = 100;
+    let score = 50;
     
-    // Category match is most important
-    if (product.department === targetCategory) {
-      score += 30;
-    } else {
-      score -= 20;
+    // Department match is mandatory (already filtered, but boost score)
+    if (product.department === targetDepartment) {
+      score += 25;
     }
     
-    // Brand match is valuable
-    if (product.name === targetBrand) {
+    // Product type match (standard vs display) - similar products
+    if (product.productType === targetProductType) {
       score += 20;
     }
     
-    // Value accuracy
-    const valueAccuracy = 1 - (valueDiff / targetValue);
-    score += valueAccuracy * 30;
+    // Similar product name (partial match)
+    if (targetProductName && product.name.toLowerCase().includes(targetProductName.toLowerCase().split(' ')[0])) {
+      score += 15;
+    }
+    
+    // Value accuracy (how close to 10% target)
+    if (targetValue > 0) {
+      const valueAccuracy = Math.max(0, 1 - (valueDiff / targetValue));
+      score += valueAccuracy * 20;
+    }
     
     return Math.max(0, Math.min(100, score));
   };
