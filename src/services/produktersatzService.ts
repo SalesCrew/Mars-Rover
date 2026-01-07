@@ -19,7 +19,7 @@ export interface ProduktErsatzEntry {
   marketChain: string;
   marketAddress: string;
   marketCity: string;
-  reason: 'OOS' | 'Listungslücke' | 'Platzierung' | 'Produkttausch';
+  reason: 'Produkttausch';
   notes: string | null;
   items: ProduktErsatzItem[];
   totalItems: number;
@@ -30,7 +30,7 @@ export interface ProduktErsatzEntry {
 export interface CreateProduktErsatzDTO {
   gebietsleiter_id: string;
   market_id: string;
-  reason: 'OOS' | 'Listungslücke' | 'Platzierung' | 'Produkttausch';
+  reason: 'Produkttausch';
   notes?: string;
   total_value?: number;
   take_out_items: Array<{

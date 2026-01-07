@@ -10,16 +10,10 @@ interface GL {
 }
 
 const reasonLabels: Record<string, string> = {
-  'OOS': 'OOS (Out of Stock)',
-  'Listungslücke': 'Listungslücke',
-  'Platzierung': 'Platzierung',
   'Produkttausch': 'Produkttausch'
 };
 
 const reasonColors: Record<string, { bg: string; text: string }> = {
-  'OOS': { bg: 'rgba(239, 68, 68, 0.1)', text: '#DC2626' },
-  'Listungslücke': { bg: 'rgba(245, 158, 11, 0.1)', text: '#D97706' },
-  'Platzierung': { bg: 'rgba(59, 130, 246, 0.1)', text: '#2563EB' },
   'Produkttausch': { bg: 'rgba(16, 185, 129, 0.1)', text: '#059669' }
 };
 
@@ -163,20 +157,12 @@ export const ProduktErsatzPage: React.FC = () => {
           <span className={styles.statLabel}>Artikel gesamt</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statValue}>{entries.filter(e => e.reason === 'OOS').length}</span>
-          <span className={styles.statLabel}>OOS</span>
+          <span className={styles.statValue}>{entries.filter(i => i.items.some(item => item.itemType === 'take_out')).reduce((sum, e) => sum + e.items.filter(i => i.itemType === 'take_out').reduce((s, i) => s + i.quantity, 0), 0)}</span>
+          <span className={styles.statLabel}>Entnommen</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statValue}>{entries.filter(e => e.reason === 'Listungslücke').length}</span>
-          <span className={styles.statLabel}>Listungslücke</span>
-        </div>
-        <div className={styles.statCard}>
-          <span className={styles.statValue}>{entries.filter(e => e.reason === 'Platzierung').length}</span>
-          <span className={styles.statLabel}>Platzierung</span>
-        </div>
-        <div className={styles.statCard}>
-          <span className={styles.statValue}>{entries.filter(e => e.reason === 'Produkttausch').length}</span>
-          <span className={styles.statLabel}>Produkttausch</span>
+          <span className={styles.statValue}>{entries.filter(i => i.items.some(item => item.itemType === 'replace')).reduce((sum, e) => sum + e.items.filter(i => i.itemType === 'replace').reduce((s, i) => s + i.quantity, 0), 0)}</span>
+          <span className={styles.statLabel}>Ersetzt</span>
         </div>
       </div>
 

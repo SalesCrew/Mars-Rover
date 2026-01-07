@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS vorverkauf_entries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gebietsleiter_id UUID NOT NULL REFERENCES gebietsleiter(id) ON DELETE CASCADE,
     market_id TEXT NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
-    reason VARCHAR(50) NOT NULL CHECK (reason IN ('OOS', 'Listungslücke', 'Platzierung')),
+    reason VARCHAR(50) NOT NULL CHECK (reason IN ('Produkttausch')),
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -42,3 +42,10 @@ CREATE POLICY "Service role has full access to vorverkauf_entries" ON vorverkauf
 
 CREATE POLICY "Service role has full access to vorverkauf_items" ON vorverkauf_items
     FOR ALL USING (true);
+
+-- ============================================================================
+-- MIGRATION: Update reason constraint for Produktersatz (run this if table already exists)
+-- ============================================================================
+-- ALTER TABLE vorverkauf_entries DROP CONSTRAINT IF EXISTS vorverkauf_entries_reason_check;
+-- ALTER TABLE vorverkauf_entries ADD CONSTRAINT vorverkauf_entries_reason_check 
+--     CHECK (reason IN ('Produkttausch'));
