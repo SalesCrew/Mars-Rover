@@ -349,7 +349,15 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   };
 
   const handleClose = () => {
-    // Reset all states
+    // Don't reset state - allow user to continue from where they left off
+    // Only close dropdowns for cleaner re-entry
+    setIsProductDropdownOpen(false);
+    setIsMarketDropdownOpen(false);
+    onClose();
+  };
+
+  // Full reset only on success completion
+  const handleSuccessClose = () => {
     setSelectedWaveId(null);
     setSelectedMarketId(null);
     setSelectedProducts([]);
@@ -948,7 +956,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
         {/* Footer */}
         <div className={`${styles.footer} ${step === 'success' ? styles.successFooter : ''}`}>
           {step === 'success' ? (
-            <button className={styles.primaryButton} onClick={handleClose}>
+            <button className={styles.primaryButton} onClick={handleSuccessClose}>
               Zurück zum Dashboard
             </button>
           ) : (

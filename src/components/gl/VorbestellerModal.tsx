@@ -309,7 +309,13 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   };
 
   const handleClose = () => {
-    // Reset all states
+    // Don't reset state - allow user to continue from where they left off
+    // Only close for re-entry
+    onClose();
+  };
+
+  // Full reset only on success completion
+  const handleSuccessClose = () => {
     setFlippedCardId(null);
     setSelectedCardId(null);
     setShowMarketSelection(false);
@@ -323,8 +329,6 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     setIsSubmitCompleted(false);
     setShowSuccess(false);
     setIsSuccessAnimating(false);
-    
-    // Call parent onClose
     onClose();
   };
 
@@ -944,7 +948,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
         {/* Footer Buttons */}
         <div className={`${styles.footer} ${showSuccess ? styles.successFooter : ''}`}>
           {showSuccess ? (
-            <button className={styles.primaryButton} onClick={handleClose}>
+            <button className={styles.primaryButton} onClick={handleSuccessClose}>
               Zurück zum Dashboard
             </button>
           ) : showPhotoCapture ? (
