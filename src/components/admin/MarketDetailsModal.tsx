@@ -9,7 +9,7 @@ interface MarketDetailsModalProps {
   allMarkets: AdminMarket[];
   availableGLs: Array<{ id: string; name: string; email: string }>;
   onClose: () => void;
-  onSave: (updatedMarket: AdminMarket) => void;
+  onSave: (updatedMarket: AdminMarket) => Promise<boolean>;
 }
 
 type DropdownType = 'banner' | 'chain' | 'branch' | 'gl' | 'status' | 'frequency';
@@ -23,6 +23,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<AdminMarket>(market);
   const [openDropdown, setOpenDropdown] = useState<DropdownType | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   const dropdownRefs = useRef<Record<DropdownType, HTMLDivElement | null>>({
     banner: null,
@@ -80,8 +81,15 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    onSave(formData);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+    } catch (error) {
+      console.error('Error saving market:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderDropdown = (
@@ -223,11 +231,15 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
 
         {/* Footer */}
         <div className={styles.footer}>
-          <button className={styles.cancelButton} onClick={onClose}>
+          <button className={styles.cancelButton} onClick={onClose} disabled={isSaving}>
             Abbrechen
           </button>
-          <button className={styles.saveButton} onClick={handleSave}>
-            Speichern
+          <button 
+            className={`${styles.saveButton} ${isSaving ? styles.saveButtonLoading : ''}`} 
+            onClick={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Speichern...' : 'Speichern'}
           </button>
         </div>
       </div>

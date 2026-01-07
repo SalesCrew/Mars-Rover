@@ -564,7 +564,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
     setSelectedMarket(null);
   };
 
-  const handleSaveMarket = async (updatedMarket: AdminMarket) => {
+  const handleSaveMarket = async (updatedMarket: AdminMarket): Promise<boolean> => {
     try {
       // Save to database
       await marketService.updateMarket(updatedMarket.id, updatedMarket);
@@ -573,8 +573,13 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
       setMarkets(prevMarkets => 
         prevMarkets.map(m => m.id === updatedMarket.id ? updatedMarket : m)
       );
+      
+      // Close modal on success
+      setSelectedMarket(null);
+      return true;
     } catch (error) {
       console.error('Failed to save market:', error);
+      return false;
       // Still update local state as fallback
       setMarkets(prevMarkets => 
         prevMarkets.map(m => m.id === updatedMarket.id ? updatedMarket : m)

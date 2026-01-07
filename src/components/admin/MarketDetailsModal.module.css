@@ -305,6 +305,16 @@
   transform: translateY(0);
 }
 
+.saveButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.saveButtonLoading {
+  background: linear-gradient(135deg, #6EE7B7, #34D399);
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .row {
