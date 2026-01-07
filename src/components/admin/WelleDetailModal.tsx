@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { X, Calendar, CheckCircle, Package, TrendUp, Clock, CheckCircle as CheckCircleFilled, Users, Storefront, Target, CurrencyEur, CalendarBlank, Trash } from '@phosphor-icons/react';
+import { X, Calendar, CheckCircle, Package, TrendUp, Clock, CheckCircle as CheckCircleFilled, Users, Storefront, Target, CalendarBlank, Trash } from '@phosphor-icons/react';
 import styles from './WelleDetailModal.module.css';
 import { wellenService } from '../../services/wellenService';
 
@@ -151,7 +151,6 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
   };
 
   const statusConfig = getStatusConfig(welle.status);
-  const glParticipationRate = welle.totalGLs ? ((welle.participatingGLs || 0) / welle.totalGLs) * 100 : 0;
   const goalMet = welle.goalType === 'percentage' 
     ? overallProgress >= (welle.goalPercentage || 100)
     : totalValueCurrent >= (welle.goalValue || 0);
