@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_BASE_URL } from '../config/database';
 
 export interface ActionHistoryEntry {
   id: string;
@@ -31,7 +31,7 @@ export interface CreateActionHistoryData {
 }
 
 class ActionHistoryService {
-  private baseUrl = `${API_BASE_URL}/api/action-history`;
+  private baseUrl = `${API_BASE_URL}/action-history`;
 
   async getAllHistory(targetGl?: string, limit = 100, offset = 0): Promise<ActionHistoryEntry[]> {
     try {
