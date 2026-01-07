@@ -81,6 +81,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           currentVisits: 0,
           lastVisitDate: '',
           isCompleted: false,
+          gebietsleiter: m.gebietsleiter, // GL UUID for "Meine Märkte" clustering
         }));
         setRealMarkets(markets);
       } catch (error) {
