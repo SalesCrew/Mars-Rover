@@ -61,6 +61,35 @@
   gap: var(--space-lg);
 }
 
+.bugButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0.4;
+  padding: 0;
+}
+
+.bugButton:hover {
+  color: #EF4444;
+  background: rgba(239, 68, 68, 0.1);
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.bugButton:focus-visible {
+  outline: 2px solid #EF4444;
+  outline-offset: 2px;
+  opacity: 1;
+}
+
 .logoutButton {
   display: flex;
   align-items: center;

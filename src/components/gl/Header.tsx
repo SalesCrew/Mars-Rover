@@ -1,5 +1,5 @@
 import React from 'react';
-import { SignOut } from '@phosphor-icons/react';
+import { SignOut, Bug } from '@phosphor-icons/react';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -8,9 +8,10 @@ interface HeaderProps {
   onLogout?: () => void;
   onProfileClick?: () => void;
   onLogoClick?: () => void;
+  onBugReport?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onLogout, onProfileClick, onLogoClick }) => {
+export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onLogout, onProfileClick, onLogoClick, onBugReport }) => {
   return (
     <header className={styles.header}>
       <div className={styles.headerContent}>
@@ -27,6 +28,15 @@ export const Header: React.FC<HeaderProps> = ({ firstName, avatar, onLogout, onP
         </div>
         
         <div className={styles.headerActions}>
+          <button 
+            className={styles.bugButton} 
+            aria-label="Bug melden"
+            onClick={onBugReport}
+            title="Bug melden"
+          >
+            <Bug size={20} weight="regular" />
+          </button>
+          
           <button 
             className={styles.logoutButton} 
             aria-label="Abmelden"

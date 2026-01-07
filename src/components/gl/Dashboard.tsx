@@ -15,6 +15,7 @@ import { VorbestellerModal } from './VorbestellerModal';
 import { StatisticsContent } from './StatisticsContent';
 import { ProfilePage } from './ProfilePage';
 import { AdminPanel } from '../admin/AdminPanel';
+import { BugReportModal } from './BugReportModal';
 import Aurora from './Aurora';
 import type { GLDashboard, NavigationTab, GLProfile, Bonuses, MarketFrequencyAlert } from '../../types/gl-types';
 import type { TourRoute, Market } from '../../types/market-types';
@@ -37,6 +38,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isVorverkaufOpen, setIsVorverkaufOpen] = useState(false);
   const [isVorbestellerOpen, setIsVorbestellerOpen] = useState(false);
+  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
   const [activeTour, setActiveTour] = useState<TourRoute | null>(null);
   const [notificationTrigger, setNotificationTrigger] = useState(0);
@@ -291,6 +293,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         onLogout={handleLogout}
         onProfileClick={handleProfileClick}
         onLogoClick={() => setActiveTab('dashboard')}
+        onBugReport={() => setIsBugReportOpen(true)}
       />
 
       {/* Main Content */}
@@ -383,6 +386,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       <VorbestellerModal
         isOpen={isVorbestellerOpen}
         onClose={() => setIsVorbestellerOpen(false)}
+      />
+
+      {/* Bug Report Modal */}
+      <BugReportModal
+        isOpen={isBugReportOpen}
+        onClose={() => setIsBugReportOpen(false)}
       />
 
       {/* Chat Bubble */}
