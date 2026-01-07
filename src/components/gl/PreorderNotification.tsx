@@ -128,7 +128,7 @@ export const PreorderNotification: React.FC<PreorderNotificationProps> = ({
           className={`${styles.notificationCard} ${isVisible ? styles.visible : ''}`}
           style={{ 
             transitionDelay: `${index * 100}ms`,
-            top: `calc(var(--header-height) + var(--space-xl) + ${index * 160}px)`
+            top: `calc(var(--header-height) + var(--space-xl) + ${index * 112}px)`
           }}
           onClick={handleClick}
         >
