@@ -118,6 +118,53 @@
   margin-right: var(--space-lg);
 }
 
+/* Priority Section */
+.prioritySection {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  margin-right: var(--space-lg);
+  flex-shrink: 0;
+}
+
+.priorityBadge {
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  padding: 4px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Urgent - Red: Vorbesteller today, Frequency overdue */
+.badgeUrgent {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1));
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+/* Warning - Orange: Vorverkauf closing, Frequency soon */
+.badgeWarning {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(234, 88, 12, 0.1));
+  color: #ea580c;
+  border: 1px solid rgba(234, 88, 12, 0.2);
+}
+
+/* Info - Blue: Vorverkauf active */
+.badgeInfo {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.1));
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+/* Default - Gray: Regular visit */
+.badgeDefault {
+  background: linear-gradient(135deg, rgba(107, 114, 128, 0.1), rgba(75, 85, 99, 0.08));
+  color: var(--color-text-secondary);
+  border: 1px solid rgba(107, 114, 128, 0.15);
+}
+
 .progressContainer {
   display: flex;
   align-items: center;
@@ -159,6 +206,12 @@
   .alertCard {
     min-height: 64px;
     padding: var(--space-md);
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .marketInfo {
+    flex-basis: 60%;
   }
 
   .marketName {
@@ -171,6 +224,19 @@
 
   .lastVisit {
     font-size: 11px;
+  }
+
+  .prioritySection {
+    margin-left: 0;
+    margin-right: auto;
+    order: 3;
+    flex-basis: 100%;
+    margin-top: var(--space-xs);
+  }
+
+  .priorityBadge {
+    font-size: 10px;
+    padding: 3px 8px;
   }
 
   .progressRing {

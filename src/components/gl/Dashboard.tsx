@@ -119,7 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     fetchDashboardStats();
   }, [user?.id]);
 
-  // Fetch suggested markets
+  // Fetch suggested markets with smart priority scoring
   useEffect(() => {
     const fetchSuggestedMarkets = async () => {
       if (!user?.id) return;
@@ -134,7 +134,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             address: s.address,
             visits: s.visits,
             status: s.status,
-            lastVisitWeeks: s.lastVisitWeeks
+            lastVisitWeeks: s.lastVisitWeeks,
+            priorityReason: s.priorityReason || 'Regelmäßiger Besuch',
+            priorityScore: s.priorityScore || 0
           })));
         }
       } catch (error) {

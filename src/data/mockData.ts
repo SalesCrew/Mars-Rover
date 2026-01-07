@@ -31,6 +31,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'at-risk',
       lastVisitWeeks: 3,
+      priorityReason: 'HEUTE: Vorbesteller',
+      priorityScore: 200,
     },
     {
       marketId: 'spar-mariahilf',
@@ -42,6 +44,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'at-risk',
       lastVisitWeeks: 5,
+      priorityReason: 'Frequenz überfällig',
+      priorityScore: 100,
     },
     {
       marketId: 'hofer-favoriten',
@@ -53,6 +57,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'on-track',
       lastVisitWeeks: 2,
+      priorityReason: 'Vorverkauf: letzte 3 Tage',
+      priorityScore: 80,
     },
     {
       marketId: 'merkur-landstrasse',
@@ -64,6 +70,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'at-risk',
       lastVisitWeeks: 6,
+      priorityReason: 'Bald Frequenz fällig',
+      priorityScore: 50,
     },
     {
       marketId: 'billa-plus-floridsdorf',
@@ -75,6 +83,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'at-risk',
       lastVisitWeeks: 4,
+      priorityReason: 'Vorverkauf: letzte Woche',
+      priorityScore: 40,
     },
     {
       marketId: 'spar-gourmet-innere-stadt',
@@ -86,6 +96,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'on-track',
       lastVisitWeeks: 2,
+      priorityReason: 'Vorverkauf aktiv',
+      priorityScore: 20,
     },
     {
       marketId: 'hofer-ottakring',
@@ -97,6 +109,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'at-risk',
       lastVisitWeeks: 7,
+      priorityReason: 'Regelmäßiger Besuch',
+      priorityScore: 0,
     },
     {
       marketId: 'billa-hietzing',
@@ -108,6 +122,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'on-track',
       lastVisitWeeks: 1,
+      priorityReason: 'Regelmäßiger Besuch',
+      priorityScore: 0,
     },
     {
       marketId: 'merkur-donaustadt',
@@ -119,6 +135,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'at-risk',
       lastVisitWeeks: 8,
+      priorityReason: 'Regelmäßiger Besuch',
+      priorityScore: 0,
     },
     {
       marketId: 'spar-penzing',
@@ -130,6 +148,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'at-risk',
       lastVisitWeeks: 3,
+      priorityReason: 'Regelmäßiger Besuch',
+      priorityScore: 0,
     },
     {
       marketId: 'billa-leopoldstadt',
@@ -141,6 +161,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'on-track',
       lastVisitWeeks: 2,
+      priorityReason: 'Regelmäßiger Besuch',
+      priorityScore: 0,
     },
     {
       marketId: 'hofer-meidling',
@@ -152,6 +174,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'at-risk',
       lastVisitWeeks: 5,
+      priorityReason: 'Regelmäßiger Besuch',
+      priorityScore: 0,
     },
     {
       marketId: 'merkur-simmering',
@@ -163,6 +187,8 @@ export const mockDashboardData: GLDashboard = {
       },
       status: 'on-track',
       lastVisitWeeks: 2,
+      priorityReason: 'Regelmäßiger Besuch',
+      priorityScore: 0,
     },
   ],
   performanceMetrics: {

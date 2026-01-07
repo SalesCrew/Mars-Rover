@@ -10,6 +10,17 @@ interface MarketFrequencyAlertsProps {
   onMarketClick?: (marketId: string) => void;
 }
 
+// Get badge color class based on priority reason
+const getPriorityBadgeClass = (reason: string): string => {
+  if (reason.includes('Vorbesteller')) return styles.badgeUrgent;
+  if (reason.includes('überfällig')) return styles.badgeUrgent;
+  if (reason.includes('letzte 3 Tage')) return styles.badgeWarning;
+  if (reason.includes('Bald Frequenz')) return styles.badgeWarning;
+  if (reason.includes('letzte Woche')) return styles.badgeInfo;
+  if (reason.includes('Vorverkauf')) return styles.badgeInfo;
+  return styles.badgeDefault;
+};
+
 export const MarketFrequencyAlerts: React.FC<MarketFrequencyAlertsProps> = ({
   alerts,
   onMarketClick,
@@ -36,20 +47,25 @@ export const MarketFrequencyAlerts: React.FC<MarketFrequencyAlertsProps> = ({
       >
         {(_item, index) => {
           const alert = alerts[index];
+          const priorityReason = alert.priorityReason || 'Regelmäßiger Besuch';
+          const badgeClass = getPriorityBadgeClass(priorityReason);
+          
           return (
             <button
               className={styles.alertCard}
               onClick={() => onMarketClick?.(alert.marketId)}
-              aria-label={`${alert.name} - ${alert.visits.current} von ${alert.visits.required} Besuchen`}
+              aria-label={`${alert.name} - ${priorityReason}`}
             >
               <div className={styles.marketInfo}>
                 <span className={styles.marketName}>{alert.name}</span>
                 <span className={styles.marketAddress}>{alert.address}</span>
               </div>
 
-              <span className={styles.lastVisit}>
-                {alert.lastVisitWeeks}W
-              </span>
+              <div className={styles.prioritySection}>
+                <span className={`${styles.priorityBadge} ${badgeClass}`}>
+                  {priorityReason}
+                </span>
+              </div>
 
               <div className={styles.progressContainer}>
                 <ProgressRing

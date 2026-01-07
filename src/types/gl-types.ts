@@ -28,6 +28,8 @@ export interface MarketFrequencyAlert {
   };
   status: 'at-risk' | 'on-track';
   lastVisitWeeks: number;
+  priorityReason: string;  // "HEUTE: Vorbesteller", "Frequenz überfällig", etc.
+  priorityScore: number;   // For sorting/debugging
 }
 
 export interface PerformanceMetrics {
