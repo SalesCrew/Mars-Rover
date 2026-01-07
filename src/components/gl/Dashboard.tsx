@@ -108,7 +108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             preOrders: stats.vorbestellungCount || 0,
             marketsVisited: {
               current: stats.marketsVisited || 0,
-              target: stats.totalMarkets || 180
+              target: stats.totalMarkets || 0
             }
           });
         }
