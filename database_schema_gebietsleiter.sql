@@ -9,9 +9,13 @@ CREATE TABLE IF NOT EXISTS gebietsleiter (
     email VARCHAR(255) NOT NULL UNIQUE,
     profile_picture_url TEXT,
     password_hash TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT true, -- Set to false when GL is "deleted" to preserve progress data
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migration: Add is_active column if it doesn't exist
+ALTER TABLE gebietsleiter ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
 -- Create index on email for faster lookups
 CREATE INDEX IF NOT EXISTS idx_gebietsleiter_email ON gebietsleiter(email);
