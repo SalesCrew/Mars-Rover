@@ -229,8 +229,8 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
         return false;
       }
 
-      // Check Gebietsleiter filter (only apply when not using GLFilterCard)
-      if (!selectedGL && selectedFilters.gebietsleiter.length > 0 && 
+      // Check Gebietsleiter filter (applies even in assign mode)
+      if (selectedFilters.gebietsleiter.length > 0 && 
           (!market.gebietsleiterName || !selectedFilters.gebietsleiter.includes(market.gebietsleiterName))) {
         return false;
       }
