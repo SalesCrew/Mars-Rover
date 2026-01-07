@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS gebietsleiter (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Migration: Add is_active column if it doesn't exist
+-- Migration: Add is_active column if it doesn't exist (run this on existing databases)
 ALTER TABLE gebietsleiter ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
 -- Create index on email for faster lookups
@@ -25,6 +25,12 @@ CREATE INDEX IF NOT EXISTS idx_gebietsleiter_created_at ON gebietsleiter(created
 
 -- Enable Row Level Security
 ALTER TABLE gebietsleiter ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies before creating (to avoid "already exists" errors)
+DROP POLICY IF EXISTS "Allow authenticated users to read gebietsleiter" ON gebietsleiter;
+DROP POLICY IF EXISTS "Allow authenticated users to insert gebietsleiter" ON gebietsleiter;
+DROP POLICY IF EXISTS "Allow authenticated users to update gebietsleiter" ON gebietsleiter;
+DROP POLICY IF EXISTS "Allow authenticated users to delete gebietsleiter" ON gebietsleiter;
 
 -- Create policy to allow authenticated users to read all gebietsleiter
 CREATE POLICY "Allow authenticated users to read gebietsleiter"
@@ -63,11 +69,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to call the function before update
+-- Trigger to call the function before update (drop first to avoid duplicates)
+DROP TRIGGER IF EXISTS trigger_update_gebietsleiter_updated_at ON gebietsleiter;
 CREATE TRIGGER trigger_update_gebietsleiter_updated_at
     BEFORE UPDATE ON gebietsleiter
     FOR EACH ROW
     EXECUTE FUNCTION update_gebietsleiter_updated_at();
-
-
-
