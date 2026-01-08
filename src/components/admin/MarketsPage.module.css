@@ -19,8 +19,8 @@
     0 2px 12px rgba(0, 0, 0, 0.06),
     0 4px 16px rgba(0, 0, 0, 0.03);
   padding: 24px;
-  height: calc(100vh - 320px);
-  max-height: 1320px;
+  height: calc(100vh - 165px);
+  max-height: 1600px;
   overflow: hidden;
 }
 
@@ -439,13 +439,13 @@
 /* Markets List */
 .marketsList {
   position: relative;
-  min-height: calc(100vh - 400px);
-  max-height: 1200px;
+  min-height: calc(100vh - 265px);
+  max-height: 1500px;
 }
 
 .marketsList :global(.scroll-list) {
-  max-height: calc(100vh - 400px) !important;
-  min-height: calc(100vh - 400px) !important;
+  max-height: calc(100vh - 265px) !important;
+  min-height: calc(100vh - 265px) !important;
 }
 
 .marketsList :global(.top-gradient) {
@@ -566,3 +566,261 @@
   opacity: 0.6;
 }
 
+/* Unmatched Markets Modal */
+.unmatchedModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.unmatchedModal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: modalSlideIn 0.2s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.unmatchedModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+}
+
+.unmatchedModalHeader h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.unmatchedModalClose {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.unmatchedModalClose:hover {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.unmatchedModalSubtext {
+  font-size: 13px;
+  color: #64748b;
+  margin: 8px 24px 16px;
+}
+
+.unmatchedModalList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px;
+  max-height: 400px;
+}
+
+.unmatchedModalList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.unmatchedModalList::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+.unmatchedRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid #f1f5f9;
+  gap: 16px;
+}
+
+.unmatchedRow:last-child {
+  border-bottom: none;
+}
+
+.unmatchedRowInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.unmatchedRowName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unmatchedRowMeta {
+  font-size: 12px;
+  color: #94a3b8;
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.unmatchedRowNoGL {
+  color: #cbd5e1;
+  font-style: italic;
+}
+
+.unmatchedRowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.unmatchedDropdownWrapper {
+  position: relative;
+}
+
+.unmatchedDropdownTrigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #475569;
+  cursor: pointer;
+  min-width: 140px;
+  justify-content: space-between;
+  transition: all 0.15s ease;
+}
+
+.unmatchedDropdownTrigger:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.unmatchedDropdownMenu {
+  position: fixed;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 2000;
+}
+
+.unmatchedDropdownItem {
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.unmatchedDropdownItem:hover {
+  background: #f8fafc;
+}
+
+.unmatchedDropdownItemSelected {
+  background: rgba(59, 130, 246, 0.08);
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.unmatchedAssignBtn {
+  padding: 8px 14px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.unmatchedAssignBtn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.unmatchedAssignBtn:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.unmatchedModalFooter {
+  padding: 16px 24px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.unmatchedModalDone {
+  padding: 10px 24px;
+  background: #1e293b;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.unmatchedModalDone:hover {
+  background: #0f172a;
+}
+
+.unmatchedModalEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 12px;
+  color: #22c55e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.unmatchedModalEmptyIcon {
+  color: #22c55e;
+}

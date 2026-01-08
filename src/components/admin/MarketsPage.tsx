@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { MapPin, FunnelSimple, X, CaretDown, CaretUp, WarningCircle, SortAscending, SortDescending, LinkSimple } from '@phosphor-icons/react';
+import { MapPin, FunnelSimple, X, CaretDown, CaretUp, WarningCircle, SortAscending, SortDescending, LinkSimple, CheckCircle } from '@phosphor-icons/react';
 import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
 import { MarketListItem } from './MarketListItem';
 import { MarketListSkeleton } from './MarketListSkeleton';
@@ -40,6 +40,10 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
   const [showCheckmark, setShowCheckmark] = useState(false);
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<{ updated: number; notMatched: number } | null>(null);
+  const [unmatchedMarketsModal, setUnmatchedMarketsModal] = useState<{
+    isOpen: boolean;
+    markets: Array<{ id: string; name: string; glName: string | null; glEmail: string | null }>;
+  }>({ isOpen: false, markets: [] });
   const [searchTerms, setSearchTerms] = useState<Record<FilterType, string>>({
     chain: '',
     id: '',
@@ -673,20 +677,66 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
       const data = await response.json();
       setBackfillResult({ updated: data.updated, notMatched: data.notMatched });
       
-      // Reload markets to reflect the changes
-      if (data.updated > 0) {
-        const updatedMarkets = await marketService.getAllMarkets();
-        setMarkets(updatedMarkets);
-      }
+      // Reload markets to get updated data
+      const updatedMarkets = await marketService.getAllMarkets();
+      setMarkets(updatedMarkets);
       
-      // Hide result after 5 seconds
-      setTimeout(() => setBackfillResult(null), 5000);
+      // Find markets still without GL ID and show modal for manual matching
+      const marketsWithoutGL = updatedMarkets.filter(
+        (m: any) => !m.gebietsleiter || m.gebietsleiter === ''
+      );
+      
+      if (marketsWithoutGL.length > 0) {
+        const modalMarkets = marketsWithoutGL.map((m: any) => ({
+          id: m.id,
+          name: m.name || m.id,
+          glName: m.gebietsleiterName || null,
+          glEmail: m.gebietsleiterEmail || null
+        }));
+        setUnmatchedMarketsModal({
+          isOpen: true,
+          markets: modalMarkets
+        });
+      } else {
+        // Hide result after 5 seconds only if no modal
+        setTimeout(() => setBackfillResult(null), 5000);
+      }
     } catch (error) {
       console.error('Error backfilling GL IDs:', error);
       alert('Fehler beim Verknüpfen der GL IDs');
     } finally {
       setIsBackfilling(false);
     }
+  };
+
+  // Handler for manually assigning GL to a market
+  const handleManualGLAssign = async (marketId: string, glId: string) => {
+    try {
+      const gl = glsData.find(g => g.id === glId);
+      if (!gl) return;
+      
+      await marketService.updateMarket(marketId, {
+        gebietsleiter: glId,
+        gebietsleiterEmail: gl.email
+      });
+      
+      // Remove from unmatched list
+      setUnmatchedMarketsModal(prev => ({
+        ...prev,
+        markets: prev.markets.filter(m => m.id !== marketId)
+      }));
+      
+      // Reload markets
+      const updatedMarkets = await marketService.getAllMarkets();
+      setMarkets(updatedMarkets);
+    } catch (error) {
+      console.error('Error assigning GL:', error);
+    }
+  };
+
+  const handleCloseUnmatchedModal = () => {
+    setUnmatchedMarketsModal({ isOpen: false, markets: [] });
+    setBackfillResult(null);
   };
 
   return (
@@ -1152,6 +1202,131 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
           onSave={handleSaveMarket}
         />
       )}
+
+      {/* Unmatched Markets Modal */}
+      {unmatchedMarketsModal.isOpen && (
+        <div className={styles.unmatchedModalOverlay} onClick={handleCloseUnmatchedModal}>
+          <div className={styles.unmatchedModal} onClick={e => e.stopPropagation()}>
+            <div className={styles.unmatchedModalHeader}>
+              <h3>Nicht zugeordnete Märkte</h3>
+              <button className={styles.unmatchedModalClose} onClick={handleCloseUnmatchedModal}>
+                <X size={20} weight="bold" />
+              </button>
+            </div>
+            <p className={styles.unmatchedModalSubtext}>
+              {unmatchedMarketsModal.markets.length} Märkte konnten nicht automatisch zugeordnet werden
+            </p>
+            <div className={styles.unmatchedModalList}>
+              {unmatchedMarketsModal.markets.map(market => (
+                <UnmatchedMarketRow
+                  key={market.id}
+                  market={market}
+                  availableGLs={glsData}
+                  onAssign={handleManualGLAssign}
+                />
+              ))}
+              {unmatchedMarketsModal.markets.length === 0 && (
+                <div className={styles.unmatchedModalEmpty}>
+                  <CheckCircle size={32} weight="duotone" className={styles.unmatchedModalEmptyIcon} />
+                  <span>Alle Märkte wurden zugeordnet!</span>
+                </div>
+              )}
+            </div>
+            <div className={styles.unmatchedModalFooter}>
+              <button className={styles.unmatchedModalDone} onClick={handleCloseUnmatchedModal}>
+                Fertig
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Component for individual unmatched market row with dropdown
+const UnmatchedMarketRow: React.FC<{
+  market: { id: string; name: string; glName: string | null; glEmail: string | null };
+  availableGLs: Array<{ id: string; name: string; email: string }>;
+  onAssign: (marketId: string, glId: string) => void;
+}> = ({ market, availableGLs, onAssign }) => {
+  const [selectedGL, setSelectedGL] = useState<string>('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 140 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const handleAssign = async () => {
+    if (!selectedGL) return;
+    setIsAssigning(true);
+    await onAssign(market.id, selectedGL);
+    setIsAssigning(false);
+  };
+
+  const handleToggleDropdown = () => {
+    if (!isDropdownOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width
+      });
+    }
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+
+  const selectedGLData = availableGLs.find(g => g.id === selectedGL);
+
+  return (
+    <div className={styles.unmatchedRow}>
+      <div className={styles.unmatchedRowInfo}>
+        <span className={styles.unmatchedRowName}>{market.name}</span>
+        <span className={styles.unmatchedRowMeta}>
+          {market.glName ? (
+            <span>GL: {market.glName}</span>
+          ) : (
+            <span className={styles.unmatchedRowNoGL}>Kein GL Name hinterlegt</span>
+          )}
+        </span>
+      </div>
+      <div className={styles.unmatchedRowActions}>
+        <div className={styles.unmatchedDropdownWrapper}>
+          <button 
+            ref={triggerRef}
+            className={styles.unmatchedDropdownTrigger}
+            onClick={handleToggleDropdown}
+          >
+            {selectedGLData ? selectedGLData.name : 'GL auswählen'}
+            <CaretDown size={14} weight="bold" />
+          </button>
+          {isDropdownOpen && (
+            <div 
+              className={styles.unmatchedDropdownMenu}
+              style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+            >
+              {availableGLs.map(gl => (
+                <button
+                  key={gl.id}
+                  className={`${styles.unmatchedDropdownItem} ${selectedGL === gl.id ? styles.unmatchedDropdownItemSelected : ''}`}
+                  onClick={() => {
+                    setSelectedGL(gl.id);
+                    setIsDropdownOpen(false);
+                  }}
+                >
+                  {gl.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <button 
+          className={styles.unmatchedAssignBtn}
+          onClick={handleAssign}
+          disabled={!selectedGL || isAssigning}
+        >
+          {isAssigning ? '...' : 'Zuweisen'}
+        </button>
+      </div>
     </div>
   );
 };
