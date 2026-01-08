@@ -211,6 +211,11 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
     return options.filter(option => option.toLowerCase().includes(search));
   };
 
+  // Check if there are markets without gebietsleiter_id (for backfill button)
+  const hasMarketsWithoutGLId = useMemo(() => {
+    return markets.some(market => !market.gebietsleiter);
+  }, [markets]);
+
   // Apply filters to markets - Memoized for performance
   // When GL is selected, we show ALL markets but separate them
   const filteredMarkets = useMemo(() => {
@@ -744,10 +749,10 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
           </div>
           <div className={styles.statsWrapper}>
             <button
-              className={styles.backfillButton}
+              className={`${styles.backfillButton} ${!hasMarketsWithoutGLId ? styles.backfillButtonDisabled : ''}`}
               onClick={handleBackfillGLIds}
-              disabled={isBackfilling}
-              title="GL IDs anhand von Namen verknüpfen"
+              disabled={isBackfilling || !hasMarketsWithoutGLId}
+              title={hasMarketsWithoutGLId ? "GL IDs anhand von Namen/E-Mail verknüpfen" : "Alle Märkte haben bereits GL IDs"}
             >
               <LinkSimple size={16} weight="bold" />
               <span>{isBackfilling ? 'Verknüpfe...' : 'IDs verknüpfen'}</span>

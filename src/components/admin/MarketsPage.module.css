@@ -162,6 +162,11 @@
   cursor: not-allowed;
 }
 
+.statsWrapper .backfillButtonDisabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 .statsWrapper .backfillResult {
   font-size: 12px;
   color: #22c55e;
