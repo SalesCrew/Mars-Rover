@@ -5,7 +5,7 @@ import styles from './VorbestellerPage.module.css';
 import { CustomDatePicker } from './CustomDatePicker';
 import { WelleDetailModal } from './WelleDetailModal';
 import { WelleMarketSelectorModal } from './WelleMarketSelectorModal';
-import { wellenService } from '../../services/wellenService';
+import { wellenService, type Welle } from '../../services/wellenService';
 import { getAllProducts, type Product } from '../../data/productsData';
 import { API_BASE_URL } from '../../config/database';
 
@@ -111,26 +111,7 @@ interface WelleKartonwareItem {
   itemValue?: number | null; // Only used when wave goalType is 'value'
 }
 
-interface Welle {
-  id: string;
-  name: string;
-  image: string | null;
-  startDate: string;
-  endDate: string;
-  types: ('display' | 'kartonware' | 'palette' | 'schuette')[];
-  status: 'upcoming' | 'active' | 'past';
-  displayCount: number;
-  kartonwareCount: number;
-  kwDays?: KWDay[];
-  displays?: WelleDisplayItem[];
-  kartonwareItems?: WelleKartonwareItem[];
-  totalGLs?: number;
-  participatingGLs?: number;
-  goalType: 'percentage' | 'value'; // Wave-level goal type
-  goalPercentage?: number | null; // For percentage goals (e.g., 80%)
-  goalValue?: number | null; // For value goals (e.g., €7500)
-  assignedMarketIds?: string[]; // IDs of assigned markets
-}
+// Welle type is imported from wellenService
 
 export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({ 
   isCreateWelleModalOpen, 
@@ -1546,7 +1527,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                         <div className={styles.formSection}>
                           <label className={styles.label}>Produkte (GLs wählen frei, min. 600€ pro Markt)</label>
                           <div className={styles.paletteProductsList}>
-                            {palette.products.map((product, pIndex) => (
+                            {palette.products.map((product) => (
                               <div key={product.id} className={styles.paletteProductRow}>
                                 <input
                                   type="text"
@@ -1689,7 +1670,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                         <div className={styles.formSection}>
                           <label className={styles.label}>Produkte (GLs wählen frei, min. 600€ pro Markt)</label>
                           <div className={styles.paletteProductsList}>
-                            {schutte.products.map((product, pIndex) => (
+                            {schutte.products.map((product) => (
                               <div key={product.id} className={styles.paletteProductRow}>
                                 <input
                                   type="text"

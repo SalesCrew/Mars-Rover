@@ -33,7 +33,7 @@ interface Welle {
   image: string | null;
   startDate: string;
   endDate: string;
-  types: ('display' | 'kartonware')[];
+  types: ('display' | 'kartonware' | 'palette' | 'schuette')[];
   status: 'upcoming' | 'active' | 'past';
   displayCount: number;
   kartonwareCount: number;
