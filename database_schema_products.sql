@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS products (
   -- SKU / EAN
   sku VARCHAR(255), -- Stock Keeping Unit or EAN-Code
   
+  -- Palette Products (for palette type only)
+  palette_products JSONB, -- Structured array of products in a palette (name, value, ve, ean)
+  
   -- Metadata
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
