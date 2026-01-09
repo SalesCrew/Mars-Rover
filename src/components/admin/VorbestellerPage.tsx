@@ -457,31 +457,48 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         imageUrl = null; // Don't save blob URLs
       }
 
-      // Upload display images - filter out displays with no valid targetNumber
-      const validDisplays = displays.filter(d => d.name.trim() && parseInt(d.targetNumber) > 0);
+      // Upload display images - for value-based: require name AND (targetNumber > 0 OR itemValue > 0)
+      // For percentage-based: require name AND targetNumber > 0
+      const validDisplays = displays.filter(d => {
+        if (!d.name.trim()) return false;
+        if (goalType === 'value') {
+          // Value-based: either targetNumber or itemValue must be set
+          return parseInt(d.targetNumber) > 0 || (d.itemValue && parseFloat(d.itemValue) > 0);
+        }
+        return parseInt(d.targetNumber) > 0;
+      });
       const processedDisplays = await Promise.all(validDisplays.map(async (d) => {
         let pictureUrl: string | null = null;
         if (d.picture) {
           pictureUrl = await uploadImageToStorage(d.picture, 'displays');
         }
+        // For value-based waves, default targetNumber to 1 if not set (DB requires > 0)
+        const targetNum = parseInt(d.targetNumber) > 0 ? parseInt(d.targetNumber) : 1;
         return {
           name: d.name,
-          targetNumber: parseInt(d.targetNumber),
+          targetNumber: targetNum,
           picture: pictureUrl,
           itemValue: goalType === 'value' && d.itemValue ? parseFloat(d.itemValue) : null
         };
       }));
 
-      // Upload kartonware images - filter out kartonware with no valid targetNumber
-      const validKartonware = kartonwareItems.filter(k => k.name.trim() && parseInt(k.targetNumber) > 0);
+      // Upload kartonware images - same logic as displays
+      const validKartonware = kartonwareItems.filter(k => {
+        if (!k.name.trim()) return false;
+        if (goalType === 'value') {
+          return parseInt(k.targetNumber) > 0 || (k.itemValue && parseFloat(k.itemValue) > 0);
+        }
+        return parseInt(k.targetNumber) > 0;
+      });
       const processedKartonware = await Promise.all(validKartonware.map(async (k) => {
         let pictureUrl: string | null = null;
         if (k.picture) {
           pictureUrl = await uploadImageToStorage(k.picture, 'kartonware');
         }
+        const targetNum = parseInt(k.targetNumber) > 0 ? parseInt(k.targetNumber) : 1;
         return {
           name: k.name,
-          targetNumber: parseInt(k.targetNumber),
+          targetNumber: targetNum,
           picture: pictureUrl,
           itemValue: goalType === 'value' && k.itemValue ? parseFloat(k.itemValue) : null
         };
