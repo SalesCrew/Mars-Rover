@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FunnelSimple, X, MagnifyingGlass, Package, CaretDown, SortAscending, SortDescending } from '@phosphor-icons/react';
-import { getAllProducts, deleteProduct } from '../../data/productsData';
+import { getAllProducts, deleteProduct, updateProduct } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
 import styles from './ProductsPage.module.css';
 
@@ -317,12 +317,19 @@ export const ProductsPage: React.FC = () => {
     setEditedProduct(null);
   };
 
-  const handleSaveProduct = () => {
-    // TODO: Implement save logic (API call)
-    console.log('Saving product:', editedProduct);
-    // After saving, refresh products
-    setRefreshKey(prev => prev + 1);
-    handleCloseModal();
+  const handleSaveProduct = async () => {
+    if (!editedProduct || !selectedProduct) return;
+    
+    try {
+      await updateProduct(selectedProduct.id, editedProduct);
+      // Update local state
+      setProducts(prev => prev.map(p => p.id === selectedProduct.id ? editedProduct : p));
+      setRefreshKey(prev => prev + 1);
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error saving product:', error);
+      alert('Fehler beim Speichern des Produkts');
+    }
   };
 
   // Handle delete with double-click confirmation
