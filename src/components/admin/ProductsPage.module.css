@@ -645,6 +645,7 @@
 .paletteProductsList {
   max-height: 280px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: rgba(249, 250, 251, 0.5);
   border: 1.5px solid rgba(226, 232, 240, 0.8);
   border-radius: 12px;
