@@ -886,17 +886,35 @@ export const ProductsPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Content */}
-                <div className={styles.detailItem}>
-                  <label className={styles.detailLabel}>Inhalt</label>
-                  <input
-                    type="text"
-                    className={styles.detailInput}
-                    value={editedProduct.content || ''}
-                    onChange={(e) => handleInputChange('content', e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
+                {/* Content / Palette Products */}
+                {editedProduct.productType === 'palette' && editedProduct.paletteProducts ? (
+                  <div className={styles.detailItemFull}>
+                    <label className={styles.detailLabel}>Produkte ({editedProduct.paletteProducts.length})</label>
+                    <div className={styles.paletteProductsList}>
+                      {editedProduct.paletteProducts.map((product, index) => (
+                        <div key={index} className={styles.paletteProductRow}>
+                          <div className={styles.paletteProductName}>{product.name}</div>
+                          <div className={styles.paletteProductDetails}>
+                            <span className={styles.paletteProductPrice}>€{product.value.toFixed(2)}/VE</span>
+                            <span className={styles.paletteProductVE}>VE: {product.ve}</span>
+                            {product.ean && <span className={styles.paletteProductEAN}>EAN: {product.ean}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.detailItem}>
+                    <label className={styles.detailLabel}>Inhalt</label>
+                    <input
+                      type="text"
+                      className={styles.detailInput}
+                      value={editedProduct.content || ''}
+                      onChange={(e) => handleInputChange('content', e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                )}
 
                 {/* Price */}
                 <div className={styles.detailItem}>
