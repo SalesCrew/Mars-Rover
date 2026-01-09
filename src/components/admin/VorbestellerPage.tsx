@@ -485,6 +485,44 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         };
       }));
 
+      // Process palette items (upload images if any)
+      const processedPalettes = await Promise.all(paletteItems.map(async (p) => {
+        let pictureUrl: string | null = null;
+        if (p.picture) {
+          pictureUrl = await uploadImageToStorage(p.picture, 'palettes');
+        }
+        return {
+          name: p.name,
+          size: p.size || null,
+          picture: pictureUrl,
+          products: p.products.map(prod => ({
+            name: prod.name,
+            value: prod.value,
+            ve: prod.ve,
+            ean: prod.ean
+          }))
+        };
+      }));
+
+      // Process schuette items (upload images if any)
+      const processedSchuetten = await Promise.all(schutteItems.map(async (s) => {
+        let pictureUrl: string | null = null;
+        if (s.picture) {
+          pictureUrl = await uploadImageToStorage(s.picture, 'schuetten');
+        }
+        return {
+          name: s.name,
+          size: s.size || null,
+          picture: pictureUrl,
+          products: s.products.map(prod => ({
+            name: prod.name,
+            value: prod.value,
+            ve: prod.ve,
+            ean: prod.ean
+          }))
+        };
+      }));
+
       const welleData = {
         name: waveName,
         image: imageUrl,
@@ -495,6 +533,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         goalValue: goalType === 'value' ? parseFloat(goalValue) : null,
         displays: processedDisplays,
         kartonwareItems: processedKartonware,
+        paletteItems: processedPalettes,
+        schutteItems: processedSchuetten,
         kwDays: kwDays.map(kw => ({
           kw: kw.kw,
           days: kw.days

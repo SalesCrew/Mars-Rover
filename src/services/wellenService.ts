@@ -18,6 +18,30 @@ export interface WelleKartonware {
   itemValue?: number | null;
 }
 
+export interface WellePaletteProduct {
+  id: string;
+  name: string;
+  valuePerVE: number;
+  ve: number;
+  ean?: string | null;
+}
+
+export interface WellePalette {
+  id: string;
+  name: string;
+  size?: string | null;
+  picture?: string | null;
+  products: WellePaletteProduct[];
+}
+
+export interface WelleSchuette {
+  id: string;
+  name: string;
+  size?: string | null;
+  picture?: string | null;
+  products: WellePaletteProduct[]; // Same structure as palette products
+}
+
 export interface WelleKWDay {
   kw: string;
   days: string[];
@@ -36,8 +60,12 @@ export interface Welle {
   goalValue?: number | null;
   displayCount: number;
   kartonwareCount: number;
+  paletteCount?: number;
+  schutteCount?: number;
   displays?: WelleDisplay[];
   kartonwareItems?: WelleKartonware[];
+  paletteItems?: WellePalette[];
+  schutteItems?: WelleSchuette[];
   kwDays?: WelleKWDay[];
   assignedMarketIds?: string[];
   participatingGLs?: number;
@@ -63,6 +91,28 @@ export interface CreateWelleDTO {
     targetNumber: number;
     picture: string | null;
     itemValue?: number | null;
+  }>;
+  paletteItems?: Array<{
+    name: string;
+    size: string | null;
+    picture: string | null;
+    products: Array<{
+      name: string;
+      value: string;
+      ve: string;
+      ean: string;
+    }>;
+  }>;
+  schutteItems?: Array<{
+    name: string;
+    size: string | null;
+    picture: string | null;
+    products: Array<{
+      name: string;
+      value: string;
+      ve: string;
+      ean: string;
+    }>;
   }>;
   kwDays: Array<{
     kw: string;
