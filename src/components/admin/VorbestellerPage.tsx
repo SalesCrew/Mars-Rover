@@ -457,36 +457,39 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         imageUrl = null; // Don't save blob URLs
       }
 
-      // Upload display images
-      const processedDisplays = await Promise.all(displays.map(async (d) => {
+      // Upload display images - filter out displays with no valid targetNumber
+      const validDisplays = displays.filter(d => d.name.trim() && parseInt(d.targetNumber) > 0);
+      const processedDisplays = await Promise.all(validDisplays.map(async (d) => {
         let pictureUrl: string | null = null;
         if (d.picture) {
           pictureUrl = await uploadImageToStorage(d.picture, 'displays');
         }
         return {
           name: d.name,
-          targetNumber: parseInt(d.targetNumber) || 0,
+          targetNumber: parseInt(d.targetNumber),
           picture: pictureUrl,
           itemValue: goalType === 'value' && d.itemValue ? parseFloat(d.itemValue) : null
         };
       }));
 
-      // Upload kartonware images
-      const processedKartonware = await Promise.all(kartonwareItems.map(async (k) => {
+      // Upload kartonware images - filter out kartonware with no valid targetNumber
+      const validKartonware = kartonwareItems.filter(k => k.name.trim() && parseInt(k.targetNumber) > 0);
+      const processedKartonware = await Promise.all(validKartonware.map(async (k) => {
         let pictureUrl: string | null = null;
         if (k.picture) {
           pictureUrl = await uploadImageToStorage(k.picture, 'kartonware');
         }
         return {
           name: k.name,
-          targetNumber: parseInt(k.targetNumber) || 0,
+          targetNumber: parseInt(k.targetNumber),
           picture: pictureUrl,
           itemValue: goalType === 'value' && k.itemValue ? parseFloat(k.itemValue) : null
         };
       }));
 
-      // Process palette items (upload images if any)
-      const processedPalettes = await Promise.all(paletteItems.map(async (p) => {
+      // Process palette items - filter out empty palettes
+      const validPalettes = paletteItems.filter(p => p.name.trim() && p.products.length > 0);
+      const processedPalettes = await Promise.all(validPalettes.map(async (p) => {
         let pictureUrl: string | null = null;
         if (p.picture) {
           pictureUrl = await uploadImageToStorage(p.picture, 'palettes');
@@ -495,7 +498,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
           name: p.name,
           size: p.size || null,
           picture: pictureUrl,
-          products: p.products.map(prod => ({
+          products: p.products.filter(prod => prod.name.trim()).map(prod => ({
             name: prod.name,
             value: prod.value,
             ve: prod.ve,
@@ -504,8 +507,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         };
       }));
 
-      // Process schuette items (upload images if any)
-      const processedSchuetten = await Promise.all(schutteItems.map(async (s) => {
+      // Process schuette items - filter out empty schütten
+      const validSchuetten = schutteItems.filter(s => s.name.trim() && s.products.length > 0);
+      const processedSchuetten = await Promise.all(validSchuetten.map(async (s) => {
         let pictureUrl: string | null = null;
         if (s.picture) {
           pictureUrl = await uploadImageToStorage(s.picture, 'schuetten');
@@ -514,7 +518,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
           name: s.name,
           size: s.size || null,
           picture: pictureUrl,
-          products: s.products.map(prod => ({
+          products: s.products.filter(prod => prod.name.trim()).map(prod => ({
             name: prod.name,
             value: prod.value,
             ve: prod.ve,
