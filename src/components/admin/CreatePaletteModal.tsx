@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash, Check, ArrowLeft, Package, MagnifyingGlass } from '@phosphor-icons/react';
+import React, { useState } from 'react';
+import { X, Plus, Trash, Check, ArrowLeft, Package } from '@phosphor-icons/react';
 import styles from './CreatePaletteModal.module.css';
-import type { Product, PaletteProduct } from '../../types/product-types';
-import { getAllProducts } from '../../data/productsData';
+import type { Product } from '../../types/product-types';
 
 interface CreatePaletteModalProps {
   isOpen: boolean;
@@ -11,11 +10,16 @@ interface CreatePaletteModalProps {
   department: 'pets' | 'food';
 }
 
+interface PaletteProductItem {
+  name: string;
+  value: number;
+  ean: string;
+}
+
 interface PaletteItem {
   name: string;
   subname: string;
-  products: PaletteProduct[];
-  eanCode: string;
+  products: PaletteProductItem[];
   size: string;
 }
 
@@ -29,77 +33,34 @@ export const CreatePaletteModal: React.FC<CreatePaletteModalProps> = ({
   const [currentPalette, setCurrentPalette] = useState<PaletteItem>({
     name: '',
     subname: '',
-    products: [],
-    eanCode: '',
+    products: [{ name: '', value: 0, ean: '' }],
     size: ''
   });
   const [createdPalettes, setCreatedPalettes] = useState<PaletteItem[]>([]);
-  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
-
-  // Load available products on mount
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const products = await getAllProducts();
-        // Filter to only show standard products from the same department
-        const filtered = products.filter(
-          p => p.productType === 'standard' && p.department === department
-        );
-        setAvailableProducts(filtered);
-      } catch (error) {
-        console.error('Error loading products:', error);
-      }
-    };
-    if (isOpen) {
-      loadProducts();
-    }
-  }, [isOpen, department]);
 
   if (!isOpen) return null;
 
-  const handleAddProduct = (product: Product) => {
-    // Check if already added
-    const exists = currentPalette.products.find(p => p.productId === product.id);
-    if (exists) {
-      // Increment quantity
-      setCurrentPalette(prev => ({
-        ...prev,
-        products: prev.products.map(p =>
-          p.productId === product.id ? { ...p, quantity: p.quantity + 1 } : p
-        )
-      }));
-    } else {
-      // Add new
-      const newProduct: PaletteProduct = {
-        productId: product.id,
-        productName: product.name,
-        quantity: 1,
-        unitPrice: product.price
-      };
-      setCurrentPalette(prev => ({
-        ...prev,
-        products: [...prev.products, newProduct]
-      }));
-    }
-    setIsProductSelectorOpen(false);
-    setSearchTerm('');
-  };
-
-  const handleRemoveProduct = (productId: string) => {
+  const handleAddProduct = () => {
     setCurrentPalette(prev => ({
       ...prev,
-      products: prev.products.filter(p => p.productId !== productId)
+      products: [...prev.products, { name: '', value: 0, ean: '' }]
     }));
   };
 
-  const handleQuantityChange = (productId: string, quantity: number) => {
-    if (quantity < 1) return;
+  const handleRemoveProduct = (index: number) => {
+    if (currentPalette.products.length > 1) {
+      setCurrentPalette(prev => ({
+        ...prev,
+        products: prev.products.filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  const handleProductChange = (index: number, field: 'name' | 'value' | 'ean', value: string | number) => {
     setCurrentPalette(prev => ({
       ...prev,
-      products: prev.products.map(p =>
-        p.productId === productId ? { ...p, quantity } : p
+      products: prev.products.map((product, i) => 
+        i === index ? { ...product, [field]: value } : product
       )
     }));
   };
@@ -128,11 +89,10 @@ export const CreatePaletteModal: React.FC<CreatePaletteModalProps> = ({
       department: department,
       productType: 'palette' as const,
       weight: palette.size,
-      content: palette.products.map(p => `${p.quantity}x ${p.productName}`).join(', '),
-      palletSize: palette.products.reduce((sum, p) => sum + p.quantity, 0),
-      price: 0, // Palettes have no price - value comes from products inside
-      sku: palette.eanCode,
-      paletteProducts: palette.products
+      content: palette.products.map(p => `${p.name} (€${p.value.toFixed(2)}${p.ean ? `, EAN: ${p.ean}` : ''})`).join(', '),
+      palletSize: palette.products.length,
+      price: getTotalValue(palette.products), // Store total value in price field
+      sku: undefined
     }));
 
     onSave(products);
@@ -144,8 +104,7 @@ export const CreatePaletteModal: React.FC<CreatePaletteModalProps> = ({
     setCurrentPalette({
       name: '',
       subname: '',
-      products: [],
-      eanCode: '',
+      products: [{ name: '', value: 0, ean: '' }],
       size: ''
     });
   };
@@ -170,21 +129,17 @@ export const CreatePaletteModal: React.FC<CreatePaletteModalProps> = ({
     return (
       currentPalette.name.trim() !== '' &&
       currentPalette.size.trim() !== '' &&
-      currentPalette.products.length > 0
+      currentPalette.products.every(p => p.name.trim() !== '' && p.value > 0)
     );
   };
 
   // Calculate total value of palette products
-  const getTotalValue = (products: PaletteProduct[]) => {
-    return products.reduce((sum, p) => sum + (p.quantity * p.unitPrice), 0);
+  const getTotalValue = (products: PaletteProductItem[]) => {
+    return products.reduce((sum, p) => sum + p.value, 0);
   };
 
   const departmentColor = department === 'pets' ? '#10B981' : '#F59E0B';
   const departmentLabel = department === 'pets' ? 'Tiernahrung' : 'Lebensmittel';
-
-  const filteredProducts = availableProducts.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -246,109 +201,57 @@ export const CreatePaletteModal: React.FC<CreatePaletteModalProps> = ({
                 />
               </div>
 
-              {/* EAN-Code */}
-              <div className={styles.formGroup}>
-                <label className={styles.label}>EAN-Code</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  value={currentPalette.eanCode}
-                  onChange={(e) => setCurrentPalette(prev => ({ ...prev, eanCode: e.target.value }))}
-                  placeholder="Optional"
-                />
-              </div>
-
               {/* Products */}
               <div className={styles.formGroup}>
                 <label className={styles.label}>Produkte *</label>
                 <p className={styles.labelHint}>
                   GLs können frei aus diesen Produkten wählen (min. 600€ pro Markt)
                 </p>
-                
-                {/* Added Products */}
-                {currentPalette.products.length > 0 && (
-                  <div className={styles.productsWrapper}>
-                    {currentPalette.products.map((product) => (
-                      <div key={product.productId} className={styles.productRow}>
-                        <div className={styles.productInfo}>
-                          <span className={styles.productName}>{product.productName}</span>
-                          <span className={styles.productPrice}>€{product.unitPrice.toFixed(2)}/Stk</span>
-                        </div>
-                        <div className={styles.productControls}>
-                          <input
-                            type="number"
-                            min="1"
-                            className={styles.quantityInput}
-                            value={product.quantity}
-                            onChange={(e) => handleQuantityChange(product.productId, parseInt(e.target.value) || 1)}
-                          />
-                          <button
-                            className={styles.removeProductButton}
-                            onClick={() => handleRemoveProduct(product.productId)}
-                            title="Entfernen"
-                          >
-                            <Trash size={16} weight="bold" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                <div className={styles.productsWrapper}>
+                  {currentPalette.products.map((product, index) => (
+                    <div key={index} className={styles.productInputRow}>
+                      <input
+                        type="text"
+                        className={styles.inputProductName}
+                        value={product.name}
+                        onChange={(e) => handleProductChange(index, 'name', e.target.value)}
+                        placeholder="Produktname"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        className={styles.inputProductValue}
+                        value={product.value || ''}
+                        onChange={(e) => handleProductChange(index, 'value', parseFloat(e.target.value) || 0)}
+                        placeholder="Wert (€)"
+                        min="0"
+                      />
+                      <input
+                        type="text"
+                        className={styles.inputProductEAN}
+                        value={product.ean}
+                        onChange={(e) => handleProductChange(index, 'ean', e.target.value)}
+                        placeholder="EAN-Code"
+                      />
+                      {currentPalette.products.length > 1 && (
+                        <button
+                          className={styles.removeProductButton}
+                          onClick={() => handleRemoveProduct(index)}
+                          title="Entfernen"
+                        >
+                          <Trash size={16} weight="bold" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button className={styles.addProductButton} onClick={handleAddProduct}>
+                    <Plus size={16} weight="bold" />
+                    <span>Weitere hinzufügen</span>
+                  </button>
+                  {currentPalette.products.length > 0 && (
                     <div className={styles.totalValue}>
                       Gesamtwert: <strong>€{getTotalValue(currentPalette.products).toFixed(2)}</strong>
                     </div>
-                  </div>
-                )}
-
-                {/* Add Product Button / Selector */}
-                <div className={styles.productSelectorWrapper}>
-                  {isProductSelectorOpen ? (
-                    <div className={styles.productSelector}>
-                      <div className={styles.searchWrapper}>
-                        <MagnifyingGlass size={18} weight="bold" className={styles.searchIcon} />
-                        <input
-                          type="text"
-                          className={styles.searchInput}
-                          placeholder="Produkt suchen..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          autoFocus
-                        />
-                        <button
-                          className={styles.closeSearch}
-                          onClick={() => {
-                            setIsProductSelectorOpen(false);
-                            setSearchTerm('');
-                          }}
-                        >
-                          <X size={16} weight="bold" />
-                        </button>
-                      </div>
-                      <div className={styles.productList}>
-                        {filteredProducts.length > 0 ? (
-                          filteredProducts.slice(0, 10).map((product) => (
-                            <button
-                              key={product.id}
-                              className={styles.productOption}
-                              onClick={() => handleAddProduct(product)}
-                            >
-                              <span className={styles.productOptionName}>{product.name}</span>
-                              <span className={styles.productOptionPrice}>€{product.price.toFixed(2)}</span>
-                            </button>
-                          ))
-                        ) : (
-                          <div className={styles.noProducts}>
-                            {searchTerm ? 'Keine Produkte gefunden' : 'Keine Produkte verfügbar'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      className={styles.addProductButton}
-                      onClick={() => setIsProductSelectorOpen(true)}
-                    >
-                      <Plus size={16} weight="bold" />
-                      <span>Produkt hinzufügen</span>
-                    </button>
                   )}
                 </div>
               </div>
@@ -404,12 +307,6 @@ export const CreatePaletteModal: React.FC<CreatePaletteModalProps> = ({
                         <span className={styles.detailLabel}>Größe:</span>
                         <span className={styles.detailValue}>{palette.size}</span>
                       </div>
-                      {palette.eanCode && (
-                        <div className={styles.detailRow}>
-                          <span className={styles.detailLabel}>EAN:</span>
-                          <span className={styles.detailValue}>{palette.eanCode}</span>
-                        </div>
-                      )}
                       <div className={styles.detailRow}>
                         <span className={styles.detailLabel}>Gesamtwert:</span>
                         <span className={styles.detailValue} style={{ color: departmentColor, fontWeight: 700 }}>
@@ -420,9 +317,11 @@ export const CreatePaletteModal: React.FC<CreatePaletteModalProps> = ({
                         <span className={styles.detailLabel}>Produkte:</span>
                         <div className={styles.contentsList}>
                           {palette.products.map((p, i) => (
-                            <span key={i} className={styles.contentItem}>
-                              {p.quantity}x {p.productName}
-                            </span>
+                            <div key={i} className={styles.contentItem}>
+                              <span className={styles.productItemName}>{p.name}</span>
+                              <span className={styles.productItemValue}>€{p.value.toFixed(2)}</span>
+                              {p.ean && <span className={styles.productItemEAN}>EAN: {p.ean}</span>}
+                            </div>
                           ))}
                         </div>
                       </div>
