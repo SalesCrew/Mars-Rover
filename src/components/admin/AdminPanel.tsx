@@ -10,6 +10,7 @@ import { VorverkaufAdminPage } from './VorverkaufAdminPage';
 import { FragebogenPage } from './FragebogenPage';
 import { ProductsPage } from './ProductsPage';
 import { CreateDisplayModal } from './CreateDisplayModal';
+import { CreatePaletteModal } from './CreatePaletteModal';
 import { parseMarketFile, validateImportFile } from '../../utils/marketImporter';
 import { actionHistoryService, type ActionHistoryEntry } from '../../services/actionHistoryService';
 import { marketService } from '../../services/marketService';
@@ -46,7 +47,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [isCreateFragebogenModalOpen, setIsCreateFragebogenModalOpen] = useState(false);
   const [isProductImportModalOpen, setIsProductImportModalOpen] = useState(false);
   const [isCreateDisplayModalOpen, setIsCreateDisplayModalOpen] = useState(false);
+  const [isCreatePaletteModalOpen, setIsCreatePaletteModalOpen] = useState(false);
   const [displayDepartment, setDisplayDepartment] = useState<'pets' | 'food'>('pets');
+  const [paletteDepartment, setPaletteDepartment] = useState<'pets' | 'food'>('pets');
   const [selectedProductImportType, setSelectedProductImportType] = useState<'pets-standard' | 'pets-display' | 'food-standard' | 'food-display' | null>(null);
   const [historyEntries, setHistoryEntries] = useState<ActionHistoryEntry[]>([]);
   const [historySearchTerm, setHistorySearchTerm] = useState('');
@@ -565,6 +568,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
                       Displays
                     </button>
                   </div>
+                  <div className={styles.importTypeButtons}>
+                    <button
+                      className={styles.importTypeButton}
+                      onClick={() => {
+                        setPaletteDepartment('pets');
+                        setIsProductImportModalOpen(false);
+                        setIsCreatePaletteModalOpen(true);
+                      }}
+                    >
+                      Palette
+                    </button>
+                    <button
+                      className={styles.importTypeButtonDisabled}
+                      disabled
+                      title="Schütten - kommt bald"
+                    >
+                      Schütten
+                    </button>
+                  </div>
                 </div>
 
                 {/* Mars Food */}
@@ -591,6 +613,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
                       }}
                     >
                       Displays
+                    </button>
+                  </div>
+                  <div className={styles.importTypeButtons}>
+                    <button
+                      className={styles.importTypeButton}
+                      onClick={() => {
+                        setPaletteDepartment('food');
+                        setIsProductImportModalOpen(false);
+                        setIsCreatePaletteModalOpen(true);
+                      }}
+                    >
+                      Palette
+                    </button>
+                    <button
+                      className={styles.importTypeButtonDisabled}
+                      disabled
+                      title="Schütten - kommt bald"
+                    >
+                      Schütten
                     </button>
                   </div>
                 </div>
@@ -796,6 +837,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
           }
         }}
         department={displayDepartment}
+      />
+
+      {/* Create Palette Modal */}
+      <CreatePaletteModal
+        isOpen={isCreatePaletteModalOpen}
+        onClose={() => {
+          setIsCreatePaletteModalOpen(false);
+          setIsProductImportModalOpen(true); // Return to product import modal
+        }}
+        onSave={async (palettes) => {
+          try {
+            // Update the products in the data store and WAIT
+            const { addProducts } = await import('../../data/productsData');
+            await addProducts(palettes);
+            
+            // Trigger update event for ProductsPage AFTER products are saved
+            window.dispatchEvent(new Event('productsUpdated'));
+            
+            console.log('Created palettes:', palettes);
+            
+            setIsCreatePaletteModalOpen(false);
+            setIsProductImportModalOpen(false);
+          } catch (error) {
+            console.error('Failed to save palettes:', error);
+            alert('Fehler beim Speichern der Paletten');
+          }
+        }}
+        department={paletteDepartment}
       />
     </div>
   );

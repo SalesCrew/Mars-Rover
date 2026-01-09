@@ -2,12 +2,21 @@ export interface Product {
   id: string;
   name: string; // Row A: Artikelbezeichnung
   department: 'pets' | 'food'; // Mars Pets (Tiernahrung) or Mars Food
-  productType: 'standard' | 'display'; // Standard Products or Displays
-  weight: string; // Row C: Weight (e.g., "150g", "1kg")
+  productType: 'standard' | 'display' | 'palette' | 'schuette'; // Standard, Display, Palette, or Schütte
+  weight: string; // Row C: Weight (e.g., "150g", "1kg") or Size for displays/palettes
   content?: string; // Row D: Inhalt (only in detailed view, not in list)
   palletSize?: number; // Row F: Einheiten Pro Palette
-  price: number; // Row K: Price in EUR
+  price: number; // Row K: Price in EUR (0 for palettes - value comes from products inside)
   sku?: string; // Generated or imported SKU
+  paletteProducts?: PaletteProduct[]; // Products contained in a palette (only for palette type)
+}
+
+// Product contained within a palette
+export interface PaletteProduct {
+  productId: string; // Reference to a standard product
+  productName: string; // Name for display
+  quantity: number; // How many of this product in the palette
+  unitPrice: number; // Price per unit
 }
 
 export interface ProductCalculation {

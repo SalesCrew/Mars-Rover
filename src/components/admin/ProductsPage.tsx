@@ -298,7 +298,13 @@ export const ProductsPage: React.FC = () => {
   };
 
   const getProductTypeLabel = (productType: string) => {
-    return productType === 'standard' ? 'Standard' : 'Display';
+    switch (productType) {
+      case 'standard': return 'Standard';
+      case 'display': return 'Display';
+      case 'palette': return 'Palette';
+      case 'schuette': return 'Schütte';
+      default: return productType;
+    }
   };
 
   const handleProductClick = (product: Product) => {
@@ -844,6 +850,24 @@ export const ProductsPage: React.FC = () => {
                           }}
                         >
                           Display
+                        </div>
+                        <div
+                          className={`${styles.customDropdownOption} ${editedProduct.productType === 'palette' ? styles.customDropdownOptionSelected : ''}`}
+                          onClick={() => {
+                            handleInputChange('productType', 'palette');
+                            setOpenModalDropdown(null);
+                          }}
+                        >
+                          Palette
+                        </div>
+                        <div
+                          className={`${styles.customDropdownOption} ${editedProduct.productType === 'schuette' ? styles.customDropdownOptionSelected : ''}`}
+                          onClick={() => {
+                            handleInputChange('productType', 'schuette');
+                            setOpenModalDropdown(null);
+                          }}
+                        >
+                          Schütte
                         </div>
                       </div>
                     )}

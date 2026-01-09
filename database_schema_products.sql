@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS products (
   -- Basic product information
   name VARCHAR(500) NOT NULL, -- Product name (Artikelbezeichnung)
   department VARCHAR(20) NOT NULL CHECK (department IN ('pets', 'food')), -- Tiernahrung or Lebensmittel
-  product_type VARCHAR(20) NOT NULL CHECK (product_type IN ('standard', 'display')), -- Standard or Display
+  product_type VARCHAR(20) NOT NULL CHECK (product_type IN ('standard', 'display', 'palette', 'schuette')), -- Standard, Display, Palette, or Schütte
   
   -- Size/Weight information
   weight VARCHAR(255) NOT NULL, -- Weight for standard products (e.g., "150g", "1kg") or Size for displays (e.g., "120cm x 80cm")
