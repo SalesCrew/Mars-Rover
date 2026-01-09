@@ -1232,3 +1232,114 @@
 .marketAssignButton:active {
   transform: translateY(0);
 }
+
+/* Palette/Schütte Product Rows */
+.paletteProductsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.paletteProductRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(249, 250, 251, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 8px;
+}
+
+.inputSmall {
+  flex: 2;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+  min-width: 0;
+}
+
+.inputSmall:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.5);
+  background: #fff;
+}
+
+.inputTiny {
+  flex: 1;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+  min-width: 60px;
+  max-width: 80px;
+}
+
+.inputTiny:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.5);
+  background: #fff;
+}
+
+.removeProductBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(239, 68, 68, 0.1);
+  border: none;
+  border-radius: 6px;
+  color: #EF4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.removeProductBtn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #DC2626;
+}
+
+.addProductBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px dashed rgba(16, 185, 129, 0.4);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #10B981;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.addProductBtn:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+@media (max-width: 600px) {
+  .paletteProductRow {
+    flex-wrap: wrap;
+  }
+  
+  .inputSmall {
+    flex: 1 1 45%;
+  }
+  
+  .inputTiny {
+    flex: 1 1 20%;
+    max-width: none;
+  }
+}

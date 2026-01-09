@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { CalendarPlus, X, CheckCircle, Package, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash, PencilSimple, Calendar, TrendUp, Clock, CheckCircle as CheckCircleFilled, Storefront } from '@phosphor-icons/react';
+import { CalendarPlus, X, CheckCircle, Package, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash, PencilSimple, Calendar, TrendUp, Clock, CheckCircle as CheckCircleFilled, Storefront, Stack, ShoppingBag } from '@phosphor-icons/react';
 import styles from './VorbestellerPage.module.css';
 import { CustomDatePicker } from './CustomDatePicker';
 import { WelleDetailModal } from './WelleDetailModal';
@@ -63,6 +63,31 @@ interface KartonwareItem {
   itemValue?: string; // Only used when wave goalType is 'value'
 }
 
+// Product item within a palette or schütte
+interface PaletteProductItem {
+  id: string;
+  name: string;
+  value: string; // Price per VE
+  ve: string; // Verkaufseinheit
+  ean: string;
+}
+
+interface PaletteItem {
+  id: string;
+  name: string;
+  size: string;
+  picture: File | null;
+  products: PaletteProductItem[];
+}
+
+interface SchutteItem {
+  id: string;
+  name: string;
+  size: string;
+  picture: File | null;
+  products: PaletteProductItem[]; // Same structure as palette
+}
+
 interface KWDay {
   kw: string;
   days: string[];
@@ -92,7 +117,7 @@ interface Welle {
   image: string | null;
   startDate: string;
   endDate: string;
-  types: ('display' | 'kartonware')[];
+  types: ('display' | 'kartonware' | 'palette' | 'schuette')[];
   status: 'upcoming' | 'active' | 'past';
   displayCount: number;
   kartonwareCount: number;
@@ -197,7 +222,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   const [isPastItemsModalOpen, setIsPastItemsModalOpen] = useState<boolean>(false);
   const [pastItemType, setPastItemType] = useState<'display' | 'kartonware' | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedTypes, setSelectedTypes] = useState<('display' | 'kartonware')[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<('display' | 'kartonware' | 'palette' | 'schuette')[]>([]);
   const [productDisplays, setProductDisplays] = useState<Product[]>([]);
   
   // Wave details
@@ -218,13 +243,19 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   // Kartonware items
   const [kartonwareItems, setKartonwareItems] = useState<KartonwareItem[]>([]);
   
+  // Palette items
+  const [paletteItems, setPaletteItems] = useState<PaletteItem[]>([]);
+  
+  // Schütte items
+  const [schutteItems, setSchutteItems] = useState<SchutteItem[]>([]);
+  
   // KW + Days
   const [kwDays, setKwDays] = useState<KWDay[]>([]);
   
   // Saving state
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleToggleType = (type: 'display' | 'kartonware') => {
+  const handleToggleType = (type: 'display' | 'kartonware' | 'palette' | 'schuette') => {
     setSelectedTypes(prev => {
       if (prev.includes(type)) {
         return prev.filter(t => t !== type);
@@ -285,6 +316,116 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 
   const updateKartonware = (id: string, field: keyof KartonwareItem, value: any) => {
     setKartonwareItems(prev => prev.map(k => k.id === id ? { ...k, [field]: value } : k));
+  };
+
+  // Palette management functions
+  const addPalette = () => {
+    setPaletteItems(prev => [...prev, {
+      id: `palette-${Date.now()}`,
+      name: '',
+      size: '',
+      picture: null,
+      products: [{ id: `product-${Date.now()}`, name: '', value: '', ve: '', ean: '' }]
+    }]);
+  };
+
+  const removePalette = (id: string) => {
+    setPaletteItems(prev => prev.filter(p => p.id !== id));
+  };
+
+  const updatePalette = (id: string, field: 'name' | 'size' | 'picture', value: any) => {
+    setPaletteItems(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const addPaletteProduct = (paletteId: string) => {
+    setPaletteItems(prev => prev.map(p => {
+      if (p.id === paletteId) {
+        return {
+          ...p,
+          products: [...p.products, { id: `product-${Date.now()}`, name: '', value: '', ve: '', ean: '' }]
+        };
+      }
+      return p;
+    }));
+  };
+
+  const removePaletteProduct = (paletteId: string, productId: string) => {
+    setPaletteItems(prev => prev.map(p => {
+      if (p.id === paletteId && p.products.length > 1) {
+        return {
+          ...p,
+          products: p.products.filter(pr => pr.id !== productId)
+        };
+      }
+      return p;
+    }));
+  };
+
+  const updatePaletteProduct = (paletteId: string, productId: string, field: keyof PaletteProductItem, value: string) => {
+    setPaletteItems(prev => prev.map(p => {
+      if (p.id === paletteId) {
+        return {
+          ...p,
+          products: p.products.map(pr => pr.id === productId ? { ...pr, [field]: value } : pr)
+        };
+      }
+      return p;
+    }));
+  };
+
+  // Schütte management functions
+  const addSchutte = () => {
+    setSchutteItems(prev => [...prev, {
+      id: `schutte-${Date.now()}`,
+      name: '',
+      size: '',
+      picture: null,
+      products: [{ id: `product-${Date.now()}`, name: '', value: '', ve: '', ean: '' }]
+    }]);
+  };
+
+  const removeSchutte = (id: string) => {
+    setSchutteItems(prev => prev.filter(s => s.id !== id));
+  };
+
+  const updateSchutte = (id: string, field: 'name' | 'size' | 'picture', value: any) => {
+    setSchutteItems(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const addSchutteProduct = (schutteId: string) => {
+    setSchutteItems(prev => prev.map(s => {
+      if (s.id === schutteId) {
+        return {
+          ...s,
+          products: [...s.products, { id: `product-${Date.now()}`, name: '', value: '', ve: '', ean: '' }]
+        };
+      }
+      return s;
+    }));
+  };
+
+  const removeSchutteProduct = (schutteId: string, productId: string) => {
+    setSchutteItems(prev => prev.map(s => {
+      if (s.id === schutteId && s.products.length > 1) {
+        return {
+          ...s,
+          products: s.products.filter(pr => pr.id !== productId)
+        };
+      }
+      return s;
+    }));
+  };
+
+  const updateSchutteProduct = (schutteId: string, productId: string, field: keyof PaletteProductItem, value: string) => {
+    setSchutteItems(prev => prev.map(s => {
+      if (s.id === schutteId) {
+        return {
+          ...s,
+          products: s.products.map(pr => pr.id === productId ? { ...pr, [field]: value } : pr)
+        };
+      }
+      return s;
+    }));
   };
 
   const addKWDay = () => {
@@ -544,6 +685,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     setAssignedMarketIds([]);
     setDisplays([]);
     setKartonwareItems([]);
+    setPaletteItems([]);
+    setSchutteItems([]);
     setKwDays([]);
     setEditingWelle(null);
     setSelectedWelle(null);
@@ -554,6 +697,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     let steps = 2; // Type selection + Wave details
     if (selectedTypes.includes('display')) steps++;
     if (selectedTypes.includes('kartonware')) steps++;
+    if (selectedTypes.includes('palette')) steps++;
+    if (selectedTypes.includes('schuette')) steps++;
     steps++; // KW + Days
     return steps;
   };
@@ -562,14 +707,40 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     const prefix = editingWelle ? 'Welle bearbeiten' : 'Neue Welle erstellen';
     if (currentStep === 1) return prefix;
     if (currentStep === 2) return editingWelle ? 'Welle bearbeiten - Details' : 'Welle Details';
-    if (currentStep === 3 && selectedTypes[0] === 'display') return editingWelle ? 'Welle bearbeiten - Displays' : 'Displays hinzufügen';
-    if (currentStep === 3 && selectedTypes[0] === 'kartonware') return editingWelle ? 'Welle bearbeiten - Kartonware' : 'Kartonware hinzufügen';
-    if (currentStep === 4 && selectedTypes.length === 2) {
-      return selectedTypes[0] === 'display' ? 
-        (editingWelle ? 'Welle bearbeiten - Kartonware' : 'Kartonware hinzufügen') : 
-        (editingWelle ? 'Welle bearbeiten - Displays' : 'Displays hinzufügen');
-    }
+    
+    // Calculate which step shows which type
+    const getTypeForStep = (step: number): 'display' | 'kartonware' | 'palette' | 'schuette' | 'kw' | null => {
+      let currentTypeStep = 3;
+      const typeOrder: ('display' | 'kartonware' | 'palette' | 'schuette')[] = ['display', 'kartonware', 'palette', 'schuette'];
+      for (const type of typeOrder) {
+        if (selectedTypes.includes(type)) {
+          if (step === currentTypeStep) return type;
+          currentTypeStep++;
+        }
+      }
+      if (step === getTotalSteps()) return 'kw';
+      return null;
+    };
+    
+    const typeForStep = getTypeForStep(currentStep);
+    if (typeForStep === 'display') return editingWelle ? 'Welle bearbeiten - Displays' : 'Displays hinzufügen';
+    if (typeForStep === 'kartonware') return editingWelle ? 'Welle bearbeiten - Kartonware' : 'Kartonware hinzufügen';
+    if (typeForStep === 'palette') return editingWelle ? 'Welle bearbeiten - Paletten' : 'Paletten hinzufügen';
+    if (typeForStep === 'schuette') return editingWelle ? 'Welle bearbeiten - Schütten' : 'Schütten hinzufügen';
     return editingWelle ? 'Welle bearbeiten - Verkaufstage' : 'Verkaufstage festlegen';
+  };
+  
+  // Helper function to determine which type is shown at a given step
+  const getTypeForStep = (step: number): 'display' | 'kartonware' | 'palette' | 'schuette' | null => {
+    let currentTypeStep = 3;
+    const typeOrder: ('display' | 'kartonware' | 'palette' | 'schuette')[] = ['display', 'kartonware', 'palette', 'schuette'];
+    for (const type of typeOrder) {
+      if (selectedTypes.includes(type)) {
+        if (step === currentTypeStep) return type;
+        currentTypeStep++;
+      }
+    }
+    return null;
   };
 
   const activeWellen = wellenList.filter(w => w.status === 'active');
@@ -921,6 +1092,48 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                         </div>
                       )}
                     </button>
+
+                    <button
+                      className={`${styles.optionCard} ${selectedTypes.includes('palette') ? styles.optionCardActive : ''}`}
+                      onClick={() => handleToggleType('palette')}
+                    >
+                      <div className={styles.optionIcon}>
+                        <Stack 
+                          size={48} 
+                          weight={selectedTypes.includes('palette') ? 'fill' : 'regular'} 
+                        />
+                      </div>
+                      <h4 className={styles.optionTitle}>Paletten</h4>
+                      <p className={styles.optionDescription}>
+                        Paletten-Platzierungen mit Produktauswahl
+                      </p>
+                      {selectedTypes.includes('palette') && (
+                        <div className={styles.optionCheckmark}>
+                          <CheckCircle size={20} weight="fill" />
+                        </div>
+                      )}
+                    </button>
+
+                    <button
+                      className={`${styles.optionCard} ${selectedTypes.includes('schuette') ? styles.optionCardActive : ''}`}
+                      onClick={() => handleToggleType('schuette')}
+                    >
+                      <div className={styles.optionIcon}>
+                        <ShoppingBag 
+                          size={48} 
+                          weight={selectedTypes.includes('schuette') ? 'fill' : 'regular'} 
+                        />
+                      </div>
+                      <h4 className={styles.optionTitle}>Schütten</h4>
+                      <p className={styles.optionDescription}>
+                        Schütten-Platzierungen mit Produktauswahl
+                      </p>
+                      {selectedTypes.includes('schuette') && (
+                        <div className={styles.optionCheckmark}>
+                          <CheckCircle size={20} weight="fill" />
+                        </div>
+                      )}
+                    </button>
                   </div>
                 </div>
               )}
@@ -1061,9 +1274,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                 </div>
               )}
 
-              {/* Step 3/4: Display Details */}
-              {((currentStep === 3 && selectedTypes[0] === 'display') || 
-                (currentStep === 4 && selectedTypes.includes('display') && selectedTypes[0] === 'kartonware')) && (
+              {/* Step: Display Details */}
+              {getTypeForStep(currentStep) === 'display' && (
                 <div className={styles.stepContent}>
                   <div className={styles.itemsList}>
                     {displays.map((display, index) => (
@@ -1176,9 +1388,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                 </div>
               )}
 
-              {/* Step 3/4: Kartonware Details */}
-              {((currentStep === 3 && selectedTypes[0] === 'kartonware') || 
-                (currentStep === 4 && selectedTypes.includes('kartonware') && selectedTypes[0] === 'display')) && (
+              {/* Step: Kartonware Details */}
+              {getTypeForStep(currentStep) === 'kartonware' && (
                 <div className={styles.stepContent}>
                   <div className={styles.itemsList}>
                     {kartonwareItems.map((item, index) => (
@@ -1291,6 +1502,292 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                 </div>
               )}
 
+              {/* Step: Paletten Details */}
+              {getTypeForStep(currentStep) === 'palette' && (
+                <div className={styles.stepContent}>
+                  <div className={styles.itemsList}>
+                    {paletteItems.map((palette, index) => (
+                      <div key={palette.id} className={styles.itemCard}>
+                        <div className={styles.itemHeader}>
+                          <span className={styles.itemNumber}>Palette {index + 1}</span>
+                          {paletteItems.length > 1 && (
+                            <button
+                              className={styles.removeItemButton}
+                              onClick={() => removePalette(palette.id)}
+                            >
+                              <Trash size={16} weight="bold" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className={styles.formRow}>
+                          <div className={styles.formSection}>
+                            <label className={styles.label}>Palettenname</label>
+                            <input
+                              type="text"
+                              className={styles.input}
+                              placeholder="z.B. Whiskas Aktionspalette"
+                              value={palette.name}
+                              onChange={(e) => updatePalette(palette.id, 'name', e.target.value)}
+                            />
+                          </div>
+                          <div className={styles.formSection}>
+                            <label className={styles.label}>Größe</label>
+                            <input
+                              type="text"
+                              className={styles.input}
+                              placeholder="z.B. 120cm x 80cm"
+                              value={palette.size}
+                              onChange={(e) => updatePalette(palette.id, 'size', e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className={styles.formSection}>
+                          <label className={styles.label}>Produkte (GLs wählen frei, min. 600€ pro Markt)</label>
+                          <div className={styles.paletteProductsList}>
+                            {palette.products.map((product, pIndex) => (
+                              <div key={product.id} className={styles.paletteProductRow}>
+                                <input
+                                  type="text"
+                                  className={styles.inputSmall}
+                                  placeholder="Produktname"
+                                  value={product.name}
+                                  onChange={(e) => updatePaletteProduct(palette.id, product.id, 'name', e.target.value)}
+                                />
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className={styles.inputTiny}
+                                  placeholder="€/VE"
+                                  value={product.value}
+                                  onChange={(e) => updatePaletteProduct(palette.id, product.id, 'value', e.target.value)}
+                                />
+                                <input
+                                  type="number"
+                                  className={styles.inputTiny}
+                                  placeholder="VE"
+                                  value={product.ve}
+                                  onChange={(e) => updatePaletteProduct(palette.id, product.id, 've', e.target.value)}
+                                />
+                                <input
+                                  type="text"
+                                  className={styles.inputSmall}
+                                  placeholder="EAN-Code"
+                                  value={product.ean}
+                                  onChange={(e) => updatePaletteProduct(palette.id, product.id, 'ean', e.target.value)}
+                                />
+                                {palette.products.length > 1 && (
+                                  <button
+                                    className={styles.removeProductBtn}
+                                    onClick={() => removePaletteProduct(palette.id, product.id)}
+                                  >
+                                    <Trash size={14} weight="bold" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button className={styles.addProductBtn} onClick={() => addPaletteProduct(palette.id)}>
+                              <Plus size={14} weight="bold" />
+                              <span>Produkt hinzufügen</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={styles.formSection}>
+                          <label className={styles.label}>Paletten-Bild (optional)</label>
+                          <div className={styles.imageUploadArea}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) updatePalette(palette.id, 'picture', file);
+                              }}
+                              className={styles.imageInput}
+                              id={`paletteImage-${palette.id}`}
+                            />
+                            <label htmlFor={`paletteImage-${palette.id}`} className={styles.imageLabel}>
+                              {palette.picture ? (
+                                <img 
+                                  src={URL.createObjectURL(palette.picture)} 
+                                  alt="Palette preview" 
+                                  className={styles.imagePreview} 
+                                />
+                              ) : (
+                                <>
+                                  <ImageIcon size={24} weight="regular" />
+                                  <span>Bild hochladen</span>
+                                </>
+                              )}
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button className={styles.addItemButton} onClick={addPalette}>
+                    <Plus size={18} weight="bold" />
+                    <span>Weitere Palette hinzufügen</span>
+                  </button>
+
+                  {paletteItems.length === 0 && (
+                    <div className={styles.emptyState}>
+                      <Stack size={48} weight="regular" />
+                      <p>Füge mindestens eine Palette hinzu</p>
+                      <button className={styles.addFirstButton} onClick={addPalette}>
+                        <Plus size={18} weight="bold" />
+                        <span>Erste Palette hinzufügen</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step: Schütten Details */}
+              {getTypeForStep(currentStep) === 'schuette' && (
+                <div className={styles.stepContent}>
+                  <div className={styles.itemsList}>
+                    {schutteItems.map((schutte, index) => (
+                      <div key={schutte.id} className={styles.itemCard}>
+                        <div className={styles.itemHeader}>
+                          <span className={styles.itemNumber}>Schütte {index + 1}</span>
+                          {schutteItems.length > 1 && (
+                            <button
+                              className={styles.removeItemButton}
+                              onClick={() => removeSchutte(schutte.id)}
+                            >
+                              <Trash size={16} weight="bold" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className={styles.formRow}>
+                          <div className={styles.formSection}>
+                            <label className={styles.label}>Schüttenname</label>
+                            <input
+                              type="text"
+                              className={styles.input}
+                              placeholder="z.B. Whiskas Schütte"
+                              value={schutte.name}
+                              onChange={(e) => updateSchutte(schutte.id, 'name', e.target.value)}
+                            />
+                          </div>
+                          <div className={styles.formSection}>
+                            <label className={styles.label}>Größe</label>
+                            <input
+                              type="text"
+                              className={styles.input}
+                              placeholder="z.B. 60cm x 40cm"
+                              value={schutte.size}
+                              onChange={(e) => updateSchutte(schutte.id, 'size', e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className={styles.formSection}>
+                          <label className={styles.label}>Produkte (GLs wählen frei, min. 600€ pro Markt)</label>
+                          <div className={styles.paletteProductsList}>
+                            {schutte.products.map((product, pIndex) => (
+                              <div key={product.id} className={styles.paletteProductRow}>
+                                <input
+                                  type="text"
+                                  className={styles.inputSmall}
+                                  placeholder="Produktname"
+                                  value={product.name}
+                                  onChange={(e) => updateSchutteProduct(schutte.id, product.id, 'name', e.target.value)}
+                                />
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className={styles.inputTiny}
+                                  placeholder="€/VE"
+                                  value={product.value}
+                                  onChange={(e) => updateSchutteProduct(schutte.id, product.id, 'value', e.target.value)}
+                                />
+                                <input
+                                  type="number"
+                                  className={styles.inputTiny}
+                                  placeholder="VE"
+                                  value={product.ve}
+                                  onChange={(e) => updateSchutteProduct(schutte.id, product.id, 've', e.target.value)}
+                                />
+                                <input
+                                  type="text"
+                                  className={styles.inputSmall}
+                                  placeholder="EAN-Code"
+                                  value={product.ean}
+                                  onChange={(e) => updateSchutteProduct(schutte.id, product.id, 'ean', e.target.value)}
+                                />
+                                {schutte.products.length > 1 && (
+                                  <button
+                                    className={styles.removeProductBtn}
+                                    onClick={() => removeSchutteProduct(schutte.id, product.id)}
+                                  >
+                                    <Trash size={14} weight="bold" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button className={styles.addProductBtn} onClick={() => addSchutteProduct(schutte.id)}>
+                              <Plus size={14} weight="bold" />
+                              <span>Produkt hinzufügen</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={styles.formSection}>
+                          <label className={styles.label}>Schütten-Bild (optional)</label>
+                          <div className={styles.imageUploadArea}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) updateSchutte(schutte.id, 'picture', file);
+                              }}
+                              className={styles.imageInput}
+                              id={`schutteImage-${schutte.id}`}
+                            />
+                            <label htmlFor={`schutteImage-${schutte.id}`} className={styles.imageLabel}>
+                              {schutte.picture ? (
+                                <img 
+                                  src={URL.createObjectURL(schutte.picture)} 
+                                  alt="Schütte preview" 
+                                  className={styles.imagePreview} 
+                                />
+                              ) : (
+                                <>
+                                  <ImageIcon size={24} weight="regular" />
+                                  <span>Bild hochladen</span>
+                                </>
+                              )}
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button className={styles.addItemButton} onClick={addSchutte}>
+                    <Plus size={18} weight="bold" />
+                    <span>Weitere Schütte hinzufügen</span>
+                  </button>
+
+                  {schutteItems.length === 0 && (
+                    <div className={styles.emptyState}>
+                      <ShoppingBag size={48} weight="regular" />
+                      <p>Füge mindestens eine Schütte hinzu</p>
+                      <button className={styles.addFirstButton} onClick={addSchutte}>
+                        <Plus size={18} weight="bold" />
+                        <span>Erste Schütte hinzufügen</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Final Step: KW + Days */}
               {currentStep === getTotalSteps() && (
                 <div className={styles.stepContent}>
@@ -1388,10 +1885,10 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                     (currentStep === 2 && (!waveName || !startDate || !endDate || 
                       (goalType === 'percentage' && !goalPercentage) || 
                       (goalType === 'value' && !goalValue))) ||
-                    (currentStep === 3 && selectedTypes[0] === 'display' && displays.length === 0) ||
-                    (currentStep === 3 && selectedTypes[0] === 'kartonware' && kartonwareItems.length === 0) ||
-                    (currentStep === 4 && selectedTypes[0] === 'display' && kartonwareItems.length === 0) ||
-                    (currentStep === 4 && selectedTypes[0] === 'kartonware' && displays.length === 0)
+                    (getTypeForStep(currentStep) === 'display' && displays.length === 0) ||
+                    (getTypeForStep(currentStep) === 'kartonware' && kartonwareItems.length === 0) ||
+                    (getTypeForStep(currentStep) === 'palette' && paletteItems.length === 0) ||
+                    (getTypeForStep(currentStep) === 'schuette' && schutteItems.length === 0)
                     ? styles.nextButtonDisabled : ''
                   }`}
                   onClick={handleNext}
@@ -1400,10 +1897,10 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                     (currentStep === 2 && (!waveName || !startDate || !endDate || 
                       (goalType === 'percentage' && !goalPercentage) || 
                       (goalType === 'value' && !goalValue))) ||
-                    (currentStep === 3 && selectedTypes[0] === 'display' && displays.length === 0) ||
-                    (currentStep === 3 && selectedTypes[0] === 'kartonware' && kartonwareItems.length === 0) ||
-                    (currentStep === 4 && selectedTypes[0] === 'display' && kartonwareItems.length === 0) ||
-                    (currentStep === 4 && selectedTypes[0] === 'kartonware' && displays.length === 0)
+                    (getTypeForStep(currentStep) === 'display' && displays.length === 0) ||
+                    (getTypeForStep(currentStep) === 'kartonware' && kartonwareItems.length === 0) ||
+                    (getTypeForStep(currentStep) === 'palette' && paletteItems.length === 0) ||
+                    (getTypeForStep(currentStep) === 'schuette' && schutteItems.length === 0)
                   }
                 >
                   <span>Weiter</span>
