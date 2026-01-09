@@ -1344,6 +1344,15 @@ router.post('/', async (req: Request, res: Response) => {
       assignedMarketIds
     } = req.body;
 
+    console.log('📦 Received data:', {
+      displays: displays?.length || 0,
+      kartonwareItems: kartonwareItems?.length || 0,
+      paletteItems: paletteItems?.length || 0,
+      schutteItems: schutteItems?.length || 0,
+      paletteItemsData: JSON.stringify(paletteItems),
+      schutteItemsData: JSON.stringify(schutteItems)
+    });
+
     // Validate required fields
     if (!name || !startDate || !endDate || !goalType) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -1417,8 +1426,10 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Insert palettes with their products
     if (paletteItems && paletteItems.length > 0) {
+      console.log(`📦 Inserting ${paletteItems.length} palettes...`);
       for (let index = 0; index < paletteItems.length; index++) {
         const p = paletteItems[index];
+        console.log(`  Palette ${index}: ${p.name}, products: ${p.products?.length || 0}`);
         
         // Insert palette
         const { data: palette, error: paletteError } = await supabase
@@ -1433,7 +1444,11 @@ router.post('/', async (req: Request, res: Response) => {
           .select()
           .single();
 
-        if (paletteError) throw paletteError;
+        if (paletteError) {
+          console.error('❌ Palette insert error:', paletteError);
+          throw paletteError;
+        }
+        console.log(`  ✅ Palette inserted with id: ${palette.id}`);
 
         // Insert palette products
         if (p.products && p.products.length > 0) {
@@ -1458,8 +1473,10 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Insert schütten with their products
     if (schutteItems && schutteItems.length > 0) {
+      console.log(`📦 Inserting ${schutteItems.length} schütten...`);
       for (let index = 0; index < schutteItems.length; index++) {
         const s = schutteItems[index];
+        console.log(`  Schütte ${index}: ${s.name}, products: ${s.products?.length || 0}`);
         
         // Insert schütte
         const { data: schuette, error: schutteError } = await supabase
@@ -1474,7 +1491,11 @@ router.post('/', async (req: Request, res: Response) => {
           .select()
           .single();
 
-        if (schutteError) throw schutteError;
+        if (schutteError) {
+          console.error('❌ Schütte insert error:', schutteError);
+          throw schutteError;
+        }
+        console.log(`  ✅ Schütte inserted with id: ${schuette.id}`);
 
         // Insert schütte products
         if (s.products && s.products.length > 0) {

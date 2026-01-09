@@ -107,6 +107,29 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const selectedVorbesteller = wellen.find(v => v.id === selectedCardId);
   const totalQuantity = Object.values(itemQuantities).reduce((sum, qty) => sum + qty, 0);
 
+  // Calculate total value for palettes and schütten (towards €600 goal)
+  const paletteSchutteValue = useMemo(() => {
+    let total = 0;
+    // Sum palette product values
+    selectedVorbesteller?.paletteItems?.forEach(palette => {
+      palette.products.forEach(product => {
+        const qty = itemQuantities[`palette-${palette.id}-${product.id}`] || 0;
+        total += qty * (product.valuePerVE || 0);
+      });
+    });
+    // Sum schütte product values
+    selectedVorbesteller?.schutteItems?.forEach(schuette => {
+      schuette.products.forEach(product => {
+        const qty = itemQuantities[`schutte-${schuette.id}-${product.id}`] || 0;
+        total += qty * (product.valuePerVE || 0);
+      });
+    });
+    return total;
+  }, [selectedVorbesteller, itemQuantities]);
+
+  const hasPalettenOrSchuetten = (selectedVorbesteller?.paletteItems?.length || 0) > 0 || 
+                                  (selectedVorbesteller?.schutteItems?.length || 0) > 0;
+
   useEffect(() => {
     if (showSuccess) {
       setIsSuccessAnimating(true);
@@ -417,6 +440,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                             totalValue += qty * (k.itemValue || 0);
                           });
                         }
+                        // Add palette/schütte value
+                        totalValue += paletteSchutteValue;
                         return totalValue.toFixed(2);
                       })()}
                     </div>
@@ -484,6 +509,89 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                     }
                     return null;
                   })}
+
+                  {/* Palette products in success view */}
+                  {selectedVorbesteller?.paletteItems?.map(palette => {
+                    const paletteProducts = palette.products.filter(product => {
+                      const qty = itemQuantities[`palette-${palette.id}-${product.id}`] || 0;
+                      return qty > 0;
+                    });
+                    if (paletteProducts.length === 0) return null;
+                    return (
+                      <div key={palette.id}>
+                        <div className={styles.successDetailRow}>
+                          <div className={styles.successDetailCheck}>
+                            <Check size={14} weight="bold" />
+                          </div>
+                          <div className={styles.successDetailText}>
+                            <strong>Palette: {palette.name}</strong>
+                          </div>
+                        </div>
+                        {paletteProducts.map(product => {
+                          const qty = itemQuantities[`palette-${palette.id}-${product.id}`] || 0;
+                          const value = qty * (product.valuePerVE || 0);
+                          return (
+                            <div key={product.id} className={styles.successDetailRow} style={{ paddingLeft: '36px' }}>
+                              <div className={styles.successDetailCheck}>
+                                <Check size={14} weight="bold" />
+                              </div>
+                              <div className={styles.successDetailText}>
+                                {product.name}: {qty} VE (€{value.toFixed(2)})
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+
+                  {/* Schütte products in success view */}
+                  {selectedVorbesteller?.schutteItems?.map(schuette => {
+                    const schutteProducts = schuette.products.filter(product => {
+                      const qty = itemQuantities[`schutte-${schuette.id}-${product.id}`] || 0;
+                      return qty > 0;
+                    });
+                    if (schutteProducts.length === 0) return null;
+                    return (
+                      <div key={schuette.id}>
+                        <div className={styles.successDetailRow}>
+                          <div className={styles.successDetailCheck}>
+                            <Check size={14} weight="bold" />
+                          </div>
+                          <div className={styles.successDetailText}>
+                            <strong>Schütte: {schuette.name}</strong>
+                          </div>
+                        </div>
+                        {schutteProducts.map(product => {
+                          const qty = itemQuantities[`schutte-${schuette.id}-${product.id}`] || 0;
+                          const value = qty * (product.valuePerVE || 0);
+                          return (
+                            <div key={product.id} className={styles.successDetailRow} style={{ paddingLeft: '36px' }}>
+                              <div className={styles.successDetailCheck}>
+                                <Check size={14} weight="bold" />
+                              </div>
+                              <div className={styles.successDetailText}>
+                                {product.name}: {qty} VE (€{value.toFixed(2)})
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+
+                  {/* Show palette/schütte total value if applicable */}
+                  {paletteSchutteValue > 0 && (
+                    <div className={styles.successDetailRow}>
+                      <div className={styles.successDetailCheck}>
+                        <Check size={14} weight="bold" />
+                      </div>
+                      <div className={styles.successDetailText}>
+                        Paletten & Schütten Gesamtwert: €{paletteSchutteValue.toFixed(2)}
+                        {paletteSchutteValue >= 600 ? ' ✓' : ` (Minimum €600)`}
+                      </div>
+                    </div>
+                  )}
 
                   <div className={styles.successDetailRow}>
                     <div className={styles.successDetailCheck}>
@@ -874,6 +982,137 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                       </div>
                     ))}
                   </div>
+                )}
+
+                {/* Paletten & Schütten Section with Progress Bar */}
+                {hasPalettenOrSchuetten && (
+                  <>
+                    {/* Progress Bar towards €600 goal */}
+                    <div className={styles.valueProgressSection}>
+                      <div className={styles.valueProgressHeader}>
+                        <div className={styles.valueProgressLabel}>Paletten & Schütten Wert</div>
+                        <div className={styles.valueProgressAmount}>
+                          €{paletteSchutteValue.toFixed(2)} <span className={styles.valueGoal}>/ €600 Minimum</span>
+                        </div>
+                      </div>
+                      <div className={styles.valueProgressBar}>
+                        <div 
+                          className={`${styles.valueProgressFill} ${paletteSchutteValue >= 600 ? styles.valueProgressComplete : ''}`}
+                          style={{ width: `${Math.min(100, (paletteSchutteValue / 600) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Paletten Section */}
+                    {selectedVorbesteller?.paletteItems && selectedVorbesteller.paletteItems.length > 0 && (
+                      <div className={styles.itemsGroup}>
+                        <div className={styles.itemsGroupLabel}>Paletten</div>
+                        {selectedVorbesteller.paletteItems.map((palette) => (
+                          <div key={palette.id} className={styles.paletteContainer}>
+                            <div className={styles.paletteHeader}>
+                              <div className={styles.paletteName}>{palette.name}</div>
+                              {palette.size && <div className={styles.paletteSize}>{palette.size}</div>}
+                            </div>
+                            <div className={styles.paletteProducts}>
+                              {palette.products.map((product) => {
+                                const productKey = `palette-${palette.id}-${product.id}`;
+                                return (
+                                  <div key={product.id} className={styles.itemCard}>
+                                    <div className={styles.itemInfo}>
+                                      <div className={styles.itemName}>{product.name}</div>
+                                      <div className={styles.itemMeta}>
+                                        €{product.valuePerVE.toFixed(2)}/VE · VE: {product.ve}
+                                        {product.ean && ` · EAN: ${product.ean}`}
+                                      </div>
+                                    </div>
+                                    <div className={styles.quantityControls}>
+                                      <button
+                                        className={styles.quantityButton}
+                                        onClick={() => handleUpdateItemQuantity(productKey, -1)}
+                                        aria-label="Weniger"
+                                      >
+                                        <Minus size={14} weight="bold" />
+                                      </button>
+                                      <input
+                                        type="text"
+                                        className={styles.quantity}
+                                        value={itemQuantities[productKey] === 0 || !itemQuantities[productKey] ? '' : itemQuantities[productKey]}
+                                        onChange={(e) => handleManualItemQuantityChange(productKey, e.target.value)}
+                                        placeholder="0"
+                                        aria-label="Menge"
+                                      />
+                                      <button
+                                        className={styles.quantityButton}
+                                        onClick={() => handleUpdateItemQuantity(productKey, 1)}
+                                        aria-label="Mehr"
+                                      >
+                                        <Plus size={14} weight="bold" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Schütten Section */}
+                    {selectedVorbesteller?.schutteItems && selectedVorbesteller.schutteItems.length > 0 && (
+                      <div className={styles.itemsGroup}>
+                        <div className={styles.itemsGroupLabel}>Schütten</div>
+                        {selectedVorbesteller.schutteItems.map((schuette) => (
+                          <div key={schuette.id} className={styles.paletteContainer}>
+                            <div className={styles.paletteHeader}>
+                              <div className={styles.paletteName}>{schuette.name}</div>
+                              {schuette.size && <div className={styles.paletteSize}>{schuette.size}</div>}
+                            </div>
+                            <div className={styles.paletteProducts}>
+                              {schuette.products.map((product) => {
+                                const productKey = `schutte-${schuette.id}-${product.id}`;
+                                return (
+                                  <div key={product.id} className={styles.itemCard}>
+                                    <div className={styles.itemInfo}>
+                                      <div className={styles.itemName}>{product.name}</div>
+                                      <div className={styles.itemMeta}>
+                                        €{product.valuePerVE.toFixed(2)}/VE · VE: {product.ve}
+                                        {product.ean && ` · EAN: ${product.ean}`}
+                                      </div>
+                                    </div>
+                                    <div className={styles.quantityControls}>
+                                      <button
+                                        className={styles.quantityButton}
+                                        onClick={() => handleUpdateItemQuantity(productKey, -1)}
+                                        aria-label="Weniger"
+                                      >
+                                        <Minus size={14} weight="bold" />
+                                      </button>
+                                      <input
+                                        type="text"
+                                        className={styles.quantity}
+                                        value={itemQuantities[productKey] === 0 || !itemQuantities[productKey] ? '' : itemQuantities[productKey]}
+                                        onChange={(e) => handleManualItemQuantityChange(productKey, e.target.value)}
+                                        placeholder="0"
+                                        aria-label="Menge"
+                                      />
+                                      <button
+                                        className={styles.quantityButton}
+                                        onClick={() => handleUpdateItemQuantity(productKey, 1)}
+                                        aria-label="Mehr"
+                                      >
+                                        <Plus size={14} weight="bold" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

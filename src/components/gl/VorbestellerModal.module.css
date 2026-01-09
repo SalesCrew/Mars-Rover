@@ -1546,3 +1546,99 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
+
+/* Value Progress Section for Palettes & Schütten */
+.valueProgressSection {
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(5, 150, 105, 0.03));
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+}
+
+.valueProgressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+
+.valueProgressLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.valueProgressAmount {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: #059669;
+}
+
+.valueGoal {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+}
+
+.valueProgressBar {
+  width: 100%;
+  height: 8px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.valueProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #10B981 0%, #059669 100%);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+.valueProgressFill.valueProgressComplete {
+  background: linear-gradient(90deg, #10B981 0%, #047857 100%);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+/* Palette/Schütte Container */
+.paletteContainer {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.paletteHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.06), rgba(37, 99, 235, 0.03));
+  border-bottom: 1px solid var(--color-stroke);
+}
+
+.paletteName {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.paletteSize {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.paletteProducts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+}
+
+.paletteProducts .itemCard {
+  background: white;
+}
