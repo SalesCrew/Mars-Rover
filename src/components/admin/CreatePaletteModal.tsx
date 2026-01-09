@@ -92,8 +92,14 @@ export const CreatePaletteModal: React.FC<CreatePaletteModalProps> = ({
       weight: palette.size,
       content: palette.products.map(p => `${p.name} (€${p.value.toFixed(2)}/VE, VE: ${p.ve}${p.ean ? `, EAN: ${p.ean}` : ''})`).join(', '),
       palletSize: palette.products.length,
-      price: getTotalValue(palette.products), // Store total value in price field
-      sku: undefined
+      price: 0, // Palettes don't have a fixed price
+      sku: undefined,
+      paletteProducts: palette.products.map(p => ({
+        name: p.name,
+        value: p.value,
+        ve: p.ve,
+        ean: p.ean || undefined
+      }))
     }));
 
     onSave(products);
@@ -132,11 +138,6 @@ export const CreatePaletteModal: React.FC<CreatePaletteModalProps> = ({
       currentPalette.size.trim() !== '' &&
       currentPalette.products.every(p => p.name.trim() !== '' && p.value > 0 && p.ve > 0)
     );
-  };
-
-  // Calculate total value of palette products
-  const getTotalValue = (products: PaletteProductItem[]) => {
-    return products.reduce((sum, p) => sum + p.value, 0);
   };
 
   const departmentColor = department === 'pets' ? '#10B981' : '#F59E0B';

@@ -13,10 +13,10 @@ export interface Product {
 
 // Product contained within a palette
 export interface PaletteProduct {
-  productId: string; // Reference to a standard product
-  productName: string; // Name for display
-  quantity: number; // How many of this product in the palette
-  unitPrice: number; // Price per unit
+  name: string; // Product name
+  value: number; // Price per VE (Verkaufseinheit)
+  ve: number; // Verkaufseinheit (sales unit)
+  ean?: string; // EAN code (optional)
 }
 
 export interface ProductCalculation {
