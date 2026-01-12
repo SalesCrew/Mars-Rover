@@ -37,20 +37,23 @@ export interface TourRoute {
 }
 
 export interface AdminMarket extends Market {
-  internalId: string; // e.g., "MKT-001" (auto-generated)
-  isActive: boolean; // Row N: Status from Excel
-  subgroup?: string; // Row S: e.g., "3F - Adeg", "AB - Spar Wörgl"
+  internalId: string; // e.g., "MKT-001" (auto-generated) - Row A
+  isActive: boolean; // Row O: Status from Excel (Aktiv/Inaktiv)
   gebietsleiter?: string; // UUID of the assigned GL (gebietsleiter_id in DB)
-  gebietsleiterName?: string; // Row L: Gebietsleiter name (visible in UI)
-  gebietsleiterEmail?: string; // GL email for notifications (Row M from Excel)
-  email?: string; // Market contact email (NOT used anymore)
-  channel?: string; // Row D: Distribution channel
+  gebietsleiterName?: string; // Row M: Gebietsleiter name (visible in UI)
+  gebietsleiterEmail?: string; // Row N: GL email (for GL ID matching)
+  channel?: string; // Row D: Distribution channel (no UI)
   banner?: string; // Row E: Banner/Brand group
-  branch?: string; // Row O: Filiale
+  marketTel?: string; // Row U: Market telephone number (NEW)
+  marketEmail?: string; // Row V: Market contact email (NEW)
+  // Legacy fields - kept for backwards compatibility but no longer imported
+  branch?: string; // Filiale - no longer in Excel
   visitDay?: string; // Besuchstag (not from Excel)
-  visitDuration?: string; // Row Q: Besuchsdauer (e.g., "30 min")
+  visitDuration?: string; // Besuchsdauer (not from Excel)
   customerType?: string; // Kundentyp (not from Excel)
-  phone?: string; // Not displayed in UI anymore
-  maingroup?: string; // Row R: Maingroup
+  phone?: string; // Legacy - use marketTel instead
+  email?: string; // Legacy - use marketEmail instead
+  maingroup?: string; // No longer imported
+  subgroup?: string; // No longer imported
 }
 

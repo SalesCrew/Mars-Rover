@@ -152,34 +152,41 @@ class MarketService {
 
   /**
    * Transform database record to AdminMarket format
+   * Column mapping (January 2026):
+   * A=ID, D=Channel, E=Banner, F=Handelskette, H=Name
+   * I=PLZ, J=Straße, K=Stadt, M=GL Name, N=GL Email
+   * O=Status, Q=Frequenz, U=Market Tel, V=Market Email
    */
   private transformMarketFromDB(dbMarket: any): AdminMarket {
     return {
       id: dbMarket.id,
-      internalId: dbMarket.internal_id,
+      internalId: dbMarket.internal_id, // Row A
       name: dbMarket.name, // Row H
-      address: dbMarket.address || '', // Row K
-      city: dbMarket.city || '', // Row J
-      postalCode: dbMarket.postal_code || '', // Row I
-      chain: dbMarket.chain || '', // Row F: Handelskette (displayed in pills)
-      frequency: dbMarket.frequency || 12, // Row P
+      address: dbMarket.address || '', // Row J (Straße)
+      city: dbMarket.city || '', // Row K (Stadt)
+      postalCode: dbMarket.postal_code || '', // Row I (PLZ)
+      chain: dbMarket.chain || '', // Row F: Handelskette
+      frequency: dbMarket.frequency || 12, // Row Q
       currentVisits: dbMarket.current_visits || 0,
       lastVisitDate: dbMarket.last_visit_date,
       isCompleted: dbMarket.is_completed || false,
-      isActive: dbMarket.is_active ?? true, // Row N: Status
-      gebietsleiter: dbMarket.gebietsleiter_id, // UUID - CRITICAL for GL assignment
-      gebietsleiterName: dbMarket.gebietsleiter_name, // Row L
-      gebietsleiterEmail: dbMarket.gebietsleiter_email, // For notifications
-      email: dbMarket.email, // Row M: Market contact email (NOT used anymore)
+      isActive: dbMarket.is_active ?? true, // Row O: Status
+      gebietsleiter: dbMarket.gebietsleiter_id, // UUID - for GL assignment
+      gebietsleiterName: dbMarket.gebietsleiter_name, // Row M
+      gebietsleiterEmail: dbMarket.gebietsleiter_email, // Row N
       channel: dbMarket.channel, // Row D
       banner: dbMarket.banner, // Row E
-      branch: dbMarket.branch, // Row O: Filiale
-      subgroup: dbMarket.subgroup, // Row S
+      marketTel: dbMarket.market_tel, // Row U (NEW)
+      marketEmail: dbMarket.market_email, // Row V (NEW)
+      // Legacy fields (kept for backwards compatibility)
+      email: dbMarket.email,
+      branch: dbMarket.branch,
+      subgroup: dbMarket.subgroup,
       visitDay: dbMarket.visit_day,
-      visitDuration: dbMarket.visit_duration, // Row Q: Besuchsdauer
+      visitDuration: dbMarket.visit_duration,
       customerType: dbMarket.customer_type,
-      phone: dbMarket.phone, // Not displayed in UI
-      maingroup: dbMarket.maingroup, // Row R
+      phone: dbMarket.phone,
+      maingroup: dbMarket.maingroup,
       coordinates: dbMarket.latitude && dbMarket.longitude ? {
         lat: parseFloat(dbMarket.latitude),
         lng: parseFloat(dbMarket.longitude),
@@ -196,34 +203,41 @@ class MarketService {
 
   /**
    * Transform AdminMarket to database format
+   * Column mapping (January 2026):
+   * A=ID, D=Channel, E=Banner, F=Handelskette, H=Name
+   * I=PLZ, J=Straße, K=Stadt, M=GL Name, N=GL Email
+   * O=Status, Q=Frequenz, U=Market Tel, V=Market Email
    */
   private transformMarketToDB(market: Partial<AdminMarket>): any {
     return {
       id: market.id,
-      internal_id: market.internalId,
+      internal_id: market.internalId, // Row A
       name: market.name, // Row H
-      address: market.address, // Row K
-      city: market.city, // Row J
-      postal_code: market.postalCode, // Row I
+      address: market.address, // Row J (Straße)
+      city: market.city, // Row K (Stadt)
+      postal_code: market.postalCode, // Row I (PLZ)
       chain: market.chain, // Row F: Handelskette
-      frequency: market.frequency, // Row P
+      frequency: market.frequency, // Row Q
       current_visits: market.currentVisits,
       last_visit_date: market.lastVisitDate,
       is_completed: market.isCompleted,
-      is_active: market.isActive, // Row N: Status
-      gebietsleiter_id: market.gebietsleiter, // UUID - CRITICAL for GL assignment
-      gebietsleiter_name: market.gebietsleiterName, // Row L
-      gebietsleiter_email: market.gebietsleiterEmail, // For notifications
-      email: market.email, // Row M: Market contact email (NOT used anymore)
+      is_active: market.isActive, // Row O: Status
+      gebietsleiter_id: market.gebietsleiter, // UUID - for GL assignment
+      gebietsleiter_name: market.gebietsleiterName, // Row M
+      gebietsleiter_email: market.gebietsleiterEmail, // Row N
       channel: market.channel, // Row D
       banner: market.banner, // Row E
-      branch: market.branch, // Row O: Filiale
-      subgroup: market.subgroup, // Row S
+      market_tel: market.marketTel, // Row U (NEW)
+      market_email: market.marketEmail, // Row V (NEW)
+      // Legacy fields (kept for backwards compatibility)
+      email: market.email,
+      branch: market.branch,
+      subgroup: market.subgroup,
       visit_day: market.visitDay,
-      visit_duration: market.visitDuration, // Row Q: Besuchsdauer
+      visit_duration: market.visitDuration,
       customer_type: market.customerType,
-      phone: market.phone, // Not displayed in UI
-      maingroup: market.maingroup, // Row R
+      phone: market.phone,
+      maingroup: market.maingroup,
       latitude: market.coordinates?.lat,
       longitude: market.coordinates?.lng,
     };

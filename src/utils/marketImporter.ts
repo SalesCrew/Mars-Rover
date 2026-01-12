@@ -67,26 +67,31 @@ const processImportData = (rawData: any[][]): AdminMarket[] => {
 };
 
 const parseMarketRow = (row: any[], rowIndex: number): AdminMarket | null => {
-  // CORRECT Excel Column Mapping (0-indexed):
+  // UPDATED Excel Column Mapping (0-indexed) - January 2026:
   // A=0: ID
-  // B=1: IGNORE (Besuch durch Agentur)
-  // C=2: IGNORE (ID duplicate)
-  // D=3: Channel
+  // B=1: IGNORE
+  // C=2: IGNORE
+  // D=3: Channel (no UI)
   // E=4: Banner
   // F=5: Handelskette (Chain)
-  // G=6: IGNORE (Fil)
-  // H=7: Name
+  // G=6: IGNORE
+  // H=7: Name (Market Name)
   // I=8: PLZ (Postal Code)
-  // J=9: Stadt (City)
-  // K=10: Straße (Address)
-  // L=11: Gebietsleiter Name (MA)
-  // M=12: Email (mail)
-  // N=13: Status
-  // O=14: Filiale (Branch)
-  // P=15: Frequenz
-  // Q=16: IGNORE (Besuchsdauer)
-  // R=17: Maingroup
-  // S=18: Subgroup
+  // J=9: Straße (Street)
+  // K=10: Stadt (City)
+  // L=11: IGNORE
+  // M=12: GL Name
+  // N=13: GL Email (for GL ID matching)
+  // O=14: Status (Aktiv/Inaktiv)
+  // P=15: IGNORE
+  // Q=16: Frequenz
+  // R=17: IGNORE
+  // S=18: IGNORE
+  // T=19: IGNORE
+  // U=20: Market Tel
+  // V=21: Market Email
+  // W=22: IGNORE (Maingroup)
+  // X=23: IGNORE (Subgroup)
 
   const id = row[0] ? String(row[0]).trim() : '';                    // A=0: ID
   const channel = row[3] ? String(row[3]).trim() : '';               // D=3: Channel
@@ -94,15 +99,14 @@ const parseMarketRow = (row: any[], rowIndex: number): AdminMarket | null => {
   const handelskette = row[5] ? String(row[5]).trim() : '';          // F=5: Handelskette
   const name = row[7] ? String(row[7]).trim() : '';                  // H=7: Name
   const plz = row[8] ? String(row[8]).trim() : '';                   // I=8: PLZ
-  const stadt = row[9] ? String(row[9]).trim() : '';                 // J=9: Stadt
-  const strasse = row[10] ? String(row[10]).trim() : '';             // K=10: Straße
-  const gebietsleiterName = row[11] ? String(row[11]).trim() : '';   // L=11: Gebietsleiter Name
-  const gebietsleiterEmail = row[12] ? String(row[12]).trim() : '';  // M=12: GL Email (NOT market email)
-  const status = row[13] ? String(row[13]).trim() : '';              // N=13: Status
-  const filiale = row[14] ? String(row[14]).trim() : '';             // O=14: Filiale
-  const frequenz = row[15] ? parseFloat(String(row[15])) : 12;       // P=15: Frequenz
-  const maingroup = row[17] ? String(row[17]).trim() : '';           // R=17: Maingroup
-  const subgroup = row[18] ? String(row[18]).trim() : '';            // S=18: Subgroup
+  const strasse = row[9] ? String(row[9]).trim() : '';               // J=9: Straße (was Stadt)
+  const stadt = row[10] ? String(row[10]).trim() : '';               // K=10: Stadt (was Straße)
+  const gebietsleiterName = row[12] ? String(row[12]).trim() : '';   // M=12: GL Name (was L=11)
+  const gebietsleiterEmail = row[13] ? String(row[13]).trim() : '';  // N=13: GL Email (was M=12)
+  const status = row[14] ? String(row[14]).trim() : '';              // O=14: Status (was N=13)
+  const frequenz = row[16] ? parseFloat(String(row[16])) : 12;       // Q=16: Frequenz (was P=15)
+  const marketTel = row[20] ? String(row[20]).trim() : '';           // U=20: Market Tel (NEW)
+  const marketEmail = row[21] ? String(row[21]).trim() : '';         // V=21: Market Email (NEW)
 
   // Validate required fields
   if (!id || !name) {
@@ -127,11 +131,10 @@ const parseMarketRow = (row: any[], rowIndex: number): AdminMarket | null => {
     isActive: isActive,
     channel: channel || undefined,
     banner: banner || undefined,
-    branch: filiale || undefined,
-    gebietsleiterName: gebietsleiterName || undefined,  // L=11: GL Name
-    gebietsleiterEmail: gebietsleiterEmail || undefined, // M=12: GL Email (for notifications)
-    maingroup: maingroup || undefined,                  // R=17: Maingroup
-    subgroup: subgroup || undefined,                    // S=18: Subgroup
+    gebietsleiterName: gebietsleiterName || undefined,   // M=12: GL Name
+    gebietsleiterEmail: gebietsleiterEmail || undefined, // N=13: GL Email (for ID matching)
+    marketTel: marketTel || undefined,                   // U=20: Market Tel (NEW)
+    marketEmail: marketEmail || undefined,               // V=21: Market Email (NEW)
   };
 
   return market;
