@@ -396,19 +396,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
         ) : (
           <div className={styles.wavesGrid}>
             {activeWaves.map(wave => {
-              // Check if specific GLs are selected (not "Alle" and not "none")
-              const hasSpecificGLFilter = waveSelectedGLs.length > 0 && !waveSelectedGLs.includes('__none__');
-              const totalGLs = availableGLs.length || 1;
-              
-              // Only adjust goal when specific GLs are selected
-              const adjustedWave = hasSpecificGLFilter ? {
-                ...wave,
-                // Goal is proportional: (full goal / total GLs) * selected GLs
-                goalPercentage: wave.goalPercentage ? (wave.goalPercentage / totalGLs) * waveSelectedGLs.length : undefined,
-                goalValue: wave.goalValue ? (wave.goalValue / totalGLs) * waveSelectedGLs.length : undefined,
-              } : wave; // No filter or "none" = show original backend values
-              
-              return <WaveProgressCard key={wave.id} wave={adjustedWave} onClick={() => setSelectedWave(wave)} onEdit={onEditWave} />;
+              // Backend already returns proportional targets (displayTarget, kartonwareTarget, goalValue)
+              // when GL filter is applied via query params. No frontend adjustment needed.
+              // goalPercentage stays the same (e.g., 80% is always 80%)
+              return <WaveProgressCard key={wave.id} wave={wave} onClick={() => setSelectedWave(wave)} onEdit={onEditWave} />;
             })}
           </div>
         )}
@@ -422,16 +413,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
           </div>
           <div className={styles.wavesGrid}>
             {finishedWaves.map(wave => {
-              // Check if specific GLs are selected (not "Alle" and not "none")
-              const hasSpecificGLFilter = waveSelectedGLs.length > 0 && !waveSelectedGLs.includes('__none__');
-              const totalGLs = availableGLs.length || 1;
-              
-              const adjustedWave = hasSpecificGLFilter ? {
-                ...wave,
-                goalPercentage: wave.goalPercentage ? (wave.goalPercentage / totalGLs) * waveSelectedGLs.length : undefined,
-                goalValue: wave.goalValue ? (wave.goalValue / totalGLs) * waveSelectedGLs.length : undefined,
-              } : wave;
-              return <WaveProgressCard key={wave.id} wave={adjustedWave} isFinished onClick={() => setSelectedWave(wave)} onEdit={onEditWave} />;
+              // Backend already returns proportional targets when GL filter is applied.
+              // goalPercentage stays the same (e.g., 80% is always 80%)
+              return <WaveProgressCard key={wave.id} wave={wave} isFinished onClick={() => setSelectedWave(wave)} onEdit={onEditWave} />;
             })}
           </div>
         </div>

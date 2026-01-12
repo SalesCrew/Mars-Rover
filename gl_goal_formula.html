@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GL Ziel-Formel Visualisierung</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+      color: #e2e8f0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 30px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .card {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 16px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+    .card-header {
+      padding: 20px 24px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s;
+    }
+    .card-header:hover {
+      background: rgba(59, 130, 246, 0.1);
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .icon-blue { background: rgba(59, 130, 246, 0.2); }
+    .icon-green { background: rgba(16, 185, 129, 0.2); }
+    .icon-purple { background: rgba(139, 92, 246, 0.2); }
+    .icon-orange { background: rgba(249, 115, 22, 0.2); }
+    .chevron {
+      transition: transform 0.3s;
+      font-size: 20px;
+      color: #64748b;
+    }
+    .card.open .chevron {
+      transform: rotate(180deg);
+    }
+    .card-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease;
+    }
+    .card.open .card-content {
+      max-height: 2000px;
+    }
+    .card-body {
+      padding: 0 24px 24px;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .formula-box {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+      text-align: center;
+    }
+    .formula {
+      font-size: 20px;
+      font-weight: 600;
+      color: #60a5fa;
+      font-family: 'Consolas', monospace;
+    }
+    .formula-alt {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-top: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    th {
+      background: rgba(59, 130, 246, 0.1);
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+    }
+    td {
+      font-size: 14px;
+    }
+    tr:hover td {
+      background: rgba(59, 130, 246, 0.05);
+    }
+    .highlight {
+      color: #60a5fa;
+      font-weight: 600;
+    }
+    .calc {
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .total-row td {
+      background: rgba(16, 185, 129, 0.1);
+      font-weight: 600;
+      color: #10b981;
+    }
+    .info-box {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    .info-box h4 {
+      color: #10b981;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .info-box p {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 16px 0;
+    }
+    .comparison-card {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .comparison-card h4 {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+    .comparison-card .value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .value-blue { color: #60a5fa; }
+    .value-green { color: #10b981; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-value {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    .badge-percent {
+      background: rgba(139, 92, 246, 0.2);
+      color: #a78bfa;
+    }
+    ul {
+      margin: 12px 0;
+      padding-left: 20px;
+    }
+    li {
+      margin: 8px 0;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+    .market-share-bar {
+      height: 8px;
+      background: rgba(148, 163, 184, 0.2);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .market-share-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 GL Ziel-Formel für Prozentbasierte Wellen</h1>
+
+    <!-- Formula Card -->
+    <div class="card open">
+      <div class="card-header" onclick="toggleCard(this)">
+        <div class="card-title">
+          <div class="icon icon-blue">📐</div>
+          Die Formel
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="card-content">
+        <div class="card-body">
+          <div class="formula-box">
+            <div class="formula">GL Display Ziel = Gesamt Displays × Ziel% × (GL Märkte / Gesamt Märkte)</div>
+            <div class="formula-alt">Oder vereinfacht: GL Ziel = Gesamt Ziel × GL Marktanteil</div>
+          </div>
+          
+          <div class="comparison">
+            <div class="comparison-card">
+              <h4><span class="badge badge-value">Wert-basiert</span></h4>
+              <div class="value value-blue">GL Ziel = Wellen Ziel × (GL Märkte / Gesamt Märkte)</div>
+            </div>
+            <div class="comparison-card">
+              <h4><span class="badge badge-percent">Prozent-basiert</span></h4>
+              <div class="value value-green">GL Ziel = Displays × 80% × (GL Märkte / Gesamt Märkte)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Example Card -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <div class="card-title">
+          <div class="icon icon-green">📊</div>
+          Beispiel: Hagebau KW2-6 (228 Displays, 147 Märkte, 80% Ziel)
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="card-content">
+        <div class="card-body">
+          <table>
+            <thead>
+              <tr>
+                <th>GL</th>
+                <th>Märkte</th>
+                <th>Marktanteil</th>
+                <th>GL Display Ziel</th>
+                <th>Berechnung</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>GL 1</strong></td>
+                <td>30</td>
+                <td>
+                  20.4%
+                  <div class="market-share-bar"><div class="market-share-fill" style="width: 100%"></div></div>
+                </td>
+                <td class="highlight">37</td>
+                <td class="calc">228 × 0.8 × (30/147) = 37.2</td>
+              </tr>
+              <tr>
+                <td><strong>GL 2</strong></td>
+                <td>25</td>
+                <td>
+                  17.0%
+                  <div class="market-share-bar"><div class="market-share-fill" style="width: 83%"></div></div>
+                </td>
+                <td class="highlight">31</td>
+                <td class="calc">228 × 0.8 × (25/147) = 31.0</td>
+              </tr>
+              <tr>
+                <td><strong>GL 3</strong></td>
+                <td>22</td>
+                <td>
+                  15.0%
+                  <div class="market-share-bar"><div class="market-share-fill" style="width: 73%"></div></div>
+                </td>
+                <td class="highlight">27</td>
+                <td class="calc">228 × 0.8 × (22/147) = 27.3</td>
+              </tr>
+              <tr>
+                <td><strong>GL 4</strong></td>
+                <td>20</td>
+                <td>
+                  13.6%
+                  <div class="market-share-bar"><div class="market-share-fill" style="width: 67%"></div></div>
+                </td>
+                <td class="highlight">25</td>
+                <td class="calc">228 × 0.8 × (20/147) = 24.8</td>
+              </tr>
+              <tr>
+                <td><strong>GL 5</strong></td>
+                <td>18</td>
+                <td>
+                  12.2%
+                  <div class="market-share-bar"><div class="market-share-fill" style="width: 60%"></div></div>
+                </td>
+                <td class="highlight">22</td>
+                <td class="calc">228 × 0.8 × (18/147) = 22.4</td>
+              </tr>
+              <tr>
+                <td><strong>GL 6</strong></td>
+                <td>15</td>
+                <td>
+                  10.2%
+                  <div class="market-share-bar"><div class="market-share-fill" style="width: 50%"></div></div>
+                </td>
+                <td class="highlight">19</td>
+                <td class="calc">228 × 0.8 × (15/147) = 18.6</td>
+              </tr>
+              <tr>
+                <td><strong>GL 7</strong></td>
+                <td>10</td>
+                <td>
+                  6.8%
+                  <div class="market-share-bar"><div class="market-share-fill" style="width: 33%"></div></div>
+                </td>
+                <td class="highlight">12</td>
+                <td class="calc">228 × 0.8 × (10/147) = 12.4</td>
+              </tr>
+              <tr>
+                <td><strong>GL 8</strong></td>
+                <td>7</td>
+                <td>
+                  4.8%
+                  <div class="market-share-bar"><div class="market-share-fill" style="width: 23%"></div></div>
+                </td>
+                <td class="highlight">9</td>
+                <td class="calc">228 × 0.8 × (7/147) = 8.7</td>
+              </tr>
+              <tr class="total-row">
+                <td><strong>GESAMT</strong></td>
+                <td><strong>147</strong></td>
+                <td><strong>100%</strong></td>
+                <td><strong>≈182</strong></td>
+                <td class="calc">228 × 80% = 182.4</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Why Fair Card -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <div class="card-title">
+          <div class="icon icon-purple">⚖️</div>
+          Warum ist das fair?
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="card-content">
+        <div class="card-body">
+          <div class="info-box">
+            <h4>✅ Proportionale Verteilung</h4>
+            <p>Jeder GL bekommt einen Anteil am Gesamtziel, der seinem Marktanteil entspricht.</p>
+          </div>
+          
+          <ul>
+            <li><strong>GL mit 30 Märkten (20.4%)</strong> → bekommt 20.4% des Gesamtziels = <span class="highlight">37 Displays</span></li>
+            <li><strong>GL mit 10 Märkten (6.8%)</strong> → bekommt 6.8% des Gesamtziels = <span class="highlight">12 Displays</span></li>
+            <li>Jeder GL hat die <strong>gleiche Schwierigkeit</strong> relativ zu seiner Gebietsgröße</li>
+            <li>Kein GL wird benachteiligt, weil er weniger Märkte hat</li>
+          </ul>
+
+          <div class="info-box">
+            <h4>🎯 Das bedeutet für jeden GL:</h4>
+            <p>Um das Ziel zu erreichen, muss jeder GL in <strong>80% seiner eigenen Märkte</strong> die Displays platzieren. Das ist für alle gleich schwer, egal wie viele Märkte sie haben.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Implementation Card -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <div class="card-title">
+          <div class="icon icon-orange">💻</div>
+          Aktuelle Implementierung im System
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="card-content">
+        <div class="card-body">
+          <div class="comparison">
+            <div class="comparison-card">
+              <h4><span class="badge badge-value">Wert-basiert ✅</span></h4>
+              <p style="color: #10b981; margin-top: 8px;">Bereits implementiert!</p>
+              <p style="color: #94a3b8; font-size: 13px; margin-top: 8px;">
+                Backend berechnet proportionales Ziel automatisch wenn GL gefiltert wird.
+              </p>
+            </div>
+            <div class="comparison-card">
+              <h4><span class="badge badge-percent">Prozent-basiert ⚠️</span></h4>
+              <p style="color: #f59e0b; margin-top: 8px;">Noch nicht proportional</p>
+              <p style="color: #94a3b8; font-size: 13px; margin-top: 8px;">
+                Aktuell: Zeigt volles Ziel (228) statt GL-proportionales Ziel (z.B. 37).
+              </p>
+            </div>
+          </div>
+
+          <div class="info-box">
+            <h4>🔧 Was geändert werden muss:</h4>
+            <p>Im Admin Dashboard: Wenn ein GL gefiltert wird, soll das Display-Ziel proportional berechnet werden wie bei wert-basierten Wellen.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function toggleCard(header) {
+      const card = header.parentElement;
+      card.classList.toggle('open');
+    }
+  </script>
+</body>
+</html>

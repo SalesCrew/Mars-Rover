@@ -25,6 +25,10 @@ interface WaveProgress {
   startDate: string;
   endDate: string;
   status: 'active' | 'finished';
+  goalType: 'percentage' | 'value';
+  goalPercentage?: number;
+  goalValue?: number;
+  currentValue?: number;
   displayCount: number;
   displayTarget: number;
   kartonwareCount: number;
@@ -160,6 +164,10 @@ export const StatisticsContent: React.FC = () => {
                 displayTarget={wave.displayTarget}
                 kartonwareCount={wave.kartonwareCount}
                 kartonwareTarget={wave.kartonwareTarget}
+                goalType={wave.goalType}
+                goalPercentage={wave.goalPercentage}
+                goalValue={wave.goalValue}
+                currentValue={wave.currentValue}
               />
             ))
           ) : (

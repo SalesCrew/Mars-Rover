@@ -10,6 +10,10 @@ interface GLWaveCardProps {
   displayTarget: number;
   kartonwareCount: number;
   kartonwareTarget: number;
+  goalType?: 'percentage' | 'value';
+  goalPercentage?: number;
+  goalValue?: number;
+  currentValue?: number;
   isFinished?: boolean;
 }
 
@@ -21,14 +25,29 @@ export const GLWaveCard: React.FC<GLWaveCardProps> = ({
   displayTarget,
   kartonwareCount,
   kartonwareTarget,
+  goalType = 'percentage',
+  goalPercentage = 80,
+  goalValue,
+  currentValue,
   isFinished = false,
 }) => {
   const totalItems = displayCount + kartonwareCount;
   const totalTargets = displayTarget + kartonwareTarget;
-  const overallProgress = totalTargets > 0 
+  // overallProgress is kept for reference - represents % of total target reached
+  const _overallProgress = totalTargets > 0 
     ? Math.min(100, Math.round((totalItems / totalTargets) * 100 * 10) / 10) 
     : 0;
-  const goalMet = overallProgress >= 100;
+  void _overallProgress;
+  
+  // For percentage-based: goal is X% of proportional target
+  // For value-based: goal is the value target
+  const goalItemCount = goalType === 'percentage' && goalPercentage 
+    ? Math.round(totalTargets * (goalPercentage / 100) * 10) / 10 
+    : totalTargets;
+  
+  const goalMet = goalType === 'percentage'
+    ? totalItems >= goalItemCount
+    : (currentValue || 0) >= (goalValue || 0);
 
   return (
     <div className={`${styles.card} ${isFinished ? styles.cardFinished : ''}`}>
@@ -50,15 +69,26 @@ export const GLWaveCard: React.FC<GLWaveCardProps> = ({
       {/* Progress Display */}
       <div className={styles.progressSection}>
         <div className={styles.progressHeader}>
-          <span className={`${styles.progressValue} ${goalMet ? styles.progressValueSuccess : ''}`}>
-            {overallProgress}%
-          </span>
-          <span className={styles.progressLabel}>abgeschlossen</span>
+          {goalType === 'percentage' ? (
+            <>
+              <span className={`${styles.progressValue} ${goalMet ? styles.progressValueSuccess : ''}`}>
+                {totalItems}/{Math.round(goalItemCount)}
+              </span>
+              <span className={styles.progressLabel}>Artikel ({goalPercentage}% Ziel)</span>
+            </>
+          ) : (
+            <>
+              <span className={`${styles.progressValue} ${goalMet ? styles.progressValueSuccess : ''}`}>
+                €{(currentValue || 0).toLocaleString('de-DE')}
+              </span>
+              <span className={styles.progressLabel}>von €{(goalValue || 0).toLocaleString('de-DE')}</span>
+            </>
+          )}
         </div>
         <div className={styles.progressTrack}>
           <div
             className={`${styles.progressBar} ${goalMet ? styles.progressSuccess : ''}`}
-            style={{ width: `${overallProgress}%` }}
+            style={{ width: `${goalType === 'percentage' ? Math.min(100, (totalItems / goalItemCount) * 100) : Math.min(100, ((currentValue || 0) / (goalValue || 1)) * 100)}%` }}
           />
         </div>
       </div>

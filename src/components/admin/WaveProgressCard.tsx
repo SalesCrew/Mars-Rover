@@ -71,15 +71,20 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
     participatingGLs,
   } = wave;
 
-  // Calculate progress percentages (rounded to 2 decimals) - kept for future per-type display
-  const _displayProgress = displayTarget > 0 ? Math.min(100, Math.round((displayCount / displayTarget) * 100 * 100) / 100) : 0;
-  const _kartonwareProgress = kartonwareTarget > 0 ? Math.min(100, Math.round((kartonwareCount / kartonwareTarget) * 100 * 100) / 100) : 0;
+  // Calculate progress percentages (rounded to 1 decimal)
+  const _displayProgress = displayTarget > 0 ? Math.min(100, Math.round((displayCount / displayTarget) * 100 * 10) / 10) : 0;
+  const _kartonwareProgress = kartonwareTarget > 0 ? Math.min(100, Math.round((kartonwareCount / kartonwareTarget) * 100 * 10) / 10) : 0;
   void _displayProgress; void _kartonwareProgress; // Reserved for future use
 
-  // Calculate overall progress (rounded to 2 decimals)
+  // Calculate overall progress (rounded to 1 decimal)
   const totalItems = displayCount + kartonwareCount;
   const totalTargets = displayTarget + kartonwareTarget;
-  const overallProgress = totalTargets > 0 ? Math.min(100, Math.round((totalItems / totalTargets) * 100 * 100) / 100) : 0;
+  const overallProgress = totalTargets > 0 ? Math.min(100, Math.round((totalItems / totalTargets) * 100 * 10) / 10) : 0;
+  
+  // For percentage-based goals: calculate the goal in items (e.g., 80% of totalTargets)
+  const goalItemCount = goalType === 'percentage' && goalPercentage 
+    ? Math.round(totalTargets * (goalPercentage / 100) * 10) / 10 
+    : totalTargets;
 
   // Check if goal is met
   const goalMet = goalType === 'percentage'
@@ -117,9 +122,9 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
         {goalType === 'percentage' ? (
           <>
             <div className={`${styles.goalValue} ${goalMet ? styles.goalValueSuccess : ''}`}>
-              {overallProgress}%
+              {totalItems}/{Math.round(goalItemCount * 10) / 10}
             </div>
-            <div className={styles.goalLabel}>von {goalPercentage}% Ziel</div>
+            <div className={styles.goalLabel}>Artikel ({goalPercentage}% von {totalTargets})</div>
           </>
         ) : (
           <>
@@ -140,7 +145,7 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
           </div>
           <div className={styles.progressCount}>
             {goalType === 'percentage' ? (
-              <>{overallProgress}% erreicht</>
+              <>{overallProgress}% ({totalItems}/{totalTargets} Artikel)</>
             ) : (
               <>€{(currentValue || 0).toLocaleString('de-DE')} erreicht</>
             )}
@@ -149,7 +154,7 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
         <div className={styles.progressTrack}>
           <div
             className={`${styles.progressBar} ${goalMet ? styles.progressSuccess : ''}`}
-            style={{ width: `${goalType === 'percentage' ? overallProgress : Math.min(100, ((currentValue || 0) / (goalValue || 1)) * 100)}%` }}
+            style={{ width: `${goalType === 'percentage' ? Math.min(100, (totalItems / goalItemCount) * 100) : Math.min(100, ((currentValue || 0) / (goalValue || 1)) * 100)}%` }}
           />
         </div>
       </div>
@@ -178,7 +183,7 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
           <Package size={16} weight="fill" />
           <div className={styles.footerMetricInfo}>
             <div className={styles.footerMetricValue}>
-              {totalItems}
+              {totalItems}/{totalTargets}
             </div>
             <div className={styles.footerMetricLabel}>Artikel</div>
           </div>
