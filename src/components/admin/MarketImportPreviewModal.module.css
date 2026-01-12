@@ -124,6 +124,12 @@
   flex: 1;
   overflow-y: auto;
   padding: var(--space-lg) var(--space-2xl);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.content::-webkit-scrollbar {
+  display: none;
 }
 
 /* Sections */
