@@ -894,6 +894,18 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                           <span>{welle.kartonwareCount} Kartonware</span>
                         </div>
                       )}
+                      {welle.types.includes('palette') && (
+                        <div className={styles.welleType}>
+                          <Package size={16} weight="fill" />
+                          <span>{welle.paletteCount || 0} Palette{(welle.paletteCount || 0) !== 1 ? 'n' : ''}</span>
+                        </div>
+                      )}
+                      {welle.types.includes('schuette') && (
+                        <div className={styles.welleType}>
+                          <Package size={16} weight="fill" />
+                          <span>{welle.schutteCount || 0} Schütte{(welle.schutteCount || 0) !== 1 ? 'n' : ''}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className={styles.welleKWDays}>
@@ -970,6 +982,18 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                           <span>{welle.kartonwareCount} Kartonware</span>
                         </div>
                       )}
+                      {welle.types.includes('palette') && (
+                        <div className={styles.welleType}>
+                          <Package size={16} weight="fill" />
+                          <span>{welle.paletteCount || 0} Palette{(welle.paletteCount || 0) !== 1 ? 'n' : ''}</span>
+                        </div>
+                      )}
+                      {welle.types.includes('schuette') && (
+                        <div className={styles.welleType}>
+                          <Package size={16} weight="fill" />
+                          <span>{welle.schutteCount || 0} Schütte{(welle.schutteCount || 0) !== 1 ? 'n' : ''}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className={styles.welleKWDays}>
@@ -1044,6 +1068,18 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                         <div className={styles.welleType}>
                           <Package size={16} weight="fill" />
                           <span>{welle.kartonwareCount} Kartonware</span>
+                        </div>
+                      )}
+                      {welle.types.includes('palette') && (
+                        <div className={styles.welleType}>
+                          <Package size={16} weight="fill" />
+                          <span>{welle.paletteCount || 0} Palette{(welle.paletteCount || 0) !== 1 ? 'n' : ''}</span>
+                        </div>
+                      )}
+                      {welle.types.includes('schuette') && (
+                        <div className={styles.welleType}>
+                          <Package size={16} weight="fill" />
+                          <span>{welle.schutteCount || 0} Schütte{(welle.schutteCount || 0) !== 1 ? 'n' : ''}</span>
                         </div>
                       )}
                     </div>
