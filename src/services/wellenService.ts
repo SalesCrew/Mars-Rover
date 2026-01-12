@@ -158,6 +158,13 @@ class WellenService {
 
       const data = await response.json();
       
+      // #region agent log
+      if (data && data.length > 0) {
+        const sample = data[0];
+        fetch('http://127.0.0.1:7242/ingest/35f7e71b-d3fc-4c62-8097-9c7adee771ff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'wellenService:getAllWellen',message:'Received wellen data',data:{count:data.length,firstWelle:{id:sample.id,name:sample.name,displayCount:sample.displays?.length||0,kartonwareCount:sample.kartonwareItems?.length||0,paletteCount:sample.paletteItems?.length||0,schutteCount:sample.schutteItems?.length||0}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      }
+      // #endregion
+      
       // If we got an empty array and haven't retried yet, try once more
       // This handles potential cold-start/stale connection issues
       if (Array.isArray(data) && data.length === 0 && retryCount < maxRetries) {

@@ -501,6 +501,43 @@
   color: #64748B;
 }
 
+.itemSize {
+  font-size: 12px;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+.itemProducts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-top: 1px solid #E2E8F0;
+  margin-top: 4px;
+}
+
+.productRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.productName {
+  font-size: 12px;
+  color: #475569;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.productValue {
+  font-size: 11px;
+  color: #64748B;
+  white-space: nowrap;
+}
+
 .itemCompleteBadge {
   display: flex;
   align-items: center;

@@ -563,6 +563,10 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         assignedMarketIds
       };
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/35f7e71b-d3fc-4c62-8097-9c7adee771ff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VorbestellerPage:welleData',message:'Sending welle data',data:{displays:processedDisplays.length,kartonware:processedKartonware.length,palettes:processedPalettes.length,schuetten:processedSchuetten.length,isEditing:!!editingWelle},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+
       if (editingWelle) {
         // Update existing welle
         await wellenService.updateWelle(editingWelle.id, welleData);

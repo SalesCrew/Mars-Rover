@@ -27,6 +27,30 @@ interface KWDay {
   days: string[];
 }
 
+interface PaletteProduct {
+  id: string;
+  name: string;
+  valuePerVE: number;
+  ve: number;
+  ean?: string | null;
+}
+
+interface PaletteItem {
+  id: string;
+  name: string;
+  size?: string | null;
+  picture?: string | null;
+  products: PaletteProduct[];
+}
+
+interface SchutteItem {
+  id: string;
+  name: string;
+  size?: string | null;
+  picture?: string | null;
+  products: PaletteProduct[];
+}
+
 interface Welle {
   id: string;
   name: string;
@@ -37,9 +61,13 @@ interface Welle {
   status: 'upcoming' | 'active' | 'past';
   displayCount: number;
   kartonwareCount: number;
+  paletteCount?: number;
+  schutteCount?: number;
   kwDays?: KWDay[];
   displays?: DisplayItem[];
   kartonwareItems?: KartonwareItem[];
+  paletteItems?: PaletteItem[];
+  schutteItems?: SchutteItem[];
   totalGLs?: number;
   participatingGLs?: number;
   goalType?: 'percentage' | 'value';
@@ -381,6 +409,88 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
                             <CheckCircle size={18} weight="fill" />
                           </div>
                         )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Paletten */}
+            {welle.paletteItems && welle.paletteItems.length > 0 && (
+              <div className={styles.itemsColumn}>
+                <div className={styles.itemsHeader}>
+                  <Package size={20} weight="bold" className={styles.itemsHeaderIcon} />
+                  <h3>Paletten</h3>
+                  <span className={styles.itemsCount}>{welle.paletteCount || welle.paletteItems.length}</span>
+                </div>
+                <div className={styles.itemsList}>
+                  {welle.paletteItems.map(palette => {
+                    const totalValue = palette.products.reduce((sum, p) => sum + (p.valuePerVE * p.ve), 0);
+                    
+                    return (
+                      <div key={palette.id} className={styles.itemCard}>
+                        {palette.picture && (
+                          <div className={styles.itemImage}>
+                            <img src={palette.picture} alt={palette.name} />
+                          </div>
+                        )}
+                        <div className={styles.itemContent}>
+                          <div className={styles.itemName}>{palette.name}</div>
+                          {palette.size && <div className={styles.itemSize}>{palette.size}</div>}
+                          <div className={styles.itemProducts}>
+                            {palette.products.map(prod => (
+                              <div key={prod.id} className={styles.productRow}>
+                                <span className={styles.productName}>{prod.name}</span>
+                                <span className={styles.productValue}>€{prod.valuePerVE.toFixed(2)} × {prod.ve} VE</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className={styles.itemValue}>
+                            Gesamtwert: €{totalValue.toLocaleString('de-DE')}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Schütten */}
+            {welle.schutteItems && welle.schutteItems.length > 0 && (
+              <div className={styles.itemsColumn}>
+                <div className={styles.itemsHeader}>
+                  <Package size={20} weight="bold" className={styles.itemsHeaderIcon} />
+                  <h3>Schütten</h3>
+                  <span className={styles.itemsCount}>{welle.schutteCount || welle.schutteItems.length}</span>
+                </div>
+                <div className={styles.itemsList}>
+                  {welle.schutteItems.map(schutte => {
+                    const totalValue = schutte.products.reduce((sum, p) => sum + (p.valuePerVE * p.ve), 0);
+                    
+                    return (
+                      <div key={schutte.id} className={styles.itemCard}>
+                        {schutte.picture && (
+                          <div className={styles.itemImage}>
+                            <img src={schutte.picture} alt={schutte.name} />
+                          </div>
+                        )}
+                        <div className={styles.itemContent}>
+                          <div className={styles.itemName}>{schutte.name}</div>
+                          {schutte.size && <div className={styles.itemSize}>{schutte.size}</div>}
+                          <div className={styles.itemProducts}>
+                            {schutte.products.map(prod => (
+                              <div key={prod.id} className={styles.productRow}>
+                                <span className={styles.productName}>{prod.name}</span>
+                                <span className={styles.productValue}>€{prod.valuePerVE.toFixed(2)} × {prod.ve} VE</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className={styles.itemValue}>
+                            Gesamtwert: €{totalValue.toLocaleString('de-DE')}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
