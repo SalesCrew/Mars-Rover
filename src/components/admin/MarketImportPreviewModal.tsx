@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Plus, ArrowsClockwise, CheckCircle, PencilSimple, Trash, CaretDown, CaretUp, Upload } from '@phosphor-icons/react';
 import type { AdminMarket } from '../../types/market-types';
@@ -11,11 +11,16 @@ interface MarketImportPreviewModalProps {
   onCancel: () => void;
 }
 
-interface CategorizedMarket {
+interface CategoryCounts {
+  newCount: number;
+  changedCount: number;
+  unchangedCount: number;
+}
+
+interface ChangedMarketInfo {
   market: AdminMarket;
-  existingMarket?: AdminMarket;
+  existingMarket: AdminMarket;
   changedFields: string[];
-  category: 'new' | 'changed' | 'unchanged';
 }
 
 // Fields to compare (ignoring GL-related fields that won't match on import)
@@ -38,20 +43,22 @@ const FIELD_LABELS: Record<string, string> = {
   channel: 'Kanal'
 };
 
+// Limit visible items per section for performance
+const INITIAL_VISIBLE_ITEMS = 20;
+const LOAD_MORE_COUNT = 50;
+
+// Normalize value for comparison - defined outside component to avoid recreation
+const normalizeValue = (val: any): string => {
+  if (val === undefined || val === null || val === '') return '';
+  return String(val).trim().toLowerCase();
+};
+
 const compareMarkets = (imported: AdminMarket, existing: AdminMarket): string[] => {
   const changedFields: string[] = [];
   
-  for (const field of FIELDS_TO_COMPARE) {
-    const importedValue = imported[field];
-    const existingValue = existing[field];
-    
-    // Normalize comparison (handle undefined vs empty string, numbers vs strings)
-    const normalizeValue = (val: any): string => {
-      if (val === undefined || val === null || val === '') return '';
-      return String(val).trim().toLowerCase();
-    };
-    
-    if (normalizeValue(importedValue) !== normalizeValue(existingValue)) {
+  for (let i = 0; i < FIELDS_TO_COMPARE.length; i++) {
+    const field = FIELDS_TO_COMPARE[i];
+    if (normalizeValue(imported[field]) !== normalizeValue(existing[field])) {
       changedFields.push(field);
     }
   }
@@ -65,14 +72,30 @@ export const MarketImportPreviewModal: React.FC<MarketImportPreviewModalProps> =
   onConfirm,
   onCancel
 }) => {
-  const [marketsToImport, setMarketsToImport] = useState<AdminMarket[]>(importedMarkets);
+  const [isReady, setIsReady] = useState(false);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [editingMarket, setEditingMarket] = useState<AdminMarket | null>(null);
+  const [editedMarkets, setEditedMarkets] = useState<Map<string, AdminMarket>>(new Map());
   const [showUnchanged, setShowUnchanged] = useState(false);
   
-  // Create a map of existing markets by internalId for quick lookup
+  // Visible counts for pagination
+  const [visibleNewCount, setVisibleNewCount] = useState(INITIAL_VISIBLE_ITEMS);
+  const [visibleChangedCount, setVisibleChangedCount] = useState(INITIAL_VISIBLE_ITEMS);
+  const [visibleUnchangedCount, setVisibleUnchangedCount] = useState(INITIAL_VISIBLE_ITEMS);
+  
+  // Defer initial render to allow modal to show first
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => {
+      setIsReady(true);
+    });
+    return () => cancelAnimationFrame(timer);
+  }, []);
+  
+  // Create a map of existing markets by internalId for O(1) lookup
   const existingMarketsMap = useMemo(() => {
     const map = new Map<string, AdminMarket>();
-    for (const market of existingMarkets) {
+    for (let i = 0; i < existingMarkets.length; i++) {
+      const market = existingMarkets[i];
       if (market.internalId) {
         map.set(market.internalId, market);
       }
@@ -80,51 +103,68 @@ export const MarketImportPreviewModal: React.FC<MarketImportPreviewModalProps> =
     return map;
   }, [existingMarkets]);
   
-  // Categorize markets
-  const categorizedMarkets = useMemo((): CategorizedMarket[] => {
-    return marketsToImport.map(market => {
-      const existing = existingMarketsMap.get(market.internalId);
+  // Categorize markets in a single pass - only compute counts and categorized arrays
+  const { newMarkets, changedMarkets, unchangedMarkets, counts } = useMemo(() => {
+    const newArr: AdminMarket[] = [];
+    const changedArr: ChangedMarketInfo[] = [];
+    const unchangedArr: AdminMarket[] = [];
+    
+    for (let i = 0; i < importedMarkets.length; i++) {
+      const market = importedMarkets[i];
+      
+      // Skip removed markets
+      if (removedIds.has(market.id)) continue;
+      
+      // Use edited version if available
+      const actualMarket = editedMarkets.get(market.id) || market;
+      const existing = existingMarketsMap.get(actualMarket.internalId);
       
       if (!existing) {
-        return { market, category: 'new' as const, changedFields: [] };
+        newArr.push(actualMarket);
+      } else {
+        const changedFields = compareMarkets(actualMarket, existing);
+        if (changedFields.length === 0) {
+          unchangedArr.push(actualMarket);
+        } else {
+          changedArr.push({ market: actualMarket, existingMarket: existing, changedFields });
+        }
       }
-      
-      const changedFields = compareMarkets(market, existing);
-      
-      if (changedFields.length === 0) {
-        return { market, existingMarket: existing, category: 'unchanged' as const, changedFields: [] };
-      }
-      
-      return { market, existingMarket: existing, category: 'changed' as const, changedFields };
-    });
-  }, [marketsToImport, existingMarketsMap]);
+    }
+    
+    return {
+      newMarkets: newArr,
+      changedMarkets: changedArr,
+      unchangedMarkets: unchangedArr,
+      counts: {
+        newCount: newArr.length,
+        changedCount: changedArr.length,
+        unchangedCount: unchangedArr.length
+      } as CategoryCounts
+    };
+  }, [importedMarkets, existingMarketsMap, removedIds, editedMarkets]);
   
-  const newMarkets = categorizedMarkets.filter(m => m.category === 'new');
-  const changedMarkets = categorizedMarkets.filter(m => m.category === 'changed');
-  const unchangedMarkets = categorizedMarkets.filter(m => m.category === 'unchanged');
+  // Markets to actually import (new + changed)
+  const marketsToActuallyImport = useMemo(() => {
+    return [...newMarkets, ...changedMarkets.map(c => c.market)];
+  }, [newMarkets, changedMarkets]);
   
-  // Only import new and changed markets
-  const marketsToActuallyImport = [...newMarkets, ...changedMarkets].map(m => m.market);
+  const handleRemoveMarket = useCallback((marketId: string) => {
+    setRemovedIds(prev => new Set(prev).add(marketId));
+  }, []);
   
-  const handleRemoveMarket = (marketId: string) => {
-    setMarketsToImport(prev => prev.filter(m => m.id !== marketId));
-  };
-  
-  const handleEditMarket = (market: AdminMarket) => {
+  const handleEditMarket = useCallback((market: AdminMarket) => {
     setEditingMarket({ ...market });
-  };
+  }, []);
   
-  const handleSaveEdit = () => {
+  const handleSaveEdit = useCallback(() => {
     if (!editingMarket) return;
-    setMarketsToImport(prev => 
-      prev.map(m => m.id === editingMarket.id ? editingMarket : m)
-    );
+    setEditedMarkets(prev => new Map(prev).set(editingMarket.id, editingMarket));
     setEditingMarket(null);
-  };
+  }, [editingMarket]);
   
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     onConfirm(marketsToActuallyImport);
-  };
+  }, [onConfirm, marketsToActuallyImport]);
   
   const formatValue = (value: any): string => {
     if (value === undefined || value === null || value === '') return '–';
@@ -132,79 +172,97 @@ export const MarketImportPreviewModal: React.FC<MarketImportPreviewModalProps> =
     return String(value);
   };
   
-  const renderMarketCard = (item: CategorizedMarket, cardClass: string) => {
-    const { market, existingMarket, changedFields, category } = item;
-    
-    return (
-      <div key={market.id} className={`${styles.marketCard} ${cardClass}`}>
-        <div className={styles.marketInfo}>
-          <div className={styles.marketHeader}>
-            <span className={styles.marketId}>{market.internalId}</span>
-            <span className={styles.marketName}>{market.name}</span>
-          </div>
-          
-          <div className={styles.marketDetails}>
-            {category === 'changed' && changedFields.length > 0 ? (
-              // Show changed fields with diff
-              changedFields.map(field => (
-                <div key={field} className={`${styles.marketDetail} ${styles.changedField}`}>
-                  <span className={styles.detailLabel}>{FIELD_LABELS[field] || field}:</span>
-                  <span className={styles.changedFieldOld}>
-                    {formatValue(existingMarket?.[field as keyof AdminMarket])}
-                  </span>
-                  <span className={styles.changedFieldArrow}>→</span>
-                  <span className={styles.changedFieldNew}>
-                    {formatValue(market[field as keyof AdminMarket])}
-                  </span>
-                </div>
-              ))
-            ) : (
-              // Show regular details
-              <>
-                <div className={styles.marketDetail}>
-                  <span className={styles.detailLabel}>Adresse:</span>
-                  {market.address}, {market.postalCode} {market.city}
-                </div>
-                <div className={styles.marketDetail}>
-                  <span className={styles.detailLabel}>Kette:</span>
-                  {market.chain}
-                </div>
-                <div className={styles.marketDetail}>
-                  <span className={styles.detailLabel}>Frequenz:</span>
-                  {market.frequency}
-                </div>
-                {market.banner && (
-                  <div className={styles.marketDetail}>
-                    <span className={styles.detailLabel}>Banner:</span>
-                    {market.banner}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+  // Render a simple market row (more efficient than full card)
+  const renderNewMarketRow = useCallback((market: AdminMarket) => (
+    <div key={market.id} className={`${styles.marketCard} ${styles.marketCardNew}`}>
+      <div className={styles.marketInfo}>
+        <div className={styles.marketHeader}>
+          <span className={styles.marketId}>{market.internalId}</span>
+          <span className={styles.marketName}>{market.name}</span>
         </div>
-        
-        <div className={styles.marketActions}>
-          {category !== 'unchanged' && (
-            <button
-              className={styles.actionButton}
-              onClick={() => handleEditMarket(market)}
-              title="Bearbeiten"
-            >
-              <PencilSimple size={16} weight="bold" />
-            </button>
-          )}
-          <button
-            className={`${styles.actionButton} ${styles.actionButtonDelete}`}
-            onClick={() => handleRemoveMarket(market.id)}
-            title="Entfernen"
-          >
-            <Trash size={16} weight="bold" />
-          </button>
+        <div className={styles.marketDetails}>
+          <span>{market.address}, {market.postalCode} {market.city}</span>
+          <span> • {market.chain}</span>
         </div>
       </div>
-    );
-  };
+      <div className={styles.marketActions}>
+        <button
+          className={styles.actionButton}
+          onClick={() => handleEditMarket(market)}
+          title="Bearbeiten"
+        >
+          <PencilSimple size={16} weight="bold" />
+        </button>
+        <button
+          className={`${styles.actionButton} ${styles.actionButtonDelete}`}
+          onClick={() => handleRemoveMarket(market.id)}
+          title="Entfernen"
+        >
+          <Trash size={16} weight="bold" />
+        </button>
+      </div>
+    </div>
+  ), [handleEditMarket, handleRemoveMarket]);
+  
+  const renderChangedMarketRow = useCallback((info: ChangedMarketInfo) => (
+    <div key={info.market.id} className={`${styles.marketCard} ${styles.marketCardChanged}`}>
+      <div className={styles.marketInfo}>
+        <div className={styles.marketHeader}>
+          <span className={styles.marketId}>{info.market.internalId}</span>
+          <span className={styles.marketName}>{info.market.name}</span>
+        </div>
+        <div className={styles.marketDetails}>
+          {info.changedFields.slice(0, 3).map(field => (
+            <span key={field} className={styles.changedField}>
+              {FIELD_LABELS[field]}: {formatValue(info.existingMarket[field as keyof AdminMarket])} → {formatValue(info.market[field as keyof AdminMarket])}
+            </span>
+          ))}
+          {info.changedFields.length > 3 && (
+            <span className={styles.moreChanges}>+{info.changedFields.length - 3} weitere</span>
+          )}
+        </div>
+      </div>
+      <div className={styles.marketActions}>
+        <button
+          className={styles.actionButton}
+          onClick={() => handleEditMarket(info.market)}
+          title="Bearbeiten"
+        >
+          <PencilSimple size={16} weight="bold" />
+        </button>
+        <button
+          className={`${styles.actionButton} ${styles.actionButtonDelete}`}
+          onClick={() => handleRemoveMarket(info.market.id)}
+          title="Entfernen"
+        >
+          <Trash size={16} weight="bold" />
+        </button>
+      </div>
+    </div>
+  ), [handleEditMarket, handleRemoveMarket]);
+  
+  const renderUnchangedMarketRow = useCallback((market: AdminMarket) => (
+    <div key={market.id} className={`${styles.marketCard} ${styles.marketCardUnchanged}`}>
+      <div className={styles.marketInfo}>
+        <div className={styles.marketHeader}>
+          <span className={styles.marketId}>{market.internalId}</span>
+          <span className={styles.marketName}>{market.name}</span>
+        </div>
+        <div className={styles.marketDetails}>
+          <span>{market.chain}</span>
+        </div>
+      </div>
+      <div className={styles.marketActions}>
+        <button
+          className={`${styles.actionButton} ${styles.actionButtonDelete}`}
+          onClick={() => handleRemoveMarket(market.id)}
+          title="Entfernen"
+        >
+          <Trash size={16} weight="bold" />
+        </button>
+      </div>
+    </div>
+  ), [handleRemoveMarket]);
   
   return ReactDOM.createPortal(
     <div className={styles.overlay} onClick={onCancel}>
@@ -221,79 +279,114 @@ export const MarketImportPreviewModal: React.FC<MarketImportPreviewModalProps> =
         <div className={styles.statsBar}>
           <div className={styles.stat}>
             <div className={`${styles.statDot} ${styles.statDotNew}`} />
-            <span className={styles.statCount}>{newMarkets.length}</span>
+            <span className={styles.statCount}>{counts.newCount}</span>
             <span className={styles.statLabel}>Neue Märkte</span>
           </div>
           <div className={styles.stat}>
             <div className={`${styles.statDot} ${styles.statDotChanged}`} />
-            <span className={styles.statCount}>{changedMarkets.length}</span>
+            <span className={styles.statCount}>{counts.changedCount}</span>
             <span className={styles.statLabel}>Geänderte Märkte</span>
           </div>
           <div className={styles.stat}>
             <div className={`${styles.statDot} ${styles.statDotUnchanged}`} />
-            <span className={styles.statCount}>{unchangedMarkets.length}</span>
+            <span className={styles.statCount}>{counts.unchangedCount}</span>
             <span className={styles.statLabel}>Unverändert</span>
           </div>
         </div>
         
         {/* Content */}
         <div className={styles.content}>
-          {/* New Markets Section (Red) */}
-          {newMarkets.length > 0 && (
-            <div className={styles.section}>
-              <div className={`${styles.sectionHeader} ${styles.sectionHeaderNew}`}>
-                <Plus size={18} weight="bold" className={styles.sectionIconNew} />
-                <h3 className={styles.sectionTitle}>Neue Märkte</h3>
-                <span className={styles.sectionCount}>{newMarkets.length} Märkte werden neu angelegt</span>
-              </div>
-              <div className={styles.marketsList}>
-                {newMarkets.map(item => renderMarketCard(item, styles.marketCardNew))}
-              </div>
+          {!isReady ? (
+            <div className={styles.loadingSection}>
+              <div className={styles.spinner} />
+              <span>Vergleiche {importedMarkets.length} Märkte...</span>
             </div>
-          )}
-          
-          {/* Changed Markets Section (Purple) */}
-          {changedMarkets.length > 0 && (
-            <div className={styles.section}>
-              <div className={`${styles.sectionHeader} ${styles.sectionHeaderChanged}`}>
-                <ArrowsClockwise size={18} weight="bold" className={styles.sectionIconChanged} />
-                <h3 className={styles.sectionTitle}>Geänderte Märkte</h3>
-                <span className={styles.sectionCount}>{changedMarkets.length} Märkte werden aktualisiert</span>
-              </div>
-              <div className={styles.marketsList}>
-                {changedMarkets.map(item => renderMarketCard(item, styles.marketCardChanged))}
-              </div>
-            </div>
-          )}
-          
-          {/* Unchanged Markets Section (Green) */}
-          {unchangedMarkets.length > 0 && (
-            <div className={styles.section}>
-              <div className={`${styles.sectionHeader} ${styles.sectionHeaderUnchanged}`}>
-                <CheckCircle size={18} weight="bold" className={styles.sectionIconUnchanged} />
-                <h3 className={styles.sectionTitle}>Unveränderte Märkte</h3>
-                <span className={styles.sectionCount}>{unchangedMarkets.length} Märkte bleiben unverändert</span>
-                <button 
-                  className={styles.collapseToggle}
-                  onClick={() => setShowUnchanged(!showUnchanged)}
-                >
-                  {showUnchanged ? 'Ausblenden' : 'Anzeigen'}
-                  {showUnchanged ? <CaretUp size={14} /> : <CaretDown size={14} />}
-                </button>
-              </div>
-              {showUnchanged && (
-                <div className={styles.marketsList}>
-                  {unchangedMarkets.map(item => renderMarketCard(item, styles.marketCardUnchanged))}
+          ) : (
+            <>
+              {/* New Markets Section (Red) */}
+              {counts.newCount > 0 && (
+                <div className={styles.section}>
+                  <div className={`${styles.sectionHeader} ${styles.sectionHeaderNew}`}>
+                    <Plus size={18} weight="bold" className={styles.sectionIconNew} />
+                    <h3 className={styles.sectionTitle}>Neue Märkte</h3>
+                    <span className={styles.sectionCount}>{counts.newCount} werden neu angelegt</span>
+                  </div>
+                  <div className={styles.marketsList}>
+                    {newMarkets.slice(0, visibleNewCount).map(renderNewMarketRow)}
+                  </div>
+                  {counts.newCount > visibleNewCount && (
+                    <button 
+                      className={styles.loadMoreButton}
+                      onClick={() => setVisibleNewCount(v => v + LOAD_MORE_COUNT)}
+                    >
+                      {counts.newCount - visibleNewCount} weitere anzeigen
+                    </button>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-          
-          {/* Empty state if all removed */}
-          {marketsToImport.length === 0 && (
-            <div className={styles.emptySection}>
-              Keine Märkte zum Importieren vorhanden.
-            </div>
+              
+              {/* Changed Markets Section (Purple) */}
+              {counts.changedCount > 0 && (
+                <div className={styles.section}>
+                  <div className={`${styles.sectionHeader} ${styles.sectionHeaderChanged}`}>
+                    <ArrowsClockwise size={18} weight="bold" className={styles.sectionIconChanged} />
+                    <h3 className={styles.sectionTitle}>Geänderte Märkte</h3>
+                    <span className={styles.sectionCount}>{counts.changedCount} werden aktualisiert</span>
+                  </div>
+                  <div className={styles.marketsList}>
+                    {changedMarkets.slice(0, visibleChangedCount).map(renderChangedMarketRow)}
+                  </div>
+                  {counts.changedCount > visibleChangedCount && (
+                    <button 
+                      className={styles.loadMoreButton}
+                      onClick={() => setVisibleChangedCount(v => v + LOAD_MORE_COUNT)}
+                    >
+                      {counts.changedCount - visibleChangedCount} weitere anzeigen
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {/* Unchanged Markets Section (Green) */}
+              {counts.unchangedCount > 0 && (
+                <div className={styles.section}>
+                  <div className={`${styles.sectionHeader} ${styles.sectionHeaderUnchanged}`}>
+                    <CheckCircle size={18} weight="bold" className={styles.sectionIconUnchanged} />
+                    <h3 className={styles.sectionTitle}>Unveränderte Märkte</h3>
+                    <span className={styles.sectionCount}>{counts.unchangedCount} bleiben unverändert</span>
+                    <button 
+                      className={styles.collapseToggle}
+                      onClick={() => setShowUnchanged(!showUnchanged)}
+                    >
+                      {showUnchanged ? 'Ausblenden' : 'Anzeigen'}
+                      {showUnchanged ? <CaretUp size={14} /> : <CaretDown size={14} />}
+                    </button>
+                  </div>
+                  {showUnchanged && (
+                    <>
+                      <div className={styles.marketsList}>
+                        {unchangedMarkets.slice(0, visibleUnchangedCount).map(renderUnchangedMarketRow)}
+                      </div>
+                      {counts.unchangedCount > visibleUnchangedCount && (
+                        <button 
+                          className={styles.loadMoreButton}
+                          onClick={() => setVisibleUnchangedCount(v => v + LOAD_MORE_COUNT)}
+                        >
+                          {counts.unchangedCount - visibleUnchangedCount} weitere anzeigen
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+              
+              {/* Empty state if all removed */}
+              {counts.newCount === 0 && counts.changedCount === 0 && counts.unchangedCount === 0 && (
+                <div className={styles.emptySection}>
+                  Keine Märkte zum Importieren vorhanden.
+                </div>
+              )}
+            </>
           )}
         </div>
         
@@ -309,7 +402,7 @@ export const MarketImportPreviewModal: React.FC<MarketImportPreviewModalProps> =
             <button 
               className={styles.importButton}
               onClick={handleConfirm}
-              disabled={marketsToActuallyImport.length === 0}
+              disabled={marketsToActuallyImport.length === 0 || !isReady}
             >
               <Upload size={18} weight="bold" />
               {marketsToActuallyImport.length} Märkte importieren
@@ -384,39 +477,12 @@ export const MarketImportPreviewModal: React.FC<MarketImportPreviewModalProps> =
                 />
               </div>
               <div className={styles.editField}>
-                <label className={styles.editLabel}>Banner</label>
-                <input 
-                  type="text" 
-                  className={styles.editInput} 
-                  value={editingMarket.banner || ''}
-                  onChange={e => setEditingMarket({ ...editingMarket, banner: e.target.value })}
-                />
-              </div>
-              <div className={styles.editField}>
                 <label className={styles.editLabel}>Frequenz</label>
                 <input 
                   type="number" 
                   className={styles.editInput} 
                   value={editingMarket.frequency}
                   onChange={e => setEditingMarket({ ...editingMarket, frequency: parseInt(e.target.value) || 12 })}
-                />
-              </div>
-              <div className={styles.editField}>
-                <label className={styles.editLabel}>Telefon</label>
-                <input 
-                  type="text" 
-                  className={styles.editInput} 
-                  value={editingMarket.marketTel || ''}
-                  onChange={e => setEditingMarket({ ...editingMarket, marketTel: e.target.value })}
-                />
-              </div>
-              <div className={styles.editField}>
-                <label className={styles.editLabel}>Email</label>
-                <input 
-                  type="text" 
-                  className={styles.editInput} 
-                  value={editingMarket.marketEmail || ''}
-                  onChange={e => setEditingMarket({ ...editingMarket, marketEmail: e.target.value })}
                 />
               </div>
             </div>

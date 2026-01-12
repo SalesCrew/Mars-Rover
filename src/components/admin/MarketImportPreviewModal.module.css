@@ -404,6 +404,57 @@
   font-size: var(--font-size-sm);
 }
 
+/* Loading State */
+.loadingSection {
+  padding: var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  color: var(--color-text-secondary);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-stroke);
+  border-top-color: #3B82F6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Load More Button */
+.loadMoreButton {
+  width: 100%;
+  padding: var(--space-md);
+  margin-top: var(--space-sm);
+  background: var(--color-bg-secondary);
+  border: 1px dashed var(--color-stroke);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.loadMoreButton:hover {
+  background: var(--color-bg-primary);
+  border-color: var(--color-text-tertiary);
+  color: var(--color-text-primary);
+}
+
+/* More changes indicator */
+.moreChanges {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
 /* Collapse toggle for unchanged */
 .collapseToggle {
   background: none;
