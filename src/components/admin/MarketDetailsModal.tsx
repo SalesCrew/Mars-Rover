@@ -202,6 +202,20 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
             <span className={styles.detailItem}>Besuch #{details.visitCount}</span>
           </div>
         );
+      case 'produkttausch':
+        return (
+          <div className={styles.activityDetails}>
+            <span className={styles.detailReason}>{details.reason}</span>
+            {details.items?.slice(0, 2).map((item: any, i: number) => (
+              <span key={i} className={styles.detailItem}>
+                {item.quantity}× {item.name} ({item.itemType === 'take_out' ? 'Raus' : 'Rein'})
+              </span>
+            ))}
+            {details.items?.length > 2 && (
+              <span className={styles.detailMore}>+{details.items.length - 2} weitere</span>
+            )}
+          </div>
+        );
       default:
         return null;
     }
