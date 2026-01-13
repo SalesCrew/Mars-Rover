@@ -269,6 +269,19 @@
   background: rgba(59, 130, 246, 0.03);
 }
 
+.progressEntryWrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.progressEntryExpandable {
+  cursor: pointer;
+}
+
+.progressEntryExpandable:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
 .entryLeft {
   display: flex;
   align-items: center;
@@ -319,6 +332,23 @@
   border-radius: 5px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+}
+
+.itemTypePalette {
+  color: #8B5CF6;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.itemTypeSchuette {
+  color: #F59E0B;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.expandIndicator {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6B7280;
+  margin-left: 8px;
 }
 
 .entryMarket {
@@ -393,6 +423,73 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Products Section (for palette/schuette) */
+.productsSection {
+  background: linear-gradient(135deg, rgba(249, 250, 251, 0.9), rgba(243, 244, 246, 0.7));
+  border-top: 1px solid rgba(226, 232, 240, 0.5);
+  padding: 12px 22px 12px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.productRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  gap: 12px;
+}
+
+.productRow:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.productName {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  flex: 1;
+}
+
+.productDetails {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.productQuantity {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3B82F6;
+  padding: 4px 8px;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 4px;
+}
+
+.productValue {
+  font-size: 14px;
+  font-weight: 700;
+  color: #10B981;
+  min-width: 70px;
+  text-align: right;
 }
 
 /* Footer */

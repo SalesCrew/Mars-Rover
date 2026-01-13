@@ -17,24 +17,35 @@ interface WaveProgressDetailModalProps {
   onClose: () => void;
 }
 
+interface ProductDetail {
+  id: string;
+  name: string;
+  quantity: number;
+  valuePerUnit: number;
+  value: number;
+}
+
 interface GLProgress {
   id: string;
   glName: string;
   glEmail: string;
   marketName: string;
   marketChain: string;
-  itemType: 'display' | 'kartonware';
+  itemType: 'display' | 'kartonware' | 'palette' | 'schuette';
   itemName: string;
   quantity: number;
   value: number;
   timestamp: string;
   photoUrl?: string;
+  parentId?: string;
+  products?: ProductDetail[];
 }
 
 export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = ({ welle, onClose }) => {
   const [progressData, setProgressData] = useState<GLProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [collapsedGLs, setCollapsedGLs] = useState<Set<string>>(new Set());
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   const toggleGL = (glName: string) => {
     setCollapsedGLs(prev => {
@@ -46,6 +57,28 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
       }
       return newSet;
     });
+  };
+
+  const toggleItem = (itemId: string) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const getItemTypeLabel = (itemType: string) => {
+    switch (itemType) {
+      case 'display': return 'Display';
+      case 'kartonware': return 'Kartonware';
+      case 'palette': return 'Palette';
+      case 'schuette': return 'Schütte';
+      default: return itemType;
+    }
   };
 
   useEffect(() => {
@@ -156,45 +189,78 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                   {/* Progress Entries - Collapsible */}
                   <div className={`${styles.progressEntries} ${collapsedGLs.has(glName) ? styles.entriesCollapsed : ''}`}>
                     {progresses.map((progress, idx) => (
-                      <div key={idx} className={styles.progressEntry}>
-                        <div className={styles.entryLeft}>
-                          <div className={styles.entryIcon}>
-                            {progress.itemType === 'display' ? (
-                              <Package size={18} weight="duotone" />
-                            ) : (
-                              <Package size={18} weight="fill" />
-                            )}
-                          </div>
-                          <div className={styles.entryDetails}>
-                            <div className={styles.entryItem}>
-                              <span className={styles.itemName}>{progress.itemName}</span>
-                              <span className={styles.itemType}>
-                                {progress.itemType === 'display' ? 'Display' : 'Kartonware'}
-                              </span>
+                      <div key={idx} className={styles.progressEntryWrapper}>
+                        <div 
+                          className={`${styles.progressEntry} ${(progress.itemType === 'palette' || progress.itemType === 'schuette') ? styles.progressEntryExpandable : ''}`}
+                          onClick={() => {
+                            if (progress.products && progress.products.length > 0) {
+                              toggleItem(progress.id);
+                            }
+                          }}
+                        >
+                          <div className={styles.entryLeft}>
+                            <div className={styles.entryIcon}>
+                              {progress.itemType === 'display' ? (
+                                <Package size={18} weight="duotone" />
+                              ) : progress.itemType === 'kartonware' ? (
+                                <Package size={18} weight="fill" />
+                              ) : (
+                                <Package size={18} weight="bold" />
+                              )}
                             </div>
-                            <div className={styles.entryMarket}>
-                              <span className={styles.marketChain}>{progress.marketChain}</span>
-                              <span className={styles.marketName}>{progress.marketName}</span>
+                            <div className={styles.entryDetails}>
+                              <div className={styles.entryItem}>
+                                <span className={styles.itemName}>{progress.itemName}</span>
+                                <span className={`${styles.itemType} ${progress.itemType === 'palette' ? styles.itemTypePalette : progress.itemType === 'schuette' ? styles.itemTypeSchuette : ''}`}>
+                                  {getItemTypeLabel(progress.itemType)}
+                                </span>
+                                {progress.products && progress.products.length > 0 && (
+                                  <span className={styles.expandIndicator}>
+                                    {expandedItems.has(progress.id) ? '▼' : '▶'} {progress.products.length} Produkte
+                                  </span>
+                                )}
+                              </div>
+                              <div className={styles.entryMarket}>
+                                <span className={styles.marketChain}>{progress.marketChain}</span>
+                                <span className={styles.marketName}>{progress.marketName}</span>
+                              </div>
                             </div>
                           </div>
+
+                          <div className={styles.entryRight}>
+                            <div className={styles.entryQuantity}>
+                              <span className={styles.quantityValue}>{progress.quantity}x</span>
+                            </div>
+                            <div className={styles.entryValue}>
+                              €{progress.value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            <div className={styles.entryTimestamp}>
+                              <Clock size={14} weight="regular" />
+                              <span>{formatTimestamp(progress.timestamp)}</span>
+                            </div>
+                          </div>
+
+                          {progress.photoUrl && (
+                            <div className={styles.entryPhoto}>
+                              <img src={progress.photoUrl} alt="Beweis" />
+                            </div>
+                          )}
                         </div>
 
-                        <div className={styles.entryRight}>
-                          <div className={styles.entryQuantity}>
-                            <span className={styles.quantityValue}>{progress.quantity}x</span>
-                          </div>
-                          <div className={styles.entryValue}>
-                            €{progress.value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </div>
-                          <div className={styles.entryTimestamp}>
-                            <Clock size={14} weight="regular" />
-                            <span>{formatTimestamp(progress.timestamp)}</span>
-                          </div>
-                        </div>
-
-                        {progress.photoUrl && (
-                          <div className={styles.entryPhoto}>
-                            <img src={progress.photoUrl} alt="Beweis" />
+                        {/* Expandable Products Section */}
+                        {progress.products && progress.products.length > 0 && expandedItems.has(progress.id) && (
+                          <div className={styles.productsSection}>
+                            {progress.products.map((product, pIdx) => (
+                              <div key={pIdx} className={styles.productRow}>
+                                <span className={styles.productName}>{product.name}</span>
+                                <div className={styles.productDetails}>
+                                  <span className={styles.productQuantity}>{product.quantity}x</span>
+                                  <span className={styles.productValue}>
+                                    €{product.value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
