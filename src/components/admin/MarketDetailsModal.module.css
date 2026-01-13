@@ -515,6 +515,124 @@
 .detailItem {
   font-size: 12px;
   color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.detailItemExpandable {
+  cursor: pointer;
+  padding: 6px 8px;
+  margin: -4px -8px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.detailItemExpandable:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.expandIndicator {
+  font-size: 10px;
+  color: #6B7280;
+  margin-left: 6px;
+}
+
+.historyHeaderClickable {
+  cursor: pointer;
+}
+
+.groupSummary {
+  cursor: pointer;
+  padding: 8px;
+  margin: 4px -8px -4px -8px;
+  border-radius: 8px;
+  background: rgba(249, 250, 251, 0.8);
+  transition: background 0.15s ease;
+}
+
+.groupSummary:hover {
+  background: rgba(243, 244, 246, 1);
+}
+
+.groupSummaryRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.groupSummaryItems {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.groupTotalValue {
+  font-weight: 600;
+  color: #10B981;
+  margin-left: auto;
+}
+
+.groupExpandedEntries {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.groupEntry {
+  padding: 8px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+.detailValue {
+  font-weight: 600;
+  color: #10B981;
+}
+
+.productsExpanded {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(249, 250, 251, 0.8);
+  border-radius: 6px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.productRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: white;
+  border-radius: 4px;
+  font-size: 11px;
+  gap: 8px;
+}
+
+.productName {
+  flex: 1;
+  color: #374151;
+}
+
+.productQuantity {
+  font-weight: 600;
+  color: #3B82F6;
+}
+
+.productValue {
+  font-weight: 600;
+  color: #10B981;
+  min-width: 50px;
+  text-align: right;
 }
 
 .detailMore {

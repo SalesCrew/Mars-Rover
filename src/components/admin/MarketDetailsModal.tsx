@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { X, CaretDown, ClockCounterClockwise, Info, Package, ShoppingCart, Storefront, ArrowsLeftRight, Spinner } from '@phosphor-icons/react';
 import type { AdminMarket } from '../../types/market-types';
@@ -38,6 +38,84 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('details');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [expandedHistoryItems, setExpandedHistoryItems] = useState<Set<string>>(new Set());
+
+  const toggleHistoryItem = (id: string) => {
+    setExpandedHistoryItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  // Group history entries by exact timestamp for same submission
+  interface GroupedHistoryEntry {
+    groupId: string;
+    date: string;
+    glName: string;
+    type: 'vorbesteller' | 'vorverkauf' | 'marktbesuch' | 'produkttausch';
+    entries: HistoryEntry[];
+    totalValue: number;
+    summary: { displays: number; kartonware: number; paletten: number; schuetten: number };
+  }
+
+  const groupedHistory = useMemo((): GroupedHistoryEntry[] => {
+    const groups: Map<string, GroupedHistoryEntry> = new Map();
+    
+    history.forEach(entry => {
+      // Create a unique key based on timestamp + type + glName
+      const groupKey = `${entry.date}_${entry.type}_${entry.glName}`;
+      
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, {
+          groupId: groupKey,
+          date: entry.date,
+          glName: entry.glName,
+          type: entry.type,
+          entries: [],
+          totalValue: 0,
+          summary: { displays: 0, kartonware: 0, paletten: 0, schuetten: 0 }
+        });
+      }
+      
+      const group = groups.get(groupKey)!;
+      group.entries.push(entry);
+      
+      // Update summary counts for vorbesteller
+      if (entry.type === 'vorbesteller' && entry.details) {
+        const itemType = entry.details.itemType;
+        if (itemType === 'display') group.summary.displays++;
+        else if (itemType === 'kartonware') group.summary.kartonware++;
+        else if (itemType === 'palette') group.summary.paletten++;
+        else if (itemType === 'schuette') group.summary.schuetten++;
+        
+        // Add to total value
+        if (entry.details.totalValue) {
+          group.totalValue += entry.details.totalValue;
+        }
+      }
+    });
+    
+    return Array.from(groups.values()).sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [history]);
+
+  const renderGroupSummary = (group: GroupedHistoryEntry) => {
+    const { summary } = group;
+    const parts: string[] = [];
+    
+    if (summary.displays > 0) parts.push(`${summary.displays} Display${summary.displays > 1 ? 's' : ''}`);
+    if (summary.kartonware > 0) parts.push(`${summary.kartonware} Kartonware`);
+    if (summary.paletten > 0) parts.push(`${summary.paletten} Palette${summary.paletten > 1 ? 'n' : ''}`);
+    if (summary.schuetten > 0) parts.push(`${summary.schuetten} Schütte${summary.schuetten > 1 ? 'n' : ''}`);
+    
+    return parts.join(', ') || '1 Eintrag';
+  };
   
   const dropdownRefs = useRef<Record<DropdownType, HTMLDivElement | null>>({
     banner: null,
@@ -170,16 +248,49 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   };
 
   const renderActivityDetails = (entry: HistoryEntry) => {
-    const { type, details } = entry;
+    const { type, details, id } = entry;
+    const isExpanded = expandedHistoryItems.has(id);
+    const hasProducts = (details.itemType === 'palette' || details.itemType === 'schuette') && details.products?.length > 0;
     
     switch (type) {
       case 'vorbesteller':
         return (
           <div className={styles.activityDetails}>
             <span className={styles.detailWelle}>{details.welleName}</span>
-            <span className={styles.detailItem}>
-              {details.quantity}× {details.itemName}
-            </span>
+            <div 
+              className={`${styles.detailItem} ${hasProducts ? styles.detailItemExpandable : ''}`}
+              onClick={(e) => {
+                if (hasProducts) {
+                  e.stopPropagation();
+                  toggleHistoryItem(id);
+                }
+              }}
+            >
+              <span>
+                {details.quantity}× {details.itemName}
+                {hasProducts && (
+                  <span className={styles.expandIndicator}>
+                    {isExpanded ? ' ▼' : ' ▶'} {details.products.length} Produkte
+                  </span>
+                )}
+              </span>
+              {details.totalValue > 0 && (
+                <span className={styles.detailValue}>€{details.totalValue.toFixed(2)}</span>
+              )}
+            </div>
+            {hasProducts && isExpanded && (
+              <div className={styles.productsExpanded}>
+                {details.products.map((p: any, i: number) => (
+                  <div key={i} className={styles.productRow}>
+                    <span className={styles.productName}>{p.name}</span>
+                    <span className={styles.productQuantity}>{p.quantity}×</span>
+                    {p.valuePerUnit > 0 && (
+                      <span className={styles.productValue}>€{(p.quantity * p.valuePerUnit).toFixed(2)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       case 'vorverkauf':
@@ -385,28 +496,76 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
                   <Spinner size={24} weight="bold" className={styles.spinner} />
                   <span>Lade Verlauf...</span>
                 </div>
-              ) : history.length === 0 ? (
+              ) : groupedHistory.length === 0 ? (
                 <div className={styles.historyEmpty}>
                   <ClockCounterClockwise size={48} weight="light" />
                   <span>Keine Aktivitäten gefunden</span>
                 </div>
               ) : (
                 <div className={styles.historyList}>
-                  {history.map(entry => (
-                    <div key={entry.id} className={styles.historyItem}>
-                      <div className={`${styles.historyIcon} ${getActivityColor(entry.type)}`}>
-                        {getActivityIcon(entry.type)}
-                      </div>
-                      <div className={styles.historyContent}>
-                        <div className={styles.historyHeader}>
-                          <span className={styles.historyType}>{getActivityLabel(entry.type)}</span>
-                          <span className={styles.historyDate}>{formatDate(entry.date)}</span>
+                  {groupedHistory.map(group => {
+                    const isExpanded = expandedHistoryItems.has(group.groupId);
+                    const hasMultipleEntries = group.entries.length > 1;
+                    
+                    return (
+                      <div key={group.groupId} className={styles.historyItem}>
+                        <div className={`${styles.historyIcon} ${getActivityColor(group.type)}`}>
+                          {getActivityIcon(group.type)}
                         </div>
-                        <div className={styles.historyGl}>{entry.glName}</div>
-                        {renderActivityDetails(entry)}
+                        <div className={styles.historyContent}>
+                          <div 
+                            className={`${styles.historyHeader} ${hasMultipleEntries ? styles.historyHeaderClickable : ''}`}
+                            onClick={() => hasMultipleEntries && toggleHistoryItem(group.groupId)}
+                          >
+                            <span className={styles.historyType}>{getActivityLabel(group.type)}</span>
+                            <span className={styles.historyDate}>{formatDate(group.date)}</span>
+                          </div>
+                          <div className={styles.historyGl}>{group.glName}</div>
+                          
+                          {/* Compact summary for grouped entries */}
+                          {hasMultipleEntries && group.type === 'vorbesteller' ? (
+                            <div 
+                              className={styles.groupSummary}
+                              onClick={() => toggleHistoryItem(group.groupId)}
+                            >
+                              <div className={styles.groupSummaryRow}>
+                                <span className={styles.detailWelle}>{group.entries[0]?.details?.welleName}</span>
+                                <span className={styles.groupSummaryItems}>
+                                  {renderGroupSummary(group)}
+                                  {hasMultipleEntries && (
+                                    <span className={styles.expandIndicator}>
+                                      {isExpanded ? ' ▼' : ' ▶'}
+                                    </span>
+                                  )}
+                                </span>
+                                {group.totalValue > 0 && (
+                                  <span className={styles.groupTotalValue}>€{group.totalValue.toFixed(2)}</span>
+                                )}
+                              </div>
+                              
+                              {/* Expanded individual entries */}
+                              {isExpanded && (
+                                <div className={styles.groupExpandedEntries}>
+                                  {group.entries.map(entry => (
+                                    <div key={entry.id} className={styles.groupEntry}>
+                                      {renderActivityDetails(entry)}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            /* Single entry - show full details directly */
+                            group.entries.map(entry => (
+                              <div key={entry.id}>
+                                {renderActivityDetails(entry)}
+                              </div>
+                            ))
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
