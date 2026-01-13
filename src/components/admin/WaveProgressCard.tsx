@@ -15,6 +15,10 @@ interface WaveProgressData {
   displayTarget: number;
   kartonwareCount: number;
   kartonwareTarget: number;
+  paletteCount?: number;
+  paletteTarget?: number;
+  schutteCount?: number;
+  schutteTarget?: number;
   currentValue?: number;
   assignedMarkets: number;
   participatingGLs: number;
@@ -73,6 +77,10 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
     displayTarget,
     kartonwareCount,
     kartonwareTarget,
+    paletteCount,
+    paletteTarget,
+    schutteCount,
+    schutteTarget,
     currentValue,
     assignedMarkets,
     participatingGLs,
@@ -84,8 +92,8 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
   void _displayProgress; void _kartonwareProgress; // Reserved for future use
 
   // Calculate overall progress (rounded to 1 decimal)
-  const totalItems = displayCount + kartonwareCount;
-  const totalTargets = displayTarget + kartonwareTarget;
+  const totalItems = displayCount + kartonwareCount + (paletteCount || 0) + (schutteCount || 0);
+  const totalTargets = displayTarget + kartonwareTarget + (paletteTarget || 0) + (schutteTarget || 0);
   const overallProgress = totalTargets > 0 ? Math.min(100, Math.round((totalItems / totalTargets) * 100 * 10) / 10) : 0;
   
   // For percentage-based goals: calculate the goal in items (e.g., 80% of totalTargets)
