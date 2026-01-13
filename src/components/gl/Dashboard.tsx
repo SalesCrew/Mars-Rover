@@ -146,11 +146,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     fetchSuggestedMarkets();
   }, [user?.id]);
 
+  // Fetch real profile stats
+  const [profileStats, setProfileStats] = useState<any>(null);
+  
+  useEffect(() => {
+    const fetchProfileStats = async () => {
+      if (!user?.id) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}/gebietsleiter/${user.id}/profile-stats`);
+        if (response.ok) {
+          const stats = await response.json();
+          setProfileStats(stats);
+        }
+      } catch (error) {
+        console.error('Error fetching profile stats:', error);
+      }
+    };
+    fetchProfileStats();
+  }, [user?.id]);
+
   // Build profile data from GL data or use mock as fallback
   const profileData: GLProfile = useMemo(() => {
     if (glProfileData) {
       return {
-        ...mockProfileData, // Keep stats from mock for now
+        ...mockProfileData, // Keep some mock fields (mostVisitedMarket, topMarkets)
         id: glProfileData.id,
         name: glProfileData.name,
         address: glProfileData.address,
@@ -160,10 +179,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         email: glProfileData.email,
         profilePictureUrl: glProfileData.profile_picture_url,
         createdAt: glProfileData.created_at,
+        // Real stats from backend
+        monthlyVisits: profileStats?.monthlyVisits ?? mockProfileData.monthlyVisits,
+        totalMarkets: profileStats?.totalMarkets ?? mockProfileData.totalMarkets,
+        sellInSuccessRate: profileStats?.sellInSuccessRate ?? mockProfileData.sellInSuccessRate,
+        monthChangePercent: profileStats?.monthChangePercent,
+        sellInChangePercent: profileStats?.sellInChangePercent,
       };
     }
     return mockProfileData;
-  }, [glProfileData]);
+  }, [glProfileData, profileStats]);
 
   const handleLogout = () => {
     logout();

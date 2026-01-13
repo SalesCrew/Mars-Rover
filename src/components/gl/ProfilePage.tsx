@@ -58,8 +58,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
     year: 'numeric',
   });
 
-  // Format month/year comparison
-  const monthChange = '+12%'; // Mock data - in real app, calculate from historical data
+  // Format month/year comparison - now from real data
+  const monthChange = profile.monthChangePercent !== undefined 
+    ? `${profile.monthChangePercent >= 0 ? '+' : ''}${profile.monthChangePercent}%` 
+    : '+0%';
+  
+  const sellInChange = profile.sellInChangePercent !== undefined
+    ? `${profile.sellInChangePercent >= 0 ? '+' : ''}${profile.sellInChangePercent}%`
+    : '+0%';
 
   // Helper to get chain gradient color
   const getChainGradient = (chain: string) => {
@@ -443,7 +449,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
             </div>
 
             {/* Card 3: Durchschnittliche Besuchsdauer */}
-            <div className={styles.statCard}>
+            <div className={styles.statCard} style={{ position: 'relative' }}>
+              <div className={styles.comingSoonLabel}>Coming Soon</div>
               <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)' }}>
                 <Clock size={24} weight="fill" />
               </div>
@@ -461,9 +468,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
               <div className={styles.statContent}>
                 <div className={styles.statValue}>{profile.sellInSuccessRate}%</div>
                 <div className={styles.statLabel}>erfolgreiche Sell-Ins</div>
-                <div className={styles.statTrend}>
-                  <TrendUp size={14} weight="bold" />
-                  +5%
+                <div className={styles.statBadge}>
+                  {sellInChange} vs. Vormonat
                 </div>
               </div>
             </div>

@@ -107,6 +107,8 @@ export interface GLProfile {
   // Statistics
   monthlyVisits: number;
   totalMarkets: number;
+  monthChangePercent?: number; // Change vs previous month
+  sellInChangePercent?: number; // Change vs previous month
   mostVisitedMarket: {
     name: string;
     chain: string;
