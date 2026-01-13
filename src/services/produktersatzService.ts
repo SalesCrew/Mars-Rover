@@ -49,6 +49,9 @@ export interface PendingEntry {
   marketId: string;
   marketName: string;
   marketChain: string;
+  marketAddress: string;
+  marketCity: string;
+  marketPostalCode: string;
   takeOutCount: number;
   replaceCount: number;
   takeOutProducts: Array<{

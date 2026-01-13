@@ -171,11 +171,17 @@
 
 .chainPill {
   padding: 4px 10px;
-  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
   color: white;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  border-radius: var(--radius-full);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.marketAddress {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  opacity: 0.6;
 }
 
 .entrySummary {
@@ -209,13 +215,12 @@
 
 .exchangeSection {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
   gap: var(--space-md);
   margin-bottom: var(--space-lg);
 }
 
 .exchangeBox {
-  flex: 1;
   padding: var(--space-md);
   background: var(--color-background);
   border-radius: var(--radius-md);
@@ -243,6 +248,29 @@
   flex-direction: column;
   gap: var(--space-xs);
   margin-bottom: var(--space-sm);
+}
+
+.productListScrollable {
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: var(--space-xs);
+}
+
+.productListScrollable::-webkit-scrollbar {
+  width: 4px;
+}
+
+.productListScrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.productListScrollable::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.productListScrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .productItem {
@@ -277,6 +305,14 @@
   color: var(--color-text-primary);
   padding-top: var(--space-sm);
   border-top: 1px dashed var(--color-stroke);
+  position: sticky;
+  bottom: 0;
+  background: var(--color-background);
+  margin-top: var(--space-sm);
+}
+
+.exchangeTotalReplaceValue {
+  color: #10B981;
 }
 
 .exchangeArrow {
@@ -285,6 +321,8 @@
   justify-content: center;
   color: #F97316;
   flex-shrink: 0;
+  transform: rotate(90deg);
+  padding: var(--space-sm) 0;
 }
 
 .fulfillButton {

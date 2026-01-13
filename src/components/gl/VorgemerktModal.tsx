@@ -70,6 +70,20 @@ export const VorgemerktModal: React.FC<VorgemerktModalProps> = ({
     });
   };
 
+  const getChainColor = (chain: string) => {
+    const chainLower = chain.toLowerCase();
+    if (chainLower.includes('billa') || chainLower.includes('adeg')) {
+      return 'linear-gradient(135deg, #FED304, #F9C80E)';
+    }
+    if (chainLower.includes('spar') || chainLower.includes('interspar') || chainLower.includes('eurospar')) {
+      return 'linear-gradient(135deg, #EF4444, #DC2626)';
+    }
+    if (chainLower.includes('hagebau')) {
+      return 'linear-gradient(135deg, #06B6D4, #0891B2)';
+    }
+    return 'linear-gradient(135deg, #6B7280, #4B5563)';
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -118,8 +132,16 @@ export const VorgemerktModal: React.FC<VorgemerktModalProps> = ({
                       onClick={() => setExpandedEntry(isExpanded ? null : entry.id)}
                     >
                       <div className={styles.entryMarketInfo}>
+                        <span 
+                          className={styles.chainPill}
+                          style={{ background: getChainColor(entry.marketChain) }}
+                        >
+                          {entry.marketChain}
+                        </span>
                         <div className={styles.marketName}>{entry.marketName}</div>
-                        <span className={styles.chainPill}>{entry.marketChain}</span>
+                        <span className={styles.marketAddress}>
+                          {entry.marketAddress}, {entry.marketPostalCode} {entry.marketCity}
+                        </span>
                       </div>
                       <div className={styles.entrySummary}>
                         <span className={styles.productCount}>
@@ -139,9 +161,33 @@ export const VorgemerktModal: React.FC<VorgemerktModalProps> = ({
                     {isExpanded && (
                       <div className={styles.entryDetails}>
                         <div className={styles.exchangeSection}>
+                          <div className={`${styles.exchangeBox} ${styles.exchangeBoxReplace}`}>
+                            <div className={styles.exchangeLabel}>
+                              Ersetzt durch ({entry.replaceProducts.length})
+                            </div>
+                            <div className={`${styles.productList} ${entry.replaceProducts.length > 4 ? styles.productListScrollable : ''}`}>
+                              {entry.replaceProducts.map((p) => (
+                                <div key={p.id} className={styles.productItem}>
+                                  <span className={styles.productQuantity}>{p.quantity}×</span>
+                                  <span className={styles.productName}>{p.name}</span>
+                                  <span className={styles.productPrice}>
+                                    {formatPrice(p.price * p.quantity)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className={styles.exchangeTotal}>
+                              Gesamt: <span className={styles.exchangeTotalReplaceValue}>{formatPrice(entry.replaceValue)}</span>
+                            </div>
+                          </div>
+
+                          <div className={styles.exchangeArrow}>
+                            <ArrowsLeftRight size={20} weight="bold" />
+                          </div>
+
                           <div className={`${styles.exchangeBox} ${styles.exchangeBoxEntnommen}`}>
                             <div className={styles.exchangeLabel}>Entnommen</div>
-                            <div className={styles.productList}>
+                            <div className={`${styles.productList} ${entry.takeOutProducts.length > 4 ? styles.productListScrollable : ''}`}>
                               {entry.takeOutProducts.map((p) => (
                                 <div key={p.id} className={styles.productItem}>
                                   <span className={styles.productQuantity}>{p.quantity}×</span>
@@ -154,28 +200,6 @@ export const VorgemerktModal: React.FC<VorgemerktModalProps> = ({
                             </div>
                             <div className={styles.exchangeTotal}>
                               Gesamt: {formatPrice(entry.takeOutValue)}
-                            </div>
-                          </div>
-
-                          <div className={styles.exchangeArrow}>
-                            <ArrowsLeftRight size={20} weight="bold" />
-                          </div>
-
-                          <div className={`${styles.exchangeBox} ${styles.exchangeBoxReplace}`}>
-                            <div className={styles.exchangeLabel}>Ersetzt durch</div>
-                            <div className={styles.productList}>
-                              {entry.replaceProducts.map((p) => (
-                                <div key={p.id} className={styles.productItem}>
-                                  <span className={styles.productQuantity}>{p.quantity}×</span>
-                                  <span className={styles.productName}>{p.name}</span>
-                                  <span className={styles.productPrice}>
-                                    {formatPrice(p.price * p.quantity)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                            <div className={styles.exchangeTotal}>
-                              Gesamt: {formatPrice(entry.replaceValue)}
                             </div>
                           </div>
                         </div>
