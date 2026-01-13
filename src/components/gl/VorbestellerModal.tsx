@@ -1054,7 +1054,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     <div className={styles.itemInfo}>
                                       <div className={styles.itemName}>{product.name}</div>
                                       <div className={styles.itemMeta}>
-                                        €{product.valuePerVE.toFixed(2)}/VE · VE: {product.ve}
+                                        €{product.valuePerVE.toFixed(2)}/VE · Vorschlag/VE: {product.ve}
                                         {product.ean && ` · EAN: ${product.ean}`}
                                       </div>
                                     </div>
@@ -1109,7 +1109,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     <div className={styles.itemInfo}>
                                       <div className={styles.itemName}>{product.name}</div>
                                       <div className={styles.itemMeta}>
-                                        €{product.valuePerVE.toFixed(2)}/VE · VE: {product.ve}
+                                        €{product.valuePerVE.toFixed(2)}/VE · Vorschlag/VE: {product.ve}
                                         {product.ean && ` · EAN: ${product.ean}`}
                                       </div>
                                     </div>
