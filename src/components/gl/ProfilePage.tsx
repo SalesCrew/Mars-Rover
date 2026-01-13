@@ -10,7 +10,6 @@ import {
   CheckCircle,
   Receipt,
   ClipboardText,
-  Question,
   PencilSimple,
   FloppyDisk,
   Lock,
@@ -482,22 +481,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
               <div className={styles.highlightPill} style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' }}>
                 <Receipt size={20} weight="fill" />
                 <div className={styles.pillContent}>
-                  <span className={styles.pillValue}>47</span>
-                  <span className={styles.pillLabel}>Sell-Ins</span>
+                  <span className={styles.pillValue}>{profile.vorverkaufeCount ?? 0}</span>
+                  <span className={styles.pillLabel}>Vorverkäufe</span>
                 </div>
               </div>
               <div className={styles.highlightPill} style={{ background: 'linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)' }}>
                 <ClipboardText size={20} weight="fill" />
                 <div className={styles.pillContent}>
-                  <span className={styles.pillValue}>23</span>
-                  <span className={styles.pillLabel}>Vorbestellungen</span>
-                </div>
-              </div>
-              <div className={styles.highlightPill} style={{ background: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)' }}>
-                <Question size={20} weight="fill" />
-                <div className={styles.pillContent}>
-                  <span className={styles.pillValue}>3</span>
-                  <span className={styles.pillLabel}>Aktive Fragebögen</span>
+                  <span className={styles.pillValue}>{profile.produkttauschCount ?? 0}</span>
+                  <span className={styles.pillLabel}>Produkttausch</span>
                 </div>
               </div>
             </div>

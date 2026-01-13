@@ -186,6 +186,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         monthChangePercent: profileStats?.monthChangePercent,
         sellInChangePercent: profileStats?.sellInChangePercent,
         mostVisitedMarket: profileStats?.mostVisitedMarket ?? mockProfileData.mostVisitedMarket,
+        vorverkaufeCount: profileStats?.vorverkaufeCount ?? 0,
+        produkttauschCount: profileStats?.produkttauschCount ?? 0,
+        topMarkets: profileStats?.topMarkets ?? mockProfileData.topMarkets,
       };
     }
     return mockProfileData;
