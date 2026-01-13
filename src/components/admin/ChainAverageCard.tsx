@@ -30,16 +30,17 @@ export const ChainAverageCard: React.FC<ChainAverageCardProps> = ({ data }) => {
     marketsWithProgress,
     currentPercentage,
     currentValue,
-    totalValue,
+    // totalValue - not used, progress bar uses goalValue instead
   } = data;
 
   const remainingMarkets = totalMarkets - marketsWithProgress;
   
   // Calculate progress percentage for the bar
+  // For value-based goals, use goalValue (the target) not totalValue
   const progressPercentage = goalType === 'percentage'
     ? (currentPercentage || 0)
-    : totalValue && totalValue > 0
-      ? Math.min(100, ((currentValue || 0) / totalValue) * 100)
+    : goalValue && goalValue > 0
+      ? Math.min(100, ((currentValue || 0) / goalValue) * 100)
       : 0;
 
   // Check if goal is met
