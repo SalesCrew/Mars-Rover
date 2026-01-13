@@ -113,9 +113,9 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
           </div>
           <div className={styles.headerInfo}>
             <h3 className={styles.waveName}>{name}</h3>
-            <div className={styles.dateRange}>
+            <span className={styles.dateRangePill}>
               {formatCompactDate(startDate)} - {formatCompactDate(endDate)}
-            </div>
+            </span>
           </div>
         </div>
         <div className={`${styles.statusBadge} ${isFinished ? styles.statusFinished : styles.statusActive}`}>
