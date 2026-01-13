@@ -485,7 +485,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
                   <span className={styles.pillLabel}>Vorverkäufe</span>
                 </div>
               </div>
-              <div className={styles.highlightPill} style={{ background: 'linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)' }}>
+              <div className={styles.highlightPill} style={{ background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)' }}>
+                <ClipboardText size={20} weight="fill" />
+                <div className={styles.pillContent}>
+                  <span className={styles.pillValue}>{profile.vorbestellerCount ?? 0}</span>
+                  <span className={styles.pillLabel}>Vorbesteller</span>
+                </div>
+              </div>
+              <div className={styles.highlightPill} style={{ background: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)' }}>
                 <ClipboardText size={20} weight="fill" />
                 <div className={styles.pillContent}>
                   <span className={styles.pillValue}>{profile.produkttauschCount ?? 0}</span>
@@ -499,7 +506,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
           <section className={styles.topMarkets}>
             <h2 className={styles.sectionTitle}>Meine Top 3 Märkte</h2>
             <div className={styles.marketsList}>
-              {profile.topMarkets.map((market, index) => {
+              {(!profile.topMarkets || profile.topMarkets.length === 0) ? (
+                <div className={styles.emptyState}>
+                  <span>Noch keine Marktbesuche</span>
+                </div>
+              ) : profile.topMarkets.map((market, index) => {
                 const maxVisits = profile.topMarkets[0].visitCount;
                 const barWidth = (market.visitCount / maxVisits) * 100;
                 const lastVisitDate = new Date(market.lastVisit);

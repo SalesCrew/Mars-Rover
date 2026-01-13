@@ -117,6 +117,7 @@ export interface GLProfile {
   averageVisitDuration: number;
   sellInSuccessRate: number;
   vorverkaufeCount?: number; // This month's vorverkauf submissions
+  vorbestellerCount?: number; // This month's vorbesteller submissions
   produkttauschCount?: number; // This month's produkttausch entries
   topMarkets: Array<{
     id: string;

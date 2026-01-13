@@ -671,6 +671,19 @@
   gap: var(--space-md);
 }
 
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3xl) var(--space-xl);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(250, 251, 252, 0.8));
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 16px;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .marketItem {
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(250, 251, 252, 0.8));
   border: 1px solid rgba(226, 232, 240, 0.6);
