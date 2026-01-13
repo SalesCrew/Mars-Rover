@@ -449,7 +449,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
             </div>
 
             {/* Card 3: Durchschnittliche Besuchsdauer */}
-            <div className={styles.statCard} style={{ position: 'relative' }}>
+            <div className={`${styles.statCard} ${styles.statCardDisabled}`} style={{ position: 'relative' }}>
               <div className={styles.comingSoonLabel}>Coming Soon</div>
               <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)' }}>
                 <Clock size={24} weight="fill" />
@@ -467,7 +467,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
               </div>
               <div className={styles.statContent}>
                 <div className={styles.statValue}>{profile.sellInSuccessRate}%</div>
-                <div className={styles.statLabel}>erfolgreiche Sell-Ins</div>
+                <div className={styles.statLabel}>erfolgreiche Vorbesteller</div>
                 <div className={styles.statBadge}>
                   {sellInChange} vs. Vormonat
                 </div>
