@@ -31,6 +31,13 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Format date from "2026-01-05" to "5.1"
+  const formatCompactDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    return `${parseInt(parts[2])}.${parseInt(parts[1])}`;
+  };
+
   // Close context menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -107,7 +114,7 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
           <div className={styles.headerInfo}>
             <h3 className={styles.waveName}>{name}</h3>
             <div className={styles.dateRange}>
-              {startDate} - {endDate}
+              {formatCompactDate(startDate)} - {formatCompactDate(endDate)}
             </div>
           </div>
         </div>
