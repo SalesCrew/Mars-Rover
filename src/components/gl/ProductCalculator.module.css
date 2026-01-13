@@ -668,6 +668,248 @@
   gap: var(--space-md);
 }
 
+/* Custom Personalisiert Card */
+.customCard {
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, rgba(249, 115, 22, 0.08) 100%);
+  border: 2px solid #F97316;
+  border-radius: var(--radius-lg);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  animation: slideIn 0.3s ease;
+}
+
+.customCardEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  min-height: 120px;
+  border-style: dashed;
+}
+
+.customCardEmpty:hover {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(249, 115, 22, 0.12) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.1);
+}
+
+.customCardEditing {
+  border-style: solid;
+  cursor: default;
+}
+
+.customCardFinished {
+  border-style: solid;
+}
+
+.customCardFinished:hover {
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.1);
+  transform: translateY(-2px);
+}
+
+.customCardFinished.selected {
+  border-width: 2px;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(249, 115, 22, 0.12) 100%);
+}
+
+.customCardHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.customCardIcon {
+  color: #F97316;
+  flex-shrink: 0;
+}
+
+.customCardTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: #F97316;
+}
+
+.customCardSubtitle {
+  font-size: var(--font-size-sm);
+  color: #EA580C;
+  margin-left: auto;
+}
+
+.customEditButton {
+  margin-left: auto;
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #F97316;
+  border-radius: var(--radius-md);
+  color: #F97316;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.customEditButton:hover {
+  background: #F97316;
+  color: white;
+}
+
+.customProgressSection {
+  margin-bottom: var(--space-md);
+}
+
+.customProgressLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-size-sm);
+  color: #EA580C;
+}
+
+.customProgressValue {
+  font-weight: var(--font-weight-semibold);
+}
+
+.customProgressBar {
+  width: 100%;
+  height: 8px;
+  background: rgba(249, 115, 22, 0.15);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.customProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #F97316 0%, #EA580C 100%);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-normal);
+}
+
+.customDropdownContainer {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+
+.customDropdownButton {
+  width: 100%;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #F97316;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: var(--font-size-sm);
+}
+
+.customDropdownButton:hover {
+  border-color: #EA580C;
+  background: rgba(249, 115, 22, 0.05);
+}
+
+.customDropdownButton.open {
+  border-color: #EA580C;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.customDropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #F97316;
+  border-top: none;
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.customSelectedProducts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.customProductCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 12px;
+  background: white;
+  border: 1px solid #FED7AA;
+  border-radius: var(--radius-md);
+}
+
+.customProductInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.customProductName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.customProductMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.customProductPrice {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: #F97316;
+  min-width: 70px;
+  text-align: right;
+}
+
+.customFinishButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.customFinishButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.2);
+}
+
+.customFinishButton.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .suggestionCard {
   padding: var(--space-lg);
   background: white;

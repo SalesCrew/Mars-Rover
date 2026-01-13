@@ -52,6 +52,15 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   const availableDropdownRef = useRef<HTMLDivElement>(null);
   const availableSearchInputRef = useRef<HTMLInputElement>(null);
 
+  // Custom "Personalisiert" card states
+  const [isCustomCardEditing, setIsCustomCardEditing] = useState(false);
+  const [customProducts, setCustomProducts] = useState<ProductWithQuantity[]>([]);
+  const [isCustomDropdownOpen, setIsCustomDropdownOpen] = useState(false);
+  const [customSearchQuery, setCustomSearchQuery] = useState('');
+  const customDropdownRef = useRef<HTMLDivElement>(null);
+  const customSearchInputRef = useRef<HTMLInputElement>(null);
+  const [customSuggestion, setCustomSuggestion] = useState<ReplacementSuggestion | null>(null);
+
   // Fetch real products and markets from database
   useEffect(() => {
     const fetchData = async () => {
@@ -131,6 +140,28 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
     return groups;
   }, [filteredAvailableProducts]);
 
+  // Filter products for custom card dropdown
+  const filteredCustomProducts = useMemo(() => {
+    const query = customSearchQuery.toLowerCase().trim();
+    if (!query) return allProducts;
+    
+    return allProducts.filter(p => 
+      p.name.toLowerCase().includes(query) ||
+      p.department.toLowerCase().includes(query) ||
+      (p.sku && p.sku.toLowerCase().includes(query))
+    );
+  }, [customSearchQuery, allProducts]);
+
+  const groupedCustomProducts = useMemo(() => {
+    const groups: Record<string, Product[]> = {};
+    filteredCustomProducts.forEach(product => {
+      const key = `${product.department}-${product.productType}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(product);
+    });
+    return groups;
+  }, [filteredCustomProducts]);
+
   // Filter markets based on search query
   const filteredMarkets = useMemo(() => {
     const query = marketSearchQuery.toLowerCase().trim();
@@ -186,6 +217,9 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
       }
       if (marketDropdownRef.current && !marketDropdownRef.current.contains(event.target as Node)) {
         setIsMarketDropdownOpen(false);
+      }
+      if (customDropdownRef.current && !customDropdownRef.current.contains(event.target as Node)) {
+        setIsCustomDropdownOpen(false);
       }
     };
 
@@ -261,6 +295,77 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
         p.product.id === productId ? { ...p, quantity: numValue } : p
       ));
       }
+    }
+  };
+
+  // Custom card handlers
+  const handleAddCustomProduct = (product: Product) => {
+    const existing = customProducts.find(p => p.product.id === product.id);
+    if (existing) {
+      setCustomProducts(customProducts.filter(p => p.product.id !== product.id));
+    } else {
+      setCustomProducts([...customProducts, { product, quantity: 1 }]);
+    }
+    setCustomSearchQuery('');
+    setIsCustomDropdownOpen(false);
+  };
+
+  const handleUpdateCustomQuantity = (productId: string, delta: number) => {
+    setCustomProducts(customProducts.map(p => {
+      if (p.product.id === productId) {
+        const newQuantity = Math.max(0, (p.quantity || 0) + delta);
+        return { ...p, quantity: newQuantity };
+      }
+      return p;
+    }).filter(p => p.quantity > 0));
+  };
+
+  const handleManualCustomQuantityChange = (productId: string, value: string) => {
+    if (value === '') {
+      setCustomProducts(customProducts.map(p => 
+        p.product.id === productId ? { ...p, quantity: 0 } : p
+      ));
+    } else {
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue) && numValue >= 0) {
+        setCustomProducts(customProducts.map(p => 
+          p.product.id === productId ? { ...p, quantity: numValue } : p
+        ));
+      }
+    }
+  };
+
+  const handleRemoveCustomProduct = (productId: string) => {
+    setCustomProducts(customProducts.filter(p => p.product.id !== productId));
+  };
+
+  const handleFinalizeCustomCard = () => {
+    if (customProducts.length === 0) return;
+    
+    const totalValue = customProducts.reduce((sum, p) => sum + (p.product.price * p.quantity), 0);
+    const targetValue = getCustomCardTargetValue(); // 10% of removed value
+    
+    const newCustomSuggestion: ReplacementSuggestion = {
+      id: 'custom',
+      products: customProducts,
+      totalValue,
+      valueDifference: totalValue - targetValue, // Difference from 10% target
+      matchScore: 100,
+      categoryMatch: false,
+      brandMatch: false
+    };
+    
+    setCustomSuggestion(newCustomSuggestion);
+    setIsCustomCardEditing(false);
+  };
+
+  const handleEditCustomCard = () => {
+    if (customSuggestion) {
+      setCustomProducts(customSuggestion.products);
+    }
+    setIsCustomCardEditing(true);
+    if (selectedSuggestion?.id === 'custom') {
+      setSelectedSuggestion(null);
     }
   };
 
@@ -437,6 +542,20 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
 
   const getTotalRemovedValue = () => {
     return removedProducts.reduce((sum, p) => sum + p.product.price * p.quantity, 0);
+  };
+
+  const getCustomCardTotalValue = () => {
+    return customProducts.reduce((sum, p) => sum + p.product.price * p.quantity, 0);
+  };
+
+  const getCustomCardTargetValue = () => {
+    return getTotalRemovedValue() * 0.1; // 10% of removed value
+  };
+
+  const getCustomCardProgress = () => {
+    const target = getCustomCardTargetValue();
+    if (target === 0) return 0;
+    return Math.min((getCustomCardTotalValue() / target) * 100, 100);
   };
 
   const getCategoryLabel = (category: string, subCategory: string) => {
@@ -916,6 +1035,217 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
               ) : (
                 <>
                   <div className={styles.suggestions}>
+                    {/* Custom "Personalisiert" Card */}
+                    {isCustomCardEditing ? (
+                      <div className={`${styles.customCard} ${styles.customCardEditing}`}>
+                        <div className={styles.customCardHeader}>
+                          <Sparkle size={20} weight="bold" className={styles.customCardIcon} />
+                          <span className={styles.customCardTitle}>Personalisiert</span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className={styles.customProgressSection}>
+                          <div className={styles.customProgressLabel}>
+                            <span>Fortschritt</span>
+                            <span className={styles.customProgressValue}>
+                              {formatPrice(getCustomCardTotalValue())} / {formatPrice(getCustomCardTargetValue())}
+                            </span>
+                          </div>
+                          <div className={styles.customProgressBar}>
+                            <div 
+                              className={styles.customProgressFill}
+                              style={{ width: `${getCustomCardProgress()}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Product Dropdown */}
+                        <div className={`${styles.customDropdownContainer} ${isCustomDropdownOpen ? styles.dropdownOpen : ''}`} ref={customDropdownRef}>
+                          <button
+                            className={`${styles.customDropdownButton} ${isCustomDropdownOpen ? styles.open : ''}`}
+                            onClick={() => setIsCustomDropdownOpen(!isCustomDropdownOpen)}
+                          >
+                            <span className={styles.dropdownPlaceholder}>
+                              Produkt hinzufügen...
+                            </span>
+                            <CaretDown size={16} className={styles.dropdownChevron} />
+                          </button>
+
+                          {isCustomDropdownOpen && (
+                            <div className={styles.customDropdownMenu}>
+                              <div className={styles.searchContainer}>
+                                <MagnifyingGlass size={16} className={styles.searchIcon} />
+                                <input
+                                  ref={customSearchInputRef}
+                                  type="text"
+                                  className={styles.searchInput}
+                                  placeholder="Produkt suchen..."
+                                  value={customSearchQuery}
+                                  onChange={(e) => setCustomSearchQuery(e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+
+                              <div className={styles.dropdownScrollArea}>
+                                {Object.entries(groupedCustomProducts).map(([key, products]) => {
+                                  const [dept, type] = key.split('-');
+                                  const categoryName = getCategoryLabel(dept, type);
+                                  
+                                  return (
+                                    <div key={key} className={styles.dropdownSection}>
+                                      <div className={styles.categoryLabel}>{categoryName}</div>
+                                      {products.map(product => (
+                                        <button
+                                          key={product.id}
+                                          className={`${styles.dropdownItem} ${
+                                            customProducts.some(p => p.product.id === product.id) ? styles.selected : ''
+                                          }`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAddCustomProduct(product);
+                                          }}
+                                        >
+                                          <div className={styles.productInfo}>
+                                            <div className={styles.productName}>{product.name}</div>
+                                            <div className={styles.productDetails}>
+                                              {product.weight || product.content || '-'}
+                                              {product.palletSize && ` · ${product.palletSize} Stk`}
+                                            </div>
+                                          </div>
+                                          <div className={styles.productPriceInfo}>
+                                            <span className={styles.productPrice}>{formatPrice(product.price)}</span>
+                                            {customProducts.some(p => p.product.id === product.id) && (
+                                              <Check size={16} weight="bold" className={styles.checkIcon} />
+                                            )}
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Selected Products */}
+                        {customProducts.length > 0 && (
+                          <div className={styles.customSelectedProducts}>
+                            {customProducts.map(p => (
+                              <div key={p.product.id} className={styles.customProductCard}>
+                                <div className={styles.customProductInfo}>
+                                  <div className={styles.customProductName}>{p.product.name}</div>
+                                  <div className={styles.customProductMeta}>
+                                    {p.product.weight || p.product.content || '-'}
+                                  </div>
+                                </div>
+                                <div className={styles.quantityControls}>
+                                  <button
+                                    className={styles.quantityButton}
+                                    onClick={() => handleUpdateCustomQuantity(p.product.id, -1)}
+                                  >
+                                    <Minus size={16} weight="bold" />
+                                  </button>
+                                  <input
+                                    type="number"
+                                    className={styles.quantityInput}
+                                    value={p.quantity || ''}
+                                    onChange={(e) => handleManualCustomQuantityChange(p.product.id, e.target.value)}
+                                    min="1"
+                                  />
+                                  <button
+                                    className={styles.quantityButton}
+                                    onClick={() => handleUpdateCustomQuantity(p.product.id, 1)}
+                                  >
+                                    <Plus size={16} weight="bold" />
+                                  </button>
+                                </div>
+                                <div className={styles.customProductPrice}>
+                                  {formatPrice(p.product.price * p.quantity)}
+                                </div>
+                                <button
+                                  className={styles.removeButton}
+                                  onClick={() => handleRemoveCustomProduct(p.product.id)}
+                                >
+                                  <X size={16} weight="bold" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Fertig Button */}
+                        <button
+                          className={`${styles.customFinishButton} ${customProducts.length === 0 ? styles.disabled : ''}`}
+                          onClick={handleFinalizeCustomCard}
+                          disabled={customProducts.length === 0}
+                        >
+                          <Check size={18} weight="bold" />
+                          Fertig
+                        </button>
+                      </div>
+                    ) : customSuggestion ? (
+                      <button
+                        className={`${styles.customCard} ${styles.customCardFinished} ${selectedSuggestion?.id === 'custom' ? styles.selected : ''}`}
+                        onClick={() => setSelectedSuggestion(customSuggestion)}
+                      >
+                        <div className={styles.customCardHeader}>
+                          <Sparkle size={20} weight="bold" className={styles.customCardIcon} />
+                          <span className={styles.customCardTitle}>Personalisiert</span>
+                          <button
+                            className={styles.customEditButton}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditCustomCard();
+                            }}
+                          >
+                            Bearbeiten
+                          </button>
+                        </div>
+
+                        <div className={styles.suggestionProducts}>
+                          {customSuggestion.products.map(p => (
+                            <div key={p.product.id} className={styles.suggestionProduct}>
+                              <div className={styles.suggestionProductInfo}>
+                                <div className={styles.suggestionProductName}>
+                                  {p.quantity}x {p.product.name}
+                                </div>
+                                <div className={styles.suggestionProductMeta}>
+                                  {p.product.weight || p.product.content || '-'}
+                                  {p.product.palletSize && ` · ${p.product.palletSize} Stk`}
+                                </div>
+                              </div>
+                              <div className={styles.suggestionProductPrice}>
+                                {formatPrice(p.product.price * p.quantity)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className={styles.suggestionFooter}>
+                          <div className={styles.suggestionTotal}>
+                            <span>Gesamtwert</span>
+                            <span className={styles.suggestionTotalValue}>
+                              {formatPrice(customSuggestion.totalValue)}
+                            </span>
+                          </div>
+                          <div className={styles.valueDifference}>
+                            {customSuggestion.valueDifference > 0 ? '+' : ''}
+                            {formatPrice(customSuggestion.valueDifference)} Differenz
+                          </div>
+                        </div>
+                      </button>
+                    ) : (
+                      <button
+                        className={`${styles.customCard} ${styles.customCardEmpty}`}
+                        onClick={() => setIsCustomCardEditing(true)}
+                      >
+                        <Sparkle size={24} weight="bold" className={styles.customCardIcon} />
+                        <span className={styles.customCardTitle}>Personalisiert</span>
+                        <span className={styles.customCardSubtitle}>Eigene Kombination erstellen</span>
+                      </button>
+                    )}
+
                     {suggestions.map((suggestion, index) => (
                       <button
                         key={suggestion.id}
