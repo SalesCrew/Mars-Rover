@@ -139,7 +139,7 @@ export const VorgemerktModal: React.FC<VorgemerktModalProps> = ({
                     {isExpanded && (
                       <div className={styles.entryDetails}>
                         <div className={styles.exchangeSection}>
-                          <div className={styles.exchangeBox}>
+                          <div className={`${styles.exchangeBox} ${styles.exchangeBoxEntnommen}`}>
                             <div className={styles.exchangeLabel}>Entnommen</div>
                             <div className={styles.productList}>
                               {entry.takeOutProducts.map((p) => (
@@ -161,7 +161,7 @@ export const VorgemerktModal: React.FC<VorgemerktModalProps> = ({
                             <ArrowsLeftRight size={20} weight="bold" />
                           </div>
 
-                          <div className={styles.exchangeBox}>
+                          <div className={`${styles.exchangeBox} ${styles.exchangeBoxReplace}`}>
                             <div className={styles.exchangeLabel}>Ersetzt durch</div>
                             <div className={styles.productList}>
                               {entry.replaceProducts.map((p) => (

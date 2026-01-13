@@ -221,6 +221,14 @@
   border-radius: var(--radius-md);
 }
 
+.exchangeBoxEntnommen {
+  opacity: 0.6;
+}
+
+.exchangeBoxReplace {
+  opacity: 1;
+}
+
 .exchangeLabel {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
