@@ -39,7 +39,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
     const saved = localStorage.getItem('admin-selected-page');
     return (saved as AdminPage) || 'dashboard';
   });
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isHistorieModalOpen, setIsHistorieModalOpen] = useState(false);
   const [isCreateGLModalOpen, setIsCreateGLModalOpen] = useState(false);
@@ -164,12 +164,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   ];
 
   const handleMenuClick = (pageId: AdminPage) => {
-    if (selectedPage === pageId) {
-      setIsExpanded(!isExpanded);
-    } else {
-      setSelectedPage(pageId);
-      setIsExpanded(false);
-    }
+    setSelectedPage(pageId);
   };
 
   const handleFileSelect = async (file: File) => {
@@ -374,7 +369,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
 
   return (
     <div className={styles.adminPanel}>
-      <aside className={`${styles.sidebar} ${isExpanded ? styles.sidebarExpanded : ''}`}>
+      <aside 
+        className={`${styles.sidebar} ${isExpanded ? styles.sidebarExpanded : ''}`}
+        onMouseEnter={() => setIsExpanded(true)}
+        onMouseLeave={() => setIsExpanded(false)}
+      >
         <div className={styles.logoContainer}>
           <span className={styles.logoText}>
             {isExpanded ? 'Mars Rover Admin' : 'MR'}
