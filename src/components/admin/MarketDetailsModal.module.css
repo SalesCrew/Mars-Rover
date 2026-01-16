@@ -256,11 +256,63 @@
 .footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
   padding: 20px 28px;
   border-top: 1px solid rgba(226, 232, 240, 0.8);
   background: linear-gradient(135deg, rgba(249, 250, 251, 0.3), rgba(255, 255, 255, 0.5));
+}
+
+.footerRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.deleteButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: white;
+  border: 1px solid #FCA5A5;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #EF4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.deleteButton:hover {
+  background: #FEF2F2;
+  border-color: #EF4444;
+}
+
+.deleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deleteButtonConfirm {
+  background: #EF4444;
+  border-color: #EF4444;
+  color: white;
+  animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+.deleteButtonConfirm:hover {
+  background: #DC2626;
+  border-color: #DC2626;
+}
+
+@keyframes pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.02);
+  }
 }
 
 .cancelButton {

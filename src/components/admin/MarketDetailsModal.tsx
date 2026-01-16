@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { X, CaretDown, ClockCounterClockwise, Info, Package, ShoppingCart, Storefront, ArrowsLeftRight, Spinner } from '@phosphor-icons/react';
+import { X, CaretDown, ClockCounterClockwise, Info, Package, ShoppingCart, Storefront, ArrowsLeftRight, Spinner, Trash } from '@phosphor-icons/react';
 import type { AdminMarket } from '../../types/market-types';
 import { API_BASE_URL } from '../../config/database';
 import styles from './MarketDetailsModal.module.css';
@@ -11,6 +11,7 @@ interface MarketDetailsModalProps {
   availableGLs: Array<{ id: string; name: string; email: string }>;
   onClose: () => void;
   onSave: (updatedMarket: AdminMarket) => Promise<boolean>;
+  onDelete?: (marketId: string) => Promise<boolean>;
 }
 
 interface HistoryEntry {
@@ -30,15 +31,58 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   allMarkets, 
   availableGLs,
   onClose,
-  onSave 
+  onSave,
+  onDelete
 }) => {
   const [formData, setFormData] = useState<AdminMarket>(market);
   const [openDropdown, setOpenDropdown] = useState<DropdownType | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteClickCount, setDeleteClickCount] = useState(0);
+  const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('details');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [expandedHistoryItems, setExpandedHistoryItems] = useState<Set<string>>(new Set());
+
+  // Handle delete with double-click safety (must click twice within 2 seconds)
+  const handleDeleteClick = async () => {
+    if (!onDelete) return;
+    
+    if (deleteClickCount === 0) {
+      // First click - start countdown
+      setDeleteClickCount(1);
+      deleteTimeoutRef.current = setTimeout(() => {
+        setDeleteClickCount(0);
+      }, 2000);
+    } else {
+      // Second click within 2 seconds - actually delete
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+      setDeleteClickCount(0);
+      setIsDeleting(true);
+      try {
+        const success = await onDelete(market.id);
+        if (success) {
+          onClose();
+        }
+      } catch (error) {
+        console.error('Error deleting market:', error);
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const toggleHistoryItem = (id: string) => {
     setExpandedHistoryItems(prev => {
@@ -575,16 +619,28 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
         {/* Footer - only show for details tab */}
         {activeTab === 'details' && (
           <div className={styles.footer}>
-            <button className={styles.cancelButton} onClick={onClose} disabled={isSaving}>
-              Abbrechen
-            </button>
-            <button 
-              className={`${styles.saveButton} ${isSaving ? styles.saveButtonLoading : ''}`} 
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? 'Speichern...' : 'Speichern'}
-            </button>
+            {onDelete && (
+              <button 
+                className={`${styles.deleteButton} ${deleteClickCount === 1 ? styles.deleteButtonConfirm : ''}`}
+                onClick={handleDeleteClick}
+                disabled={isSaving || isDeleting}
+              >
+                <Trash size={16} weight="bold" />
+                {isDeleting ? 'Löschen...' : deleteClickCount === 1 ? 'Nochmal klicken!' : 'Löschen'}
+              </button>
+            )}
+            <div className={styles.footerRight}>
+              <button className={styles.cancelButton} onClick={onClose} disabled={isSaving || isDeleting}>
+                Abbrechen
+              </button>
+              <button 
+                className={`${styles.saveButton} ${isSaving ? styles.saveButtonLoading : ''}`} 
+                onClick={handleSave}
+                disabled={isSaving || isDeleting}
+              >
+                {isSaving ? 'Speichern...' : 'Speichern'}
+              </button>
+            </div>
           </div>
         )}
       </div>

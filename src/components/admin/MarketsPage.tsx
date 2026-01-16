@@ -616,6 +616,27 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
     }
   };
 
+  const handleDeleteMarket = async (marketId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/markets/${marketId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok && response.status !== 204) {
+        throw new Error('Failed to delete market');
+      }
+      
+      // Remove from local state
+      setMarkets(prevMarkets => prevMarkets.filter(m => m.id !== marketId));
+      setSelectedMarket(null);
+      console.log(`✅ Deleted market ${marketId}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to delete market:', error);
+      return false;
+    }
+  };
+
   const toggleFilter = (type: FilterType) => {
     setOpenFilter(openFilter === type ? null : type);
   };
@@ -1217,6 +1238,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
           }))}
           onClose={handleCloseModal}
           onSave={handleSaveMarket}
+          onDelete={handleDeleteMarket}
         />
       )}
 
