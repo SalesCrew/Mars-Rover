@@ -61,8 +61,8 @@
 /* Main Display */
 .mainDisplay {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   margin: 6px 0;
 }
 
@@ -87,7 +87,7 @@
 .goal {
   font-size: 14px;
   color: #9CA3AF;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: -0.2px;
 }
 
