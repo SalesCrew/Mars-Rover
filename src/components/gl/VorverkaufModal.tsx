@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { X, Package, MagnifyingGlass, Check, Plus, Minus, Storefront, CheckCircle, TrendUp, CaretDown, CaretUp, Clock, CalendarBlank } from '@phosphor-icons/react';
+import { X, Package, MagnifyingGlass, Check, Plus, Minus, Storefront, CheckCircle, TrendUp, CaretDown, CaretUp } from '@phosphor-icons/react';
 import type { Market } from '../../types/market-types';
 import type { Product } from '../../types/product-types';
 import { useAuth } from '../../contexts/AuthContext';
-import { vorverkaufWellenService, type VorverkaufWelle } from '../../services/vorverkaufWellenService';
+import { vorverkaufService } from '../../services/vorverkaufService';
+import { marketService } from '../../services/marketService';
 import { getAllProducts } from '../../data/productsData';
 import styles from './VorverkaufModal.module.css';
 
@@ -35,34 +36,23 @@ const getCategoryName = (department: string, productType: string): string => {
   return 'Sonstige';
 };
 
-// Format date range
-const formatDateRange = (startDate: string, endDate: string) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const formatOptions: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-  return `${start.toLocaleDateString('de-DE', formatOptions)} - ${end.toLocaleDateString('de-DE', formatOptions)}`;
-};
-
 export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   
   // Data states
-  const [waves, setWaves] = useState<VorverkaufWelle[]>([]);
-  const [waveMarkets, setWaveMarkets] = useState<Market[]>([]);
+  const [allMarkets, setAllMarkets] = useState<Market[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [isLoadingWaves, setIsLoadingWaves] = useState(false);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   
   // Selection states
-  const [selectedWaveId, setSelectedWaveId] = useState<string | null>(null);
   const [selectedMarketId, setSelectedMarketId] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<ProductWithQuantity[]>([]);
   const [globalReason, setGlobalReason] = useState<ReasonType | null>(null);
   const [useIndividualReasons, setUseIndividualReasons] = useState(false);
   
-  // View states
-  const [step, setStep] = useState<'waves' | 'markets' | 'products' | 'confirmation' | 'success'>('waves');
+  // View states - start directly at 'markets' (no wave selection)
+  const [step, setStep] = useState<'markets' | 'products' | 'confirmation' | 'success'>('markets');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Dropdown states
@@ -77,26 +67,40 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   const productSearchInputRef = useRef<HTMLInputElement>(null);
   const marketSearchInputRef = useRef<HTMLInputElement>(null);
 
-  // Load waves for GL
+  // Load all markets when modal opens
   useEffect(() => {
-    const loadWaves = async () => {
-      if (!isOpen || !user?.id) return;
+    const loadMarkets = async () => {
+      if (!isOpen) return;
       
       try {
-        setIsLoadingWaves(true);
-        const fetchedWaves = await vorverkaufWellenService.getWellenForGL(user.id);
-        setWaves(fetchedWaves);
+        setIsLoadingMarkets(true);
+        const dbMarkets = await marketService.getAllMarkets();
+        // Transform to Market type
+        const markets: Market[] = dbMarkets.map(m => ({
+          id: m.id,
+          name: m.name,
+          address: m.address,
+          city: m.city,
+          postalCode: m.postalCode,
+          chain: m.chain,
+          gebietsleiter: m.gebietsleiter,
+          frequency: m.frequency || 0,
+          currentVisits: m.currentVisits || 0,
+          lastVisitDate: m.lastVisitDate,
+          isCompleted: false
+        }));
+        setAllMarkets(markets);
       } catch (error) {
-        console.error('Error loading vorverkauf waves:', error);
+        console.error('Error loading markets:', error);
       } finally {
-        setIsLoadingWaves(false);
+        setIsLoadingMarkets(false);
       }
     };
     
-    loadWaves();
-  }, [isOpen, user?.id]);
+    loadMarkets();
+  }, [isOpen]);
 
-  // Load products
+  // Load products when modal opens
   useEffect(() => {
     const loadProducts = async () => {
       if (!isOpen) return;
@@ -114,27 +118,6 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     
     loadProducts();
   }, [isOpen]);
-
-  // Load markets when wave is selected
-  useEffect(() => {
-    const loadWaveMarkets = async () => {
-      if (!selectedWaveId) return;
-      
-      try {
-        setIsLoadingMarkets(true);
-        // Fetch all markets assigned to this wave (no GL filter - admin selected these specifically)
-        const markets = await vorverkaufWellenService.getWelleMarkets(selectedWaveId);
-        console.log('Loaded wave markets:', markets.length);
-        setWaveMarkets(markets);
-      } catch (error) {
-        console.error('Error loading wave markets:', error);
-      } finally {
-        setIsLoadingMarkets(false);
-      }
-    };
-    
-    loadWaveMarkets();
-  }, [selectedWaveId]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -163,8 +146,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     }
   }, [isMarketDropdownOpen]);
 
-  const selectedWave = waves.find(w => w.id === selectedWaveId);
-  const selectedMarket = waveMarkets.find(m => m.id === selectedMarketId);
+  const selectedMarket = allMarkets.find(m => m.id === selectedMarketId);
   const totalQuantity = selectedProducts.reduce((sum, p) => sum + p.quantity, 0);
   const totalValue = selectedProducts.reduce((sum, p) => sum + p.product.price * p.quantity, 0);
 
@@ -179,15 +161,15 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   // Filter markets based on search
   const filteredMarkets = useMemo(() => {
     const query = marketSearchQuery.toLowerCase().trim();
-    if (!query) return waveMarkets;
+    if (!query) return allMarkets;
     
-    return waveMarkets.filter(m => 
+    return allMarkets.filter(m => 
       m.name.toLowerCase().includes(query) ||
       m.address.toLowerCase().includes(query) ||
       m.city.toLowerCase().includes(query) ||
       m.chain.toLowerCase().includes(query)
     );
-  }, [marketSearchQuery, waveMarkets]);
+  }, [marketSearchQuery, allMarkets]);
 
   // Split markets into "Meine Märkte" and "Andere Märkte"
   // Use gebietsleiter_id (GL table ID) NOT user.id (Supabase Auth ID)
@@ -224,16 +206,6 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     });
     return groups;
   }, [filteredProducts]);
-
-  const handleSelectWave = (waveId: string) => {
-    setSelectedWaveId(waveId);
-  };
-
-  const handleWeiterToMarkets = () => {
-    if (selectedWaveId) {
-      setStep('markets');
-    }
-  };
 
   const handleSelectMarket = (marketId: string) => {
     setSelectedMarketId(marketId);
@@ -309,7 +281,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   };
 
   const handleSubmit = async () => {
-    if (!selectedWaveId || !selectedMarketId || !user?.id || selectedProducts.length === 0 || !allProductsHaveReasons) return;
+    if (!selectedMarketId || !user?.id || selectedProducts.length === 0 || !allProductsHaveReasons) return;
     
     setIsSubmitting(true);
     try {
@@ -320,9 +292,8 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
         reason: (useIndividualReasons ? p.reason : globalReason) as ReasonType
       }));
 
-      // Submit to backend
-      await vorverkaufWellenService.submitVorverkauf({
-        welleId: selectedWaveId,
+      // Submit to backend (no longer wave-based)
+      await vorverkaufService.submitVorverkauf({
         gebietsleiter_id: user.id,
         market_id: selectedMarketId,
         products: productsToSubmit
@@ -338,10 +309,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   };
 
   const handleBack = () => {
-    if (step === 'markets') {
-      setStep('waves');
-      setSelectedMarketId(null);
-    } else if (step === 'products') {
+    if (step === 'products') {
       setStep('markets');
     } else if (step === 'confirmation') {
       setStep('products');
@@ -358,17 +326,15 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
 
   // Full reset only on success completion
   const handleSuccessClose = () => {
-    setSelectedWaveId(null);
     setSelectedMarketId(null);
     setSelectedProducts([]);
     setGlobalReason(null);
     setUseIndividualReasons(false);
-    setStep('waves');
+    setStep('markets');
     setMarketSearchQuery('');
     setProductSearchQuery('');
     setIsProductDropdownOpen(false);
     setIsMarketDropdownOpen(false);
-    setWaveMarkets([]);
     onClose();
   };
 
@@ -380,25 +346,17 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   const getHeaderInfo = () => {
     switch (step) {
       case 'markets':
-        return { title: selectedWave?.name || 'Vorverkauf', subtitle: 'Markt auswählen' };
+        return { title: 'Vorverkauf', subtitle: 'Markt auswählen' };
       case 'products':
         return { title: selectedMarket?.name || 'Produkte', subtitle: 'Produkte und Grund auswählen' };
       case 'confirmation':
         return { title: 'Bestätigung', subtitle: 'Überprüfe deine Eingaben' };
       default:
-        return { title: 'Vorverkauf', subtitle: 'Wähle eine Kampagne aus' };
+        return { title: 'Vorverkauf', subtitle: 'Markt auswählen' };
     }
   };
 
   const headerInfo = getHeaderInfo();
-
-  // Status config for pills
-  const getStatusConfig = (status: string) => {
-    if (status === 'active') {
-      return { label: 'Aktiv', color: '#F97316', bgColor: 'rgba(249, 115, 22, 0.1)' };
-    }
-    return { label: 'Bevorstehend', color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.1)' };
-  };
 
   return (
     <div className={styles.modalOverlay} onClick={(e) => {
@@ -406,7 +364,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
         handleClose();
       }
     }}>
-      <div className={`${styles.modal} ${step === 'success' ? styles.successModal : ''} ${step === 'waves' ? styles.waveStep : ''}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`${styles.modal} ${step === 'success' ? styles.successModal : ''}`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         {step !== 'success' && (
           <div className={styles.header}>
@@ -473,12 +431,6 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                       <Check size={14} weight="bold" />
                     </div>
                     <div className={styles.successDetailText}>{selectedMarket?.name}</div>
-                  </div>
-                  <div className={styles.successDetailCard}>
-                    <div className={styles.successDetailCheck}>
-                      <Check size={14} weight="bold" />
-                    </div>
-                    <div className={styles.successDetailText}>{selectedWave?.name}</div>
                   </div>
                   {selectedProducts.slice(0, 2).map(p => (
                     <div key={p.product.id} className={styles.successDetailCard}>
@@ -688,10 +640,10 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
             <div className={styles.marketSection}>
               {isLoadingMarkets ? (
                 <div className={styles.loadingState}>Märkte laden...</div>
-              ) : waveMarkets.length === 0 ? (
+              ) : allMarkets.length === 0 ? (
                 <div className={styles.emptyState}>
                   <Storefront size={48} weight="regular" />
-                  <p>Keine Märkte für diese Kampagne verfügbar.</p>
+                  <p>Keine Märkte verfügbar.</p>
                 </div>
               ) : (
                 <>
@@ -856,10 +808,6 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
               {/* Summary Box */}
               <div className={styles.confirmSummaryBox}>
                 <div className={styles.confirmSummaryRow}>
-                  <span className={styles.confirmSummaryLabel}>Kampagne</span>
-                  <span className={styles.confirmSummaryValue}>{selectedWave?.name}</span>
-                </div>
-                <div className={styles.confirmSummaryRow}>
                   <span className={styles.confirmSummaryLabel}>Produkte</span>
                   <span className={styles.confirmSummaryValue}>{totalQuantity} Stück</span>
                 </div>
@@ -891,66 +839,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                 </div>
               </div>
             </div>
-          ) : (
-            /* Wave Selection View */
-            <div className={styles.wavesSection}>
-              {isLoadingWaves ? (
-                <div className={styles.loadingState}>Kampagnen laden...</div>
-              ) : waves.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <TrendUp size={48} weight="regular" />
-                  <p>Keine aktiven Vorverkauf-Kampagnen verfügbar.</p>
-                </div>
-              ) : (
-                <div className={styles.wavesList}>
-                  {waves.map(wave => {
-                    const statusConfig = getStatusConfig(wave.status);
-                    return (
-                      <button
-                        key={wave.id}
-                        className={`${styles.waveCard} ${selectedWaveId === wave.id ? styles.waveSelected : ''}`}
-                        onClick={() => handleSelectWave(wave.id)}
-                      >
-                        {wave.image && (
-                          <div className={styles.waveImageContainer}>
-                            <img src={wave.image} alt={wave.name} className={styles.waveImage} />
-                          </div>
-                        )}
-                        <div className={styles.waveInfo}>
-                          <div className={styles.waveHeader}>
-                            <span className={styles.waveName}>{wave.name}</span>
-                            <span 
-                              className={styles.wavePill}
-                              style={{ 
-                                backgroundColor: statusConfig.bgColor,
-                                color: statusConfig.color
-                              }}
-                            >
-                              {wave.status === 'active' ? (
-                                <TrendUp size={12} weight="bold" />
-                              ) : (
-                                <Clock size={12} weight="bold" />
-                              )}
-                              {statusConfig.label}
-                            </span>
-                          </div>
-                          <div className={styles.waveDateRange}>
-                            <CalendarBlank size={14} weight="regular" />
-                            <span>{formatDateRange(wave.startDate, wave.endDate)}</span>
-                          </div>
-                        </div>
-                        {selectedWaveId === wave.id && (
-                          <div className={styles.waveCheck}>
-                            <Check size={18} weight="bold" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+          ) : null}
         </div>
 
         {/* Footer */}
@@ -961,21 +850,12 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
             </button>
           ) : (
             <>
-              {step !== 'waves' && (
+              {step !== 'markets' && (
                 <button className={styles.btnSecondary} onClick={handleBack}>
                   Zurück
                 </button>
               )}
               <div className={styles.footerSpacer} />
-              {step === 'waves' && (
-                <button
-                  className={`${styles.btnPrimary} ${!selectedWaveId ? styles.btnDisabled : ''}`}
-                  onClick={handleWeiterToMarkets}
-                  disabled={!selectedWaveId}
-                >
-                  Weiter
-                </button>
-              )}
               {step === 'markets' && (
                 <button
                   className={`${styles.btnPrimary} ${!selectedMarketId ? styles.btnDisabled : ''}`}

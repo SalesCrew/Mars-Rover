@@ -44,7 +44,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [isHistorieModalOpen, setIsHistorieModalOpen] = useState(false);
   const [isCreateGLModalOpen, setIsCreateGLModalOpen] = useState(false);
   const [isCreateWelleModalOpen, setIsCreateWelleModalOpen] = useState(false);
-  const [isCreateVorverkaufWelleModalOpen, setIsCreateVorverkaufWelleModalOpen] = useState(false);
   const [isCreateModuleModalOpen, setIsCreateModuleModalOpen] = useState(false);
   const [isCreateFragebogenModalOpen, setIsCreateFragebogenModalOpen] = useState(false);
   const [isProductImportModalOpen, setIsProductImportModalOpen] = useState(false);
@@ -453,17 +452,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
               </button>
             </div>
           )}
-          {selectedPage === 'vorverkauf' && (
-            <div className={styles.headerButtons}>
-              <button 
-                className={styles.createWelleButton}
-                onClick={() => setIsCreateVorverkaufWelleModalOpen(true)}
-              >
-                <CalendarPlus size={18} weight="bold" />
-                <span>Welle erstellen</span>
-              </button>
-            </div>
-          )}
           {selectedPage === 'fragebogen' && (
             <div className={styles.headerButtons}>
               <button 
@@ -500,7 +488,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
           {selectedPage === 'markets' && <MarketsPage importedMarkets={importedMarkets} />}
           {selectedPage === 'gebietsleiter' && <GebietsleiterPage isCreateModalOpen={isCreateGLModalOpen} onCloseCreateModal={() => setIsCreateGLModalOpen(false)} allMarkets={allMarkets} />}
           {selectedPage === 'vorbesteller' && <VorbestellerPage isCreateWelleModalOpen={isCreateWelleModalOpen} onCloseCreateWelleModal={() => setIsCreateWelleModalOpen(false)} onOpenCreateWelleModal={() => setIsCreateWelleModalOpen(true)} waveIdToEdit={waveIdToEdit} onClearWaveIdToEdit={() => setWaveIdToEdit(null)} />}
-          {selectedPage === 'vorverkauf' && <VorverkaufAdminPage isCreateWelleModalOpen={isCreateVorverkaufWelleModalOpen} onCloseCreateWelleModal={() => setIsCreateVorverkaufWelleModalOpen(false)} onOpenCreateWelleModal={() => setIsCreateVorverkaufWelleModalOpen(true)} />}
+          {selectedPage === 'vorverkauf' && <VorverkaufAdminPage />}
           {selectedPage === 'produktersatz' && <ProduktErsatzPage />}
           {selectedPage === 'fragebogen' && <FragebogenPage isCreateModuleModalOpen={isCreateModuleModalOpen} onCloseCreateModuleModal={() => setIsCreateModuleModalOpen(false)} isCreateFragebogenModalOpen={isCreateFragebogenModalOpen} onCloseCreateFragebogenModal={() => setIsCreateFragebogenModalOpen(false)} />}
           {selectedPage === 'produkte' && <ProductsPage />}

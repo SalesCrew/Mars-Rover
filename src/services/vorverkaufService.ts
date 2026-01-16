@@ -37,6 +37,18 @@ export interface CreateVorverkaufDTO {
   }>;
 }
 
+// New interface for direct Vorverkauf submission (no wave)
+export interface SubmitVorverkaufDTO {
+  gebietsleiter_id: string;
+  market_id: string;
+  products: Array<{
+    productId: string;
+    quantity: number;
+    reason: 'OOS' | 'Listungslücke' | 'Platzierung';
+  }>;
+  notes?: string;
+}
+
 class VorverkaufService {
   private baseUrl = `${API_BASE_URL}/vorverkauf`;
 
@@ -106,6 +118,27 @@ class VorverkaufService {
       }
     } catch (error) {
       console.error('Error deleting vorverkauf entry:', error);
+      throw error;
+    }
+  }
+
+  // Submit Vorverkauf directly (no wave required)
+  async submitVorverkauf(data: SubmitVorverkaufDTO): Promise<{ id: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(error.error || 'Failed to submit vorverkauf');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error submitting vorverkauf:', error);
       throw error;
     }
   }
