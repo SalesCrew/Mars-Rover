@@ -455,6 +455,7 @@
 .marketsList :global(.scroll-list) {
   max-height: calc(100vh - 265px) !important;
   min-height: calc(100vh - 265px) !important;
+  padding-bottom: 80px !important;
 }
 
 .marketsList :global(.top-gradient) {
@@ -472,7 +473,7 @@
   gap: 0;
   height: 100%;
   overflow: hidden;
-  padding: 0 20px;
+  padding: 0 20px 60px 20px;
 }
 
 /* GL Section Toggle */
