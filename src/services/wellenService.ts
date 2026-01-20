@@ -365,6 +365,55 @@ class WellenService {
       throw error;
     }
   }
+
+  /**
+   * Update individual submission quantity
+   */
+  async updateSubmission(submissionId: string, quantity: number): Promise<{ message: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/submissions/${submissionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ quantity }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to update submission: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating submission:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete individual submission
+   */
+  async deleteSubmission(submissionId: string): Promise<{ message: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/submissions/${submissionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to delete submission: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      throw error;
+    }
+  }
 }
 
 export const wellenService = new WellenService();

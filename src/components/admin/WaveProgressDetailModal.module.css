@@ -446,16 +446,17 @@
 
 /* Products Section (for palette/schuette) */
 .productsSection {
-  background: linear-gradient(135deg, rgba(249, 250, 251, 0.9), rgba(243, 244, 246, 0.7));
+  background: linear-gradient(135deg, rgba(249, 250, 251, 0.95), rgba(243, 244, 246, 0.8));
   border-top: 1px solid rgba(226, 232, 240, 0.5);
-  padding: 12px 22px 12px 72px;
+  padding: 12px 16px;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  animation: slideDown 0.2s ease;
+  animation: productSlideDown 0.2s ease;
 }
 
-@keyframes slideDown {
+@keyframes productSlideDown {
   from {
     opacity: 0;
     transform: translateY(-8px);
@@ -470,15 +471,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 12px 16px;
   background: white;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid rgba(226, 232, 240, 0.6);
-  gap: 12px;
+  gap: 16px;
+  transition: all 0.15s ease;
 }
 
 .productRow:hover {
   border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.productRowEditing {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.02);
 }
 
 .productName {
@@ -486,6 +494,17 @@
   font-weight: 500;
   color: #374151;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.productRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .productDetails {
@@ -498,16 +517,22 @@
   font-size: 13px;
   font-weight: 600;
   color: #3B82F6;
-  padding: 4px 8px;
+  padding: 6px 10px;
   background: rgba(59, 130, 246, 0.08);
-  border-radius: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.productQuantity:hover {
+  background: rgba(59, 130, 246, 0.15);
 }
 
 .productValue {
   font-size: 14px;
   font-weight: 700;
   color: #10B981;
-  min-width: 70px;
+  min-width: 80px;
   text-align: right;
 }
 
@@ -548,6 +573,297 @@
   color: #1F2937;
 }
 
+/* Header Right Section */
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* View Toggle */
+.viewToggle {
+  display: flex;
+  align-items: center;
+  background: rgba(243, 244, 246, 0.8);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 2px;
+}
+
+.viewToggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6B7280;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.viewToggleBtn:hover {
+  color: #3B82F6;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.viewToggleBtnActive {
+  background: white;
+  color: #3B82F6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Days View */
+.daysView {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.daySection {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6), rgba(250, 251, 252, 0.4));
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.dayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  background: linear-gradient(135deg, rgba(249, 250, 251, 0.9), rgba(255, 255, 255, 0.8));
+  cursor: pointer;
+  transition: background 0.2s ease;
+  user-select: none;
+}
+
+.dayHeader:hover {
+  background: linear-gradient(135deg, rgba(243, 244, 246, 0.95), rgba(249, 250, 251, 0.9));
+}
+
+.dayHeaderExpanded {
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+.dayInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #3B82F6;
+}
+
+.dayTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1F2937;
+  margin: 0;
+}
+
+.daySummary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.dayEntryCount {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B7280;
+  padding: 4px 10px;
+  background: rgba(107, 114, 128, 0.08);
+  border-radius: 6px;
+}
+
+.dayTotalValue {
+  font-size: 15px;
+  font-weight: 700;
+  color: #10B981;
+}
+
+.dayEntries {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* GL name inline for days view */
+.glNameInline {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3B82F6;
+}
+
+.marketSeparator {
+  color: #D1D5DB;
+  font-size: 12px;
+}
+
+/* Edit Controls Wrapper */
+.editControlsWrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Edit Controls - matching GL VorbestellerModal style */
+.editControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #F3F4F6;
+  border-radius: 10px;
+}
+
+.quantityBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #374151;
+  transition: all 0.15s ease;
+}
+
+.quantityBtn:hover:not(:disabled) {
+  background: #F3F4F6;
+  border-color: #10B981;
+  color: #10B981;
+}
+
+.quantityBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.quantityInput {
+  width: 40px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1F2937;
+  outline: none;
+}
+
+.quantityInput::-webkit-inner-spin-button,
+.quantityInput::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Action buttons container */
+.editActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.saveBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E5E7EB;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #10B981;
+  transition: all 0.15s ease;
+}
+
+.saveBtn:hover:not(:disabled) {
+  border-color: #10B981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E5E7EB;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #EF4444;
+  transition: all 0.15s ease;
+}
+
+.cancelBtn:hover {
+  border-color: #EF4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+/* Delete Button - only visible in edit mode */
+.deleteBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E5E7EB;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #9CA3AF;
+  transition: all 0.15s ease;
+}
+
+.deleteBtn:hover {
+  border-color: #EF4444;
+  background: rgba(239, 68, 68, 0.05);
+  color: #EF4444;
+}
+
+/* Editing state */
+.progressEntryEditing {
+  background: rgba(59, 130, 246, 0.04) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Quantity clickable */
+.entryQuantity {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.entryQuantity:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .modal {
@@ -583,5 +899,13 @@
   .footerStat {
     width: 100%;
     justify-content: flex-start;
+  }
+  
+  .viewToggle {
+    display: none;
+  }
+  
+  .deleteBtn {
+    opacity: 1;
   }
 }
