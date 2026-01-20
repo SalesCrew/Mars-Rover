@@ -52,6 +52,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [isCreateDisplayModalOpen, setIsCreateDisplayModalOpen] = useState(false);
   const [isCreatePaletteModalOpen, setIsCreatePaletteModalOpen] = useState(false);
   const [isCreateSchutteModalOpen, setIsCreateSchutteModalOpen] = useState(false);
+  const [isCreateMarketModalOpen, setIsCreateMarketModalOpen] = useState(false);
   const [displayDepartment, setDisplayDepartment] = useState<'pets' | 'food'>('pets');
   const [paletteDepartment, setPaletteDepartment] = useState<'pets' | 'food'>('pets');
   const [schutteDepartment, setSchutteDepartment] = useState<'pets' | 'food'>('pets');
@@ -434,6 +435,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
                 <Upload size={18} weight="bold" />
                 <span>Importieren</span>
               </button>
+              <button 
+                className={styles.createMarketButton}
+                onClick={() => setIsCreateMarketModalOpen(true)}
+              >
+                <Plus size={18} weight="bold" />
+                <span>Markt hinzufügen</span>
+              </button>
             </div>
           )}
           {selectedPage === 'gebietsleiter' && (
@@ -491,7 +499,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
         
         <div className={styles.pageContent}>
           {selectedPage === 'dashboard' && <AdminDashboard onEditWave={handleEditWaveFromDashboard} />}
-          {selectedPage === 'markets' && <MarketsPage importedMarkets={importedMarkets} />}
+          {selectedPage === 'markets' && <MarketsPage importedMarkets={importedMarkets} isCreateModalOpen={isCreateMarketModalOpen} onCloseCreateModal={() => setIsCreateMarketModalOpen(false)} />}
           {selectedPage === 'gebietsleiter' && <GebietsleiterPage isCreateModalOpen={isCreateGLModalOpen} onCloseCreateModal={() => setIsCreateGLModalOpen(false)} allMarkets={allMarkets} />}
           {selectedPage === 'vorbesteller' && <VorbestellerPage isCreateWelleModalOpen={isCreateWelleModalOpen} onCloseCreateWelleModal={() => setIsCreateWelleModalOpen(false)} onOpenCreateWelleModal={() => setIsCreateWelleModalOpen(true)} waveIdToEdit={waveIdToEdit} onClearWaveIdToEdit={() => setWaveIdToEdit(null)} />}
           {selectedPage === 'vorverkauf' && <VorverkaufAdminPage />}

@@ -4,6 +4,7 @@ import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
 import { MarketListItem } from './MarketListItem';
 import { MarketListSkeleton } from './MarketListSkeleton';
 import { MarketDetailsModal } from './MarketDetailsModal';
+import { CreateMarketModal } from './CreateMarketModal';
 import { GLFilterCard } from './GLFilterCard';
 import type { ActionLogEntry } from './GLFilterCard';
 import { adminMarkets } from '../../data/adminMarketsData';
@@ -19,9 +20,11 @@ type MarketSortField = 'name' | 'chain' | 'city' | 'postalCode' | 'gebietsleiter
 
 interface MarketsPageProps {
   importedMarkets?: AdminMarket[];
+  isCreateModalOpen?: boolean;
+  onCloseCreateModal?: () => void;
 }
 
-export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }) => {
+export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], isCreateModalOpen = false, onCloseCreateModal }) => {
   const [markets, setMarkets] = useState<AdminMarket[]>([]);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -777,6 +780,19 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
     setBackfillResult(null);
   };
 
+  const handleCreateMarket = async (marketData: Partial<AdminMarket>): Promise<boolean> => {
+    try {
+      const newMarket = await marketService.createMarket(marketData);
+      // Add the new market to local state
+      setMarkets(prev => [...prev, newMarket]);
+      console.log('✅ Created new market:', newMarket.internalId);
+      return true;
+    } catch (error) {
+      console.error('Failed to create market:', error);
+      return false;
+    }
+  };
+
   return (
     <div className={styles.pageContainer}>
       {/* GL Filter Card */}
@@ -1239,6 +1255,20 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [] }
           onClose={handleCloseModal}
           onSave={handleSaveMarket}
           onDelete={handleDeleteMarket}
+        />
+      )}
+
+      {/* Create Market Modal */}
+      {isCreateModalOpen && onCloseCreateModal && (
+        <CreateMarketModal
+          allMarkets={markets}
+          availableGLs={glsData.map(gl => ({ 
+            id: gl.id, 
+            name: gl.name, 
+            email: gl.email 
+          }))}
+          onClose={onCloseCreateModal}
+          onSave={handleCreateMarket}
         />
       )}
 
