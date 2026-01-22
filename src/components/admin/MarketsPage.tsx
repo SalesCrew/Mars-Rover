@@ -782,7 +782,13 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
 
   const handleCreateMarket = async (marketData: Partial<AdminMarket>): Promise<boolean> => {
     try {
-      const newMarket = await marketService.createMarket(marketData);
+      // Generate an ID if not provided - use internalId prefixed with MKT-
+      const dataWithId = {
+        ...marketData,
+        id: marketData.id || `MKT-${marketData.internalId || Date.now()}`
+      };
+      
+      const newMarket = await marketService.createMarket(dataWithId);
       // Add the new market to local state
       setMarkets(prev => [...prev, newMarket]);
       console.log('✅ Created new market:', newMarket.internalId);
