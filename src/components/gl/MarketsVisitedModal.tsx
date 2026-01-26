@@ -24,13 +24,6 @@ const isVisitFresh = (market: Market): boolean => {
   return daysSinceVisit < freshnessThreshold;
 };
 
-// Format date to German format
-const formatDate = (dateStr: string | undefined): string => {
-  if (!dateStr) return '—';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
-
 // Calculate days since last visit
 const getDaysSinceVisit = (dateStr: string | undefined): number | null => {
   if (!dateStr) return null;

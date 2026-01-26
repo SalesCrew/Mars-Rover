@@ -3,10 +3,11 @@ import { X, CalendarBlank, Package, Info, MagnifyingGlass, Check, Plus, Minus, I
 import { RingLoader } from 'react-spinners';
 import styles from './VorbestellerModal.module.css';
 import type { Market } from '../../types/market-types';
-import { wellenService, type Welle } from '../../services/wellenService';
+import { wellenService, type Welle, type PendingDeliverySubmission } from '../../services/wellenService';
 import { useAuth } from '../../contexts/AuthContext';
 import { marketService } from '../../services/marketService';
 import { MarketVisitChoiceModal } from './MarketVisitChoiceModal';
+import { VorbestellerDeliveryPhotoModal } from './VorbestellerDeliveryPhotoModal';
 
 interface VorbestellerModalProps {
   isOpen: boolean;
@@ -61,7 +62,11 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSuccessAnimating, setIsSuccessAnimating] = useState(false);
   const [showVisitChoiceModal, setShowVisitChoiceModal] = useState(false);
-  const [pendingCreateNewVisit, setPendingCreateNewVisit] = useState<boolean | null>(null);
+  const [, setPendingCreateNewVisit] = useState<boolean | null>(null);
+  // Delivery photo modal state
+  const [showDeliveryPhotoModal, setShowDeliveryPhotoModal] = useState(false);
+  const [pendingDeliverySubmissions, setPendingDeliverySubmissions] = useState<PendingDeliverySubmission[]>([]);
+  const [isCheckingDeliveryPhotos, setIsCheckingDeliveryPhotos] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -228,10 +233,40 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     }
   };
 
-  const handleMarketWeiterClick = () => {
-    if (selectedMarket) {
+  const handleMarketWeiterClick = async () => {
+    if (!selectedMarket) return;
+    
+    // Check for pending delivery photos before proceeding
+    setIsCheckingDeliveryPhotos(true);
+    try {
+      const pending = await wellenService.getPendingDeliveryPhotos(selectedMarket.id);
+      if (pending && pending.length > 0) {
+        setPendingDeliverySubmissions(pending);
+        setShowDeliveryPhotoModal(true);
+      } else {
+        // No pending photos, proceed directly
+        setShowItemSelection(true);
+      }
+    } catch (error) {
+      console.error('Error checking pending delivery photos:', error);
+      // On error, proceed without photo modal
       setShowItemSelection(true);
+    } finally {
+      setIsCheckingDeliveryPhotos(false);
     }
+  };
+  
+  // Handler when user uploads delivery photos (one per palette/schütte)
+  const handleDeliveryPhotosUpload = async (photos: { submissionId: string; photoBase64: string }[]) => {
+    if (photos.length === 0) return;
+    await wellenService.uploadDeliveryPhotosPerItem(photos);
+  };
+  
+  // Handler when user skips or finishes delivery photo modal
+  const handleDeliveryPhotoComplete = () => {
+    setShowDeliveryPhotoModal(false);
+    setPendingDeliverySubmissions([]);
+    setShowItemSelection(true);
   };
 
   const handleFertigClick = () => {
@@ -440,6 +475,10 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     setIsSuccessAnimating(false);
     setShowVisitChoiceModal(false);
     setPendingCreateNewVisit(null);
+    // Reset delivery photo states
+    setShowDeliveryPhotoModal(false);
+    setPendingDeliverySubmissions([]);
+    setIsCheckingDeliveryPhotos(false);
     onClose();
   };
 
@@ -1380,9 +1419,9 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
               <button 
                 className={styles.primaryButton} 
                 onClick={handleMarketWeiterClick}
-                disabled={!selectedMarket}
+                disabled={!selectedMarket || isCheckingDeliveryPhotos}
               >
-                Weiter
+                {isCheckingDeliveryPhotos ? 'Lädt...' : 'Weiter'}
               </button>
             </>
           ) : (
@@ -1410,6 +1449,20 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
         onCreateNewVisit={handleCreateNewVisit}
         onCountToExisting={handleCountToExisting}
         onClose={() => setShowVisitChoiceModal(false)}
+      />
+      
+      {/* Delivery Photo Modal - shown when there are pending submissions from last visit */}
+      <VorbestellerDeliveryPhotoModal
+        isOpen={showDeliveryPhotoModal}
+        marketName={selectedMarket?.name || ''}
+        lastVisitDate={selectedMarket?.lastVisitDate || ''}
+        pendingSubmissions={pendingDeliverySubmissions}
+        onUploadPhotos={handleDeliveryPhotosUpload}
+        onSkip={handleDeliveryPhotoComplete}
+        onClose={() => {
+          setShowDeliveryPhotoModal(false);
+          setPendingDeliverySubmissions([]);
+        }}
       />
     </div>
   );

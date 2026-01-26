@@ -5,9 +5,11 @@ import type { Product } from '../../types/product-types';
 import { useAuth } from '../../contexts/AuthContext';
 import { vorverkaufService } from '../../services/vorverkaufService';
 import { marketService } from '../../services/marketService';
+import { wellenService, type PendingDeliverySubmission } from '../../services/wellenService';
 import { getAllProducts } from '../../data/productsData';
 import styles from './VorverkaufModal.module.css';
 import { MarketVisitChoiceModal } from './MarketVisitChoiceModal';
+import { VorbestellerDeliveryPhotoModal } from './VorbestellerDeliveryPhotoModal';
 
 interface VorverkaufModalProps {
   isOpen: boolean;
@@ -65,6 +67,11 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
   const [step, setStep] = useState<'markets' | 'products' | 'confirmation' | 'success'>('markets');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVisitChoiceModal, setShowVisitChoiceModal] = useState(false);
+  
+  // Delivery photo modal state
+  const [showDeliveryPhotoModal, setShowDeliveryPhotoModal] = useState(false);
+  const [pendingDeliverySubmissions, setPendingDeliverySubmissions] = useState<PendingDeliverySubmission[]>([]);
+  const [isCheckingDeliveryPhotos, setIsCheckingDeliveryPhotos] = useState(false);
   
   // Dropdown states
   const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
@@ -222,10 +229,40 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     setSelectedMarketId(marketId);
   };
 
-  const handleWeiterToProducts = () => {
-    if (selectedMarketId) {
+  const handleWeiterToProducts = async () => {
+    if (!selectedMarketId) return;
+    
+    // Check for pending delivery photos before proceeding
+    setIsCheckingDeliveryPhotos(true);
+    try {
+      const pending = await wellenService.getPendingDeliveryPhotos(selectedMarketId);
+      if (pending && pending.length > 0) {
+        setPendingDeliverySubmissions(pending);
+        setShowDeliveryPhotoModal(true);
+      } else {
+        // No pending photos, proceed directly
+        setStep('products');
+      }
+    } catch (error) {
+      console.error('Error checking pending delivery photos:', error);
+      // On error, proceed without photo modal
       setStep('products');
+    } finally {
+      setIsCheckingDeliveryPhotos(false);
     }
+  };
+  
+  // Handler when user uploads delivery photos (one per palette/schütte)
+  const handleDeliveryPhotosUpload = async (photos: { submissionId: string; photoBase64: string }[]) => {
+    if (photos.length === 0) return;
+    await wellenService.uploadDeliveryPhotosPerItem(photos);
+  };
+  
+  // Handler when user skips or finishes delivery photo modal
+  const handleDeliveryPhotoComplete = () => {
+    setShowDeliveryPhotoModal(false);
+    setPendingDeliverySubmissions([]);
+    setStep('products');
   };
 
   const handleAddProduct = (product: Product) => {
@@ -385,6 +422,10 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     setIsProductDropdownOpen(false);
     setIsMarketDropdownOpen(false);
     setShowVisitChoiceModal(false);
+    // Reset delivery photo states
+    setShowDeliveryPhotoModal(false);
+    setPendingDeliverySubmissions([]);
+    setIsCheckingDeliveryPhotos(false);
     onClose();
   };
 
@@ -908,11 +949,11 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
               <div className={styles.footerSpacer} />
               {step === 'markets' && (
                 <button
-                  className={`${styles.btnPrimary} ${!selectedMarketId ? styles.btnDisabled : ''}`}
+                  className={`${styles.btnPrimary} ${!selectedMarketId || isCheckingDeliveryPhotos ? styles.btnDisabled : ''}`}
                   onClick={handleWeiterToProducts}
-                  disabled={!selectedMarketId}
+                  disabled={!selectedMarketId || isCheckingDeliveryPhotos}
                 >
-                  Weiter
+                  {isCheckingDeliveryPhotos ? 'Lädt...' : 'Weiter'}
                 </button>
               )}
               {step === 'products' && (
@@ -946,6 +987,20 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
         onCreateNewVisit={handleCreateNewVisit}
         onCountToExisting={handleCountToExisting}
         onClose={() => setShowVisitChoiceModal(false)}
+      />
+      
+      {/* Delivery Photo Modal - shown when there are pending submissions from last visit */}
+      <VorbestellerDeliveryPhotoModal
+        isOpen={showDeliveryPhotoModal}
+        marketName={allMarkets.find(m => m.id === selectedMarketId)?.name || ''}
+        lastVisitDate={allMarkets.find(m => m.id === selectedMarketId)?.lastVisitDate || ''}
+        pendingSubmissions={pendingDeliverySubmissions}
+        onUploadPhotos={handleDeliveryPhotosUpload}
+        onSkip={handleDeliveryPhotoComplete}
+        onClose={() => {
+          setShowDeliveryPhotoModal(false);
+          setPendingDeliverySubmissions([]);
+        }}
       />
     </div>
   );

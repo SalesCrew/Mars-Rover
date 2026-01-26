@@ -5,10 +5,12 @@ import type { Market } from '../../types/market-types';
 import { getAllProducts } from '../../data/productsData';
 import { marketService } from '../../services/marketService';
 import { produktersatzService } from '../../services/produktersatzService';
+import { wellenService, type PendingDeliverySubmission } from '../../services/wellenService';
 import { useAuth } from '../../contexts/AuthContext';
 import { RingLoader } from 'react-spinners';
 import { ExchangeSuccessModal } from './ExchangeSuccessModal';
 import { MarketVisitChoiceModal } from './MarketVisitChoiceModal';
+import { VorbestellerDeliveryPhotoModal } from './VorbestellerDeliveryPhotoModal';
 import styles from './ProductCalculator.module.css';
 
 // Check if a date is within 3 weeks (21 days) from now
@@ -75,6 +77,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
   // Visit choice modal states
   const [showVisitChoiceModal, setShowVisitChoiceModal] = useState(false);
   const [pendingSubmitType, setPendingSubmitType] = useState<'pending' | 'confirm' | null>(null);
+  
+  // Delivery photo modal state
+  const [showDeliveryPhotoModal, setShowDeliveryPhotoModal] = useState(false);
+  const [pendingDeliverySubmissions, setPendingDeliverySubmissions] = useState<PendingDeliverySubmission[]>([]);
+  const [isCheckingDeliveryPhotos, setIsCheckingDeliveryPhotos] = useState(false);
 
   // Fetch real products and markets from database
   useEffect(() => {
@@ -382,6 +389,43 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
     if (selectedSuggestion?.id === 'custom') {
       setSelectedSuggestion(null);
     }
+  };
+
+  // Wrapper to check for delivery photos before calculating replacements
+  const handleBerechnenClick = async () => {
+    if (!selectedMarketId || removedProducts.length === 0) return;
+    
+    // Check for pending delivery photos before proceeding
+    setIsCheckingDeliveryPhotos(true);
+    try {
+      const pending = await wellenService.getPendingDeliveryPhotos(selectedMarketId);
+      if (pending && pending.length > 0) {
+        setPendingDeliverySubmissions(pending);
+        setShowDeliveryPhotoModal(true);
+      } else {
+        // No pending photos, proceed directly
+        calculateReplacements();
+      }
+    } catch (error) {
+      console.error('Error checking pending delivery photos:', error);
+      // On error, proceed without photo modal
+      calculateReplacements();
+    } finally {
+      setIsCheckingDeliveryPhotos(false);
+    }
+  };
+  
+  // Handler when user uploads delivery photos (one per palette/schütte)
+  const handleDeliveryPhotosUpload = async (photos: { submissionId: string; photoBase64: string }[]) => {
+    if (photos.length === 0) return;
+    await wellenService.uploadDeliveryPhotosPerItem(photos);
+  };
+  
+  // Handler when user skips or finishes delivery photo modal
+  const handleDeliveryPhotoComplete = () => {
+    setShowDeliveryPhotoModal(false);
+    setPendingDeliverySubmissions([]);
+    calculateReplacements();
   };
 
   const calculateReplacements = () => {
@@ -1519,11 +1563,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
               </button>
               <button
                 className={`${styles.button} ${styles.buttonPrimary}`}
-                onClick={calculateReplacements}
-                disabled={!selectedMarketId}
+                onClick={handleBerechnenClick}
+                disabled={!selectedMarketId || isCheckingDeliveryPhotos}
               >
                 <ArrowsClockwise size={18} weight="bold" />
-                Ersatz berechnen
+                {isCheckingDeliveryPhotos ? 'Lädt...' : 'Ersatz berechnen'}
               </button>
             </>
           ) : null}
@@ -1863,6 +1907,20 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
         onClose={() => {
           setShowVisitChoiceModal(false);
           setPendingSubmitType(null);
+        }}
+      />
+      
+      {/* Delivery Photo Modal - shown when there are pending submissions from last visit */}
+      <VorbestellerDeliveryPhotoModal
+        isOpen={showDeliveryPhotoModal}
+        marketName={allMarkets.find(m => m.id === selectedMarketId)?.name || ''}
+        lastVisitDate={allMarkets.find(m => m.id === selectedMarketId)?.lastVisitDate || ''}
+        pendingSubmissions={pendingDeliverySubmissions}
+        onUploadPhotos={handleDeliveryPhotosUpload}
+        onSkip={handleDeliveryPhotoComplete}
+        onClose={() => {
+          setShowDeliveryPhotoModal(false);
+          setPendingDeliverySubmissions([]);
         }}
       />
     </div>

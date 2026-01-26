@@ -431,6 +431,101 @@ class WellenService {
       throw error;
     }
   }
+
+  /**
+   * Get pending delivery photos for a market
+   * Returns submissions that don't have a delivery_photo_url yet
+   */
+  async getPendingDeliveryPhotos(marketId: string): Promise<PendingDeliverySubmission[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/market/${marketId}/pending-photos`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to fetch pending photos: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching pending delivery photos:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload a delivery verification photo for submissions
+   */
+  async uploadDeliveryPhoto(submissionIds: string[], photoBase64: string): Promise<{ success: boolean; photoUrl: string; updatedCount: number }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/upload-delivery-photo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          submissionIds,
+          imageData: photoBase64,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to upload delivery photo: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error uploading delivery photo:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload individual delivery photos per palette/schütte
+   * Each photo is linked to a specific parent submission ID
+   */
+  async uploadDeliveryPhotosPerItem(photos: { submissionId: string; photoBase64: string }[]): Promise<{ success: boolean; uploadedCount: number }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/upload-delivery-photos-per-item`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ photos }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to upload delivery photos: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error uploading delivery photos:', error);
+      throw error;
+    }
+  }
+}
+
+// Interface for pending delivery submissions
+export interface PendingDeliverySubmission {
+  id: string;
+  itemName: string;
+  itemType: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt';
+  quantity: number;
+  welleName: string;
+  createdAt: string;
+  // For palette/schuette items, contains the nested products
+  products?: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+  }>;
 }
 
 export const wellenService = new WellenService();

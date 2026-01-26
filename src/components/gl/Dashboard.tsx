@@ -437,7 +437,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         modules={activeVisit.modules}
         zeiterfassungActive={activeVisit.zeiterfassungActive}
         onClose={() => setActiveVisit(null)}
-        onComplete={(answers) => {
+        onComplete={(answers: Record<string, string>) => {
           console.log('Visit completed with answers:', answers);
           setActiveVisit(null);
         }}
