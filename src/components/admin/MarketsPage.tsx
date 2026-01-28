@@ -15,7 +15,7 @@ import type { AdminMarket } from '../../types/market-types';
 import { API_BASE_URL } from '../../config/database';
 import styles from './MarketsPage.module.css';
 
-type FilterType = 'chain' | 'id' | 'adresse' | 'gebietsleiter' | 'subgroup' | 'status';
+type FilterType = 'chain' | 'id' | 'adresse' | 'gebietsleiter' | 'subgroup' | 'status' | 'frequency';
 type MarketSortField = 'name' | 'chain' | 'city' | 'postalCode' | 'gebietsleiter';
 
 interface MarketsPageProps {
@@ -53,7 +53,8 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
     adresse: '',
     gebietsleiter: '',
     subgroup: '',
-    status: ''
+    status: '',
+    frequency: ''
   });
   const [selectedFilters, setSelectedFilters] = useState<{
     chain: string[];
@@ -62,13 +63,15 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
     gebietsleiter: string[];
     subgroup: string[];
     status: string[];
+    frequency: string[];
   }>({
     chain: [],
     id: [],
     adresse: [],
     gebietsleiter: [],
     subgroup: [],
-    status: []
+    status: [],
+    frequency: []
   });
 
   // Sorting state
@@ -83,8 +86,15 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
     adresse: useRef<HTMLDivElement>(null),
     gebietsleiter: useRef<HTMLDivElement>(null),
     subgroup: useRef<HTMLDivElement>(null),
-    status: useRef<HTMLDivElement>(null)
+    status: useRef<HTMLDivElement>(null),
+    frequency: useRef<HTMLDivElement>(null)
   };
+
+  // Frequency filter state (separate from the checkbox-based filters)
+  const [frequencyFilter, setFrequencyFilter] = useState<{ visits: string; frequency: string }>({
+    visits: '',
+    frequency: ''
+  });
 
   // Load markets from database on mount
   useEffect(() => {
@@ -282,6 +292,31 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
         }
       }
 
+      // Check Frequency filter (visits / frequency)
+      const visitFilterValue = frequencyFilter.visits.trim();
+      const freqFilterValue = frequencyFilter.frequency.trim();
+      
+      if (visitFilterValue || freqFilterValue) {
+        const marketVisits = market.currentVisits || 0;
+        const marketFreq = market.frequency || 0;
+        
+        // If visits filter is set, check visits match
+        if (visitFilterValue) {
+          const targetVisits = parseInt(visitFilterValue, 10);
+          if (!isNaN(targetVisits) && marketVisits !== targetVisits) {
+            return false;
+          }
+        }
+        
+        // If frequency filter is set, check frequency match
+        if (freqFilterValue) {
+          const targetFreq = parseInt(freqFilterValue, 10);
+          if (!isNaN(targetFreq) && marketFreq !== targetFreq) {
+            return false;
+          }
+        }
+      }
+
       return true;
     }).sort((a, b) => {
       let comparison = 0;
@@ -308,7 +343,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
       }
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [markets, selectedFilters, selectedGL, sortField, sortDirection]);
+  }, [markets, selectedFilters, selectedGL, sortField, sortDirection, frequencyFilter]);
 
   // Separate markets into GL's markets and other markets
   const glMarkets = useMemo(() => {
@@ -688,7 +723,8 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
       adresse: [],
       gebietsleiter: [],
       subgroup: [],
-      status: []
+      status: [],
+      frequency: []
     });
     setSearchTerms({
       chain: '',
@@ -696,8 +732,10 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
       adresse: '',
       gebietsleiter: '',
       subgroup: '',
-      status: ''
+      status: '',
+      frequency: ''
     });
+    setFrequencyFilter({ visits: '', frequency: '' });
     // Reset sort to default
     setSortField('name');
     setSortDirection('asc');
@@ -705,7 +743,8 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
 
   const hasActiveFilters = selectedGL !== null || 
     Object.values(selectedFilters).some(arr => arr.length > 0) ||
-    sortField !== 'name' || sortDirection !== 'asc';
+    sortField !== 'name' || sortDirection !== 'asc' ||
+    frequencyFilter.visits !== '' || frequencyFilter.frequency !== '';
 
   // Handler for backfilling GL IDs based on name matching
   const handleBackfillGLIds = async () => {
@@ -1132,7 +1171,71 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
           </div>
           
           <div className={styles.headerCell}></div>
-          <div className={styles.headerCell}>Frequenz</div>
+          <div ref={filterRefs.frequency} className={`${styles.headerCell} ${(frequencyFilter.visits || frequencyFilter.frequency) ? styles.headerCellActive : ''}`}>
+            <span>Frequenz</span>
+            <button 
+              className={`${styles.filterButton} ${(frequencyFilter.visits || frequencyFilter.frequency) ? styles.filterButtonActive : ''}`}
+              onClick={() => toggleFilter('frequency')}
+            >
+              <FunnelSimple size={14} weight="bold" />
+            </button>
+            {openFilter === 'frequency' && (
+              <div className={styles.frequencyFilterDropdown}>
+                <div className={styles.frequencyFilterHeader}>
+                  {frequencyFilter.visits || frequencyFilter.frequency ? (
+                    <span>Zeige: <strong>{frequencyFilter.visits || '?'}</strong> / <strong>{frequencyFilter.frequency || '?'}</strong></span>
+                  ) : (
+                    <span>Wert eingeben zum Filtern</span>
+                  )}
+                </div>
+                <div className={styles.frequencyFilterInputs}>
+                  <div className={styles.frequencyFilterField}>
+                    <label>Besuche</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="1"
+                      value={frequencyFilter.visits}
+                      onChange={(e) => setFrequencyFilter(prev => ({ ...prev, visits: e.target.value }))}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className={styles.frequencyFilterDivider}>/</div>
+                  <div className={styles.frequencyFilterField}>
+                    <label>Frequenz</label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="12"
+                      value={frequencyFilter.frequency}
+                      onChange={(e) => setFrequencyFilter(prev => ({ ...prev, frequency: e.target.value }))}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
+                <div className={styles.frequencyFilterActions}>
+                  <button 
+                    className={styles.frequencyFilterClear}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFrequencyFilter({ visits: '', frequency: '' });
+                    }}
+                  >
+                    Zurücksetzen
+                  </button>
+                  <button 
+                    className={styles.frequencyFilterApply}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenFilter(null);
+                    }}
+                  >
+                    Anwenden
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           
           <div ref={filterRefs.status} className={`${styles.headerCell} ${selectedFilters.status.length > 0 ? styles.headerCellActive : ''}`}>
             <span>Status</span>
