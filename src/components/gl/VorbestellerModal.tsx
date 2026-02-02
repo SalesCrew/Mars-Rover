@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { X, CalendarBlank, Package, Info, MagnifyingGlass, Check, Plus, Minus, Image as ImageIcon, CheckCircle, TrendUp } from '@phosphor-icons/react';
+import { X, CalendarBlank, Package, Info, MagnifyingGlass, Check, Plus, Minus, Image as ImageIcon, CheckCircle, TrendUp, CaretDown, CaretRight, Cube } from '@phosphor-icons/react';
 import { RingLoader } from 'react-spinners';
 import styles from './VorbestellerModal.module.css';
 import type { Market } from '../../types/market-types';
@@ -8,6 +8,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { marketService } from '../../services/marketService';
 import { MarketVisitChoiceModal } from './MarketVisitChoiceModal';
 import { VorbestellerDeliveryPhotoModal } from './VorbestellerDeliveryPhotoModal';
+import { getAllProducts } from '../../data/productsData';
+import type { Product } from '../../types/product-types';
 
 interface VorbestellerModalProps {
   isOpen: boolean;
@@ -67,6 +69,10 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const [showDeliveryPhotoModal, setShowDeliveryPhotoModal] = useState(false);
   const [pendingDeliverySubmissions, setPendingDeliverySubmissions] = useState<PendingDeliverySubmission[]>([]);
   const [isCheckingDeliveryPhotos, setIsCheckingDeliveryPhotos] = useState(false);
+  // Master products state for Einzelprodukte
+  const [masterProducts, setMasterProducts] = useState<Product[]>([]);
+  const [showAllProducts, setShowAllProducts] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +128,24 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   }, [isOpen]);
 
   const selectedVorbesteller = wellen.find(v => v.id === selectedCardId);
+
+  // Fetch master products when wave has einzelprodukt type
+  useEffect(() => {
+    const loadMasterProducts = async () => {
+      if (selectedVorbesteller?.types?.includes('einzelprodukt')) {
+        try {
+          const products = await getAllProducts();
+          setMasterProducts(products);
+        } catch (error) {
+          console.error('Error loading master products:', error);
+        }
+      }
+    };
+    if (selectedVorbesteller) {
+      loadMasterProducts();
+    }
+  }, [selectedVorbesteller]);
+
   const totalQuantity = Object.values(itemQuantities).reduce((sum, qty) => sum + qty, 0);
 
   // Calculate total value for palettes and schütten (towards €600 goal)
@@ -346,7 +370,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
         }
       });
 
-      // Add einzelprodukte with quantities
+      // Add einzelprodukte with quantities (wave-specific)
       selectedVorbesteller?.einzelproduktItems?.forEach(item => {
         const qty = itemQuantities[item.id] || 0;
         if (qty > 0) {
@@ -354,6 +378,20 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
             item_type: 'einzelprodukt',
             item_id: item.id,
             current_number: qty
+          });
+        }
+      });
+
+      // Add master products with quantities (from Alle Produkte section)
+      masterProducts.forEach(product => {
+        const productKey = `master-${product.id}`;
+        const qty = itemQuantities[productKey] || 0;
+        if (qty > 0) {
+          items.push({
+            item_type: 'einzelprodukt',
+            item_id: product.id,
+            current_number: qty,
+            value_per_unit: product.price > 0 ? product.price : undefined
           });
         }
       });
@@ -1176,6 +1214,82 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* All Products Section (Master Product List) */}
+                {selectedVorbesteller?.types?.includes('einzelprodukt') && masterProducts.length > 0 && (
+                  <div className={styles.allProductsSection}>
+                    <button 
+                      className={styles.allProductsHeader}
+                      onClick={() => setShowAllProducts(!showAllProducts)}
+                    >
+                      <div className={styles.allProductsHeaderLeft}>
+                        <Cube size={20} weight="regular" />
+                        <span>Alle Produkte</span>
+                        <span className={styles.allProductsCount}>{masterProducts.length}</span>
+                      </div>
+                      {showAllProducts ? <CaretDown size={18} weight="bold" /> : <CaretRight size={18} weight="bold" />}
+                    </button>
+                    
+                    {showAllProducts && (
+                      <div className={styles.allProductsContent}>
+                        <div className={styles.allProductsSearch}>
+                          <MagnifyingGlass size={16} />
+                          <input
+                            type="text"
+                            placeholder="Produkt suchen..."
+                            value={productSearchQuery}
+                            onChange={(e) => setProductSearchQuery(e.target.value)}
+                          />
+                        </div>
+                        
+                        <div className={styles.allProductsList}>
+                          {masterProducts
+                            .filter(product => 
+                              product.name.toLowerCase().includes(productSearchQuery.toLowerCase())
+                            )
+                            .map((product) => (
+                              <div key={`master-${product.id}`} className={styles.productCard}>
+                                <div className={styles.productInfo}>
+                                  <span className={`${styles.departmentBadge} ${product.department === 'pets' ? styles.departmentPets : styles.departmentFood}`}>
+                                    {product.department === 'pets' ? 'Pets' : 'Food'}
+                                  </span>
+                                  <div className={styles.productName}>{product.name}</div>
+                                  <div className={styles.productMeta}>
+                                    {product.weight && `${product.weight}`}
+                                    {product.price > 0 && ` · €${product.price.toFixed(2)}`}
+                                  </div>
+                                </div>
+                                <div className={styles.quantityControls}>
+                                  <button
+                                    className={styles.quantityButton}
+                                    onClick={() => handleUpdateItemQuantity(`master-${product.id}`, -1)}
+                                    aria-label="Weniger"
+                                  >
+                                    <Minus size={14} weight="bold" />
+                                  </button>
+                                  <input
+                                    type="text"
+                                    className={styles.quantity}
+                                    value={itemQuantities[`master-${product.id}`] === 0 || !itemQuantities[`master-${product.id}`] ? '' : itemQuantities[`master-${product.id}`]}
+                                    onChange={(e) => handleManualItemQuantityChange(`master-${product.id}`, e.target.value)}
+                                    placeholder="0"
+                                    aria-label="Menge"
+                                  />
+                                  <button
+                                    className={styles.quantityButton}
+                                    onClick={() => handleUpdateItemQuantity(`master-${product.id}`, 1)}
+                                    aria-label="Mehr"
+                                  >
+                                    <Plus size={14} weight="bold" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -1642,3 +1642,151 @@
 .paletteProducts .itemCard {
   background: white;
 }
+
+/* All Products Section */
+.allProductsSection {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.04), rgba(109, 40, 217, 0.02));
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.allProductsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.allProductsHeader:hover {
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.allProductsHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.allProductsHeaderLeft svg {
+  color: rgba(139, 92, 246, 0.7);
+}
+
+.allProductsCount {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  background: rgba(139, 92, 246, 0.15);
+  color: rgb(139, 92, 246);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.allProductsContent {
+  border-top: 1px solid rgba(139, 92, 246, 0.1);
+  padding: var(--space-md);
+}
+
+.allProductsSearch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.allProductsSearch svg {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.allProductsSearch input {
+  flex: 1;
+  border: none;
+  background: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.allProductsSearch input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.allProductsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.productCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.productCard:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.productInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.productName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.productMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.departmentBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 2px;
+  width: fit-content;
+}
+
+.departmentPets {
+  background: rgba(59, 130, 246, 0.12);
+  color: rgb(37, 99, 235);
+}
+
+.departmentFood {
+  background: rgba(245, 158, 11, 0.12);
+  color: rgb(217, 119, 6);
+}
