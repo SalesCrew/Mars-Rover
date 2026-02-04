@@ -66,15 +66,33 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
     ? `${profile.sellInChangePercent >= 0 ? '+' : ''}${profile.sellInChangePercent}%`
     : '+0%';
 
-  // Helper to get chain gradient color
+  // Helper to get chain gradient color - matching admin side colors
   const getChainGradient = (chain: string) => {
+    const upperChain = chain.toUpperCase();
     const chainColors: Record<string, string> = {
-      'BILLA': 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
-      'Spar': 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
-      'Merkur': 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
-      'Hofer': 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+      // BILLA Family
+      'BILLA+': 'linear-gradient(135deg, #FED304 0%, #EAB308 100%)',
+      'BILLA PLUS': 'linear-gradient(135deg, #FED304 0%, #EAB308 100%)',
+      'BILLA+ PRIVAT': 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
+      'BILLA PLUS PRIVAT': 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
+      'BILLA PRIVAT': 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+      'BILLA': 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+      // SPAR Family
+      'SPAR': 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+      'EUROSPAR': 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)',
+      'INTERSPAR': 'linear-gradient(135deg, #B91C1C 0%, #991B1B 100%)',
+      'SPAR GOURMET': 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+      // Other Chains
+      'HOFER': 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+      'MERKUR': 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+      'ADEG': 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+      'FUTTERHAUS': 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
+      'HAGEBAU': 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
+      'ZOOFACHHANDEL': 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
+      'PENNY': 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+      'NETTO': 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
     };
-    return chainColors[chain] || 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)';
+    return chainColors[upperChain] || 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)';
   };
 
   // Format visit percentage - reserved for future stats display

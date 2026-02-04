@@ -119,6 +119,15 @@ interface WelleKartonwareItem {
   itemValue?: number | null; // Only used when wave goalType is 'value'
 }
 
+interface WelleEinzelproduktItem {
+  id: string;
+  name: string;
+  targetNumber?: number;
+  currentNumber?: number;
+  picture?: string | null;
+  itemValue?: number | null;
+}
+
 // Welle type is imported from wellenService
 
 export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({ 
@@ -190,7 +199,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     }
   }, [waveIdToEdit, wellenList]);
 
-  // Load products from products table (displays, palettes, schuetten)
+  // Load products from products table (displays, palettes, schutten, standard)
   useEffect(() => {
     const loadProducts = async () => {
       try {
@@ -199,6 +208,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         setProductDisplays(products.filter(p => p.productType === 'display'));
         setProductPalettes(products.filter(p => p.productType === 'palette'));
         setProductSchuetten(products.filter(p => p.productType === 'schuette'));
+        setProductStandard(products.filter(p => p.productType === 'standard'));
       } catch (error) {
         console.error('Error loading products:', error);
       }
@@ -216,6 +226,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   const [productDisplays, setProductDisplays] = useState<Product[]>([]);
   const [productPalettes, setProductPalettes] = useState<Product[]>([]);
   const [productSchuetten, setProductSchuetten] = useState<Product[]>([]);
+  const [productStandard, setProductStandard] = useState<Product[]>([]);
   
   // Wave details
   const [waveName, setWaveName] = useState('');
@@ -617,6 +628,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         image: imageUrl,
         startDate,
         endDate,
+        types: selectedTypes,
         goalType,
         goalPercentage: goalType === 'percentage' ? parseFloat(goalPercentage) : null,
         goalValue: goalType === 'value' ? parseFloat(goalValue) : null,
@@ -751,6 +763,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     return pastWellen.flatMap(w => w.kartonwareItems || []);
   };
 
+  const getAllPastEinzelprodukte = (): WelleEinzelproduktItem[] => {
+    const pastWellen = wellenList.filter(w => w.status === 'past' || w.status === 'active');
+    return pastWellen.flatMap(w => w.einzelproduktItems || []);
+  };
+
   const handleOpenPastItems = (type: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt') => {
     setPastItemType(type);
     setIsPastItemsModalOpen(true);
@@ -761,7 +778,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     setPastItemType(null);
   };
 
-  const handleSelectPastItem = (item: WelleDisplayItem | WelleKartonwareItem) => {
+  const handleSelectPastItem = (item: WelleDisplayItem | WelleKartonwareItem | WelleEinzelproduktItem) => {
     if (pastItemType === 'display') {
       const newDisplay: DisplayItem = {
         id: Date.now().toString(),
@@ -780,7 +797,29 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         itemValue: item.itemValue?.toString()
       };
       setKartonwareItems(prev => [...prev, newKartonware]);
+    } else if (pastItemType === 'einzelprodukt') {
+      const newEinzelprodukt: EinzelproduktItem = {
+        id: Date.now().toString(),
+        name: item.name,
+        targetNumber: '',
+        picture: null,
+        itemValue: item.itemValue?.toString()
+      };
+      setEinzelprodukte(prev => [...prev, newEinzelprodukt]);
     }
+    handleClosePastItems();
+  };
+
+  // Handle selecting a standard product for einzelprodukt (from products table)
+  const handleSelectStandardProduct = (product: Product) => {
+    const newEinzelprodukt: EinzelproduktItem = {
+      id: Date.now().toString(),
+      name: product.name,
+      targetNumber: '',
+      picture: null,
+      itemValue: product.price?.toString()
+    };
+    setEinzelprodukte(prev => [...prev, newEinzelprodukt]);
     handleClosePastItems();
   };
 
@@ -2329,6 +2368,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                 {pastItemType === 'kartonware' && 'Kartonware aus vergangenen Wellen'}
                 {pastItemType === 'palette' && 'Palette hinzufügen'}
                 {pastItemType === 'schuette' && 'Schütte hinzufügen'}
+                {pastItemType === 'einzelprodukt' && 'Einzelprodukt hinzufügen'}
               </h3>
               <button 
                 className={styles.modalClose}
@@ -2482,9 +2522,76 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                   <p>Keine Paletten gefunden</p>
                 </div>
               )}
+              {/* Standard Products Section for einzelprodukt */}
+              {pastItemType === 'einzelprodukt' && (
+                <>
+                  {/* Products from products table (standard products) */}
+                  {productStandard.length > 0 && (
+                    <div className={styles.pastItemsSection}>
+                      <h4 className={styles.pastItemsSectionTitle}>Aus Produktliste (Standard Produkte)</h4>
+                      <div className={styles.pastItemsGrid}>
+                        {productStandard.map((product) => (
+                          <button
+                            key={product.id}
+                            className={styles.pastItemCard}
+                            onClick={() => handleSelectStandardProduct(product)}
+                          >
+                            <div className={styles.pastItemImage}>
+                              <div className={styles.pastItemImagePlaceholder}>
+                                <Package size={32} weight="regular" />
+                              </div>
+                            </div>
+                            <div className={styles.pastItemName}>{product.name}</div>
+                            <div className={styles.pastItemWeight}>{product.weight}</div>
+                            {product.price > 0 && (
+                              <div className={styles.pastItemPrice}>€{product.price.toFixed(2)}</div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Past einzelprodukte from previous wellen */}
+                  {getAllPastEinzelprodukte().length > 0 && (
+                    <div className={styles.pastItemsSection}>
+                      <h4 className={styles.pastItemsSectionTitle}>Aus vergangenen Wellen</h4>
+                      <div className={styles.pastItemsGrid}>
+                        {getAllPastEinzelprodukte().map((item) => (
+                          <button
+                            key={item.id}
+                            className={styles.pastItemCard}
+                            onClick={() => handleSelectPastItem(item)}
+                          >
+                            <div className={styles.pastItemImage}>
+                              {item.picture ? (
+                                <img src={item.picture} alt={item.name} />
+                              ) : (
+                                <div className={styles.pastItemImagePlaceholder}>
+                                  <Cube size={32} weight="regular" />
+                                </div>
+                              )}
+                            </div>
+                            <div className={styles.pastItemName}>{item.name}</div>
+                            {item.itemValue && (
+                              <div className={styles.pastItemPrice}>€{item.itemValue}</div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
               {pastItemType === 'schuette' && productSchuetten.length === 0 && (
                 <div className={styles.emptyPastItems}>
                   <p>Keine Schütten gefunden</p>
+                </div>
+              )}
+              {pastItemType === 'einzelprodukt' && getAllPastEinzelprodukte().length === 0 && productStandard.length === 0 && (
+                <div className={styles.emptyPastItems}>
+                  <p>Keine Einzelprodukte gefunden</p>
                 </div>
               )}
             </div>

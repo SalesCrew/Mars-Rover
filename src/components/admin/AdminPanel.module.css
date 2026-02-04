@@ -348,6 +348,46 @@
   -webkit-text-fill-color: #2563EB !important;
 }
 
+.headerDivider {
+  width: 1px;
+  height: 28px;
+  background: rgba(226, 232, 240, 0.8);
+  margin: 0 4px;
+}
+
+.viewToggle {
+  display: flex;
+  align-items: center;
+  background: rgba(243, 244, 246, 0.8);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 2px;
+}
+
+.viewToggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6B7280;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.viewToggleBtn:hover {
+  color: #3B82F6;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.viewToggleBtnActive {
+  background: white;
+  color: #3B82F6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
 .createWelleButton {
   display: flex;
   align-items: center;
@@ -1016,6 +1056,60 @@
   cursor: pointer;
   transition: all 0.2s;
   margin-left: auto;
+}
+
+/* Input Method Selection */
+.inputMethodSelection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 24px 24px 24px;
+}
+
+.inputMethodButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.inputMethodButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 24px;
+  background: white;
+  border: 2px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #374151;
+}
+
+.inputMethodButton:hover {
+  background: rgba(59, 130, 246, 0.04);
+  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+}
+
+.inputMethodButton:hover .inputMethodButtonTitle {
+  color: #3B82F6;
+}
+
+.inputMethodButtonTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1F2937;
+  transition: color 0.2s;
+}
+
+.inputMethodButtonDesc {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B7280;
+  text-align: center;
+  line-height: 1.4;
 }
 
 .changeTypeButton:hover {

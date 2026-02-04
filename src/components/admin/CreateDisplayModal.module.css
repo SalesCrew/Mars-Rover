@@ -464,3 +464,108 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Footer Actions */
+.footerActions {
+  display: flex;
+  gap: 12px;
+}
+
+.addMoreButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid;
+  background: white;
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #3B82F6;
+}
+
+.addMoreButton:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.04);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.addMoreButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.doneButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid;
+  background: #3B82F6;
+  border-color: #3B82F6;
+  color: white;
+}
+
+.doneButton:hover:not(:disabled) {
+  background: #2563EB;
+  border-color: #2563EB;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+.doneButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid;
+  background: white;
+  border-color: rgba(226, 232, 240, 0.8);
+  color: #64748B;
+}
+
+.backButton:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(226, 232, 240, 1);
+}
+
+.saveButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid;
+  color: white;
+}
+
+.saveButton:hover:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

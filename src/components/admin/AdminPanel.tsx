@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle, ClockCounterClockwise, ArrowRight, ArrowsClockwise, UserMinus, UserPlus, CalendarPlus, Plus, Stack, SignOut, Receipt, TrendUp, DownloadSimple } from '@phosphor-icons/react';
+import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle, ClockCounterClockwise, ArrowRight, ArrowsClockwise, UserMinus, UserPlus, CalendarPlus, Plus, Stack, SignOut, Receipt, TrendUp, DownloadSimple, Clock } from '@phosphor-icons/react';
 import { AdminDashboard } from './AdminDashboard';
 import { MarketsPage } from './MarketsPage';
 import { GebietsleiterPage } from './GebietsleiterPage';
@@ -9,9 +9,11 @@ import { ProduktErsatzPage } from './VorverkaufPage';
 import { VorverkaufAdminPage } from './VorverkaufAdminPage';
 import { FragebogenPage } from './FragebogenPage';
 import { ProductsPage } from './ProductsPage';
+import { ZeiterfassungPage } from './ZeiterfassungPage';
 import { CreateDisplayModal } from './CreateDisplayModal';
 import { CreatePaletteModal } from './CreatePaletteModal';
 import { CreateSchutteModal } from './CreateSchutteModal';
+import { CreateStandardProductModal } from './CreateStandardProductModal';
 import { MarketImportPreviewModal } from './MarketImportPreviewModal';
 import { AdminAccountsModal } from './AdminAccountsModal';
 import { ExportDataModal } from './ExportDataModal';
@@ -19,6 +21,7 @@ import { parseMarketFile, validateImportFile } from '../../utils/marketImporter'
 import { actionHistoryService, type ActionHistoryEntry } from '../../services/actionHistoryService';
 import { marketService } from '../../services/marketService';
 import { useAuth } from '../../contexts/AuthContext';
+import { DevPanel } from '../gl/DevPanel';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './AdminPanel.module.css';
 
@@ -27,7 +30,7 @@ interface AdminPanelProps {
   onClose?: () => void;
 }
 
-type AdminPage = 'dashboard' | 'markets' | 'gebietsleiter' | 'vorbesteller' | 'vorverkauf' | 'produktersatz' | 'fragebogen' | 'produkte';
+type AdminPage = 'dashboard' | 'markets' | 'gebietsleiter' | 'vorbesteller' | 'vorverkauf' | 'produktersatz' | 'fragebogen' | 'produkte' | 'zeiterfassung';
 
 interface MenuItem {
   id: AdminPage;
@@ -59,6 +62,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [paletteDepartment, setPaletteDepartment] = useState<'pets' | 'food'>('pets');
   const [schutteDepartment, setSchutteDepartment] = useState<'pets' | 'food'>('pets');
   const [selectedProductImportType, setSelectedProductImportType] = useState<'pets-standard' | 'pets-display' | 'food-standard' | 'food-display' | null>(null);
+  const [productInputMethod, setProductInputMethod] = useState<'excel' | 'manual' | null>(null);
+  const [isCreateStandardProductModalOpen, setIsCreateStandardProductModalOpen] = useState(false);
+  const [standardProductDepartment, setStandardProductDepartment] = useState<'pets' | 'food'>('pets');
   const [historyEntries, setHistoryEntries] = useState<ActionHistoryEntry[]>([]);
   const [historySearchTerm, setHistorySearchTerm] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -76,6 +82,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
   const [pendingImportMarkets, setPendingImportMarkets] = useState<AdminMarket[]>([]);
   const [availableGLs, setAvailableGLs] = useState<Array<{ id: string; name: string }>>([]);
+  const [zeiterfassungViewMode, setZeiterfassungViewMode] = useState<'date' | 'profile'>('date');
   const { logout } = useAuth();
 
   // Save selected page to localStorage whenever it changes
@@ -180,6 +187,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
     { id: 'vorverkauf', label: 'Vorverkauf', icon: <TrendUp size={20} weight="regular" /> },
     { id: 'produktersatz', label: 'Produktersatz', icon: <Receipt size={20} weight="regular" /> },
     { id: 'fragebogen', label: 'Fragebogen', icon: <ClipboardText size={20} weight="regular" /> },
+    { id: 'zeiterfassung', label: 'Zeiterfassung', icon: <Clock size={20} weight="regular" /> },
     { id: 'produkte', label: 'Produkte', icon: <Package size={20} weight="regular" /> },
   ];
 
@@ -524,6 +532,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
               </button>
             </div>
           )}
+          {selectedPage === 'zeiterfassung' && (
+            <div className={styles.headerButtons}>
+              <div className={styles.viewToggle}>
+                <button 
+                  className={`${styles.viewToggleBtn} ${zeiterfassungViewMode === 'date' ? styles.viewToggleBtnActive : ''}`}
+                  title="Nach Datum"
+                  onClick={() => setZeiterfassungViewMode('date')}
+                >
+                  <CalendarCheck size={18} weight={zeiterfassungViewMode === 'date' ? 'fill' : 'regular'} />
+                </button>
+                <button 
+                  className={`${styles.viewToggleBtn} ${zeiterfassungViewMode === 'profile' ? styles.viewToggleBtnActive : ''}`}
+                  title="Nach Gebietsleiter"
+                  onClick={() => setZeiterfassungViewMode('profile')}
+                >
+                  <Users size={18} weight={zeiterfassungViewMode === 'profile' ? 'fill' : 'regular'} />
+                </button>
+              </div>
+              <div className={styles.headerDivider} />
+              <button 
+                className={styles.exportButton}
+                onClick={() => window.dispatchEvent(new CustomEvent('zeiterfassung:export'))}
+              >
+                <DownloadSimple size={18} weight="bold" />
+                <span>Export</span>
+              </button>
+            </div>
+          )}
         </header>
         
         <div className={styles.pageContent}>
@@ -534,6 +570,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
           {selectedPage === 'vorverkauf' && <VorverkaufAdminPage />}
           {selectedPage === 'produktersatz' && <ProduktErsatzPage />}
           {selectedPage === 'fragebogen' && <FragebogenPage isCreateModuleModalOpen={isCreateModuleModalOpen} onCloseCreateModuleModal={() => setIsCreateModuleModalOpen(false)} isCreateFragebogenModalOpen={isCreateFragebogenModalOpen} onCloseCreateFragebogenModal={() => setIsCreateFragebogenModalOpen(false)} />}
+          {selectedPage === 'zeiterfassung' && <ZeiterfassungPage viewMode={zeiterfassungViewMode} />}
           {selectedPage === 'produkte' && <ProductsPage />}
         </div>
       </main>
@@ -635,7 +672,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
                   <div className={styles.importTypeButtons}>
                     <button
                       className={styles.importTypeButton}
-                      onClick={() => setSelectedProductImportType('pets-standard')}
+                      onClick={() => {
+                        setSelectedProductImportType('pets-standard');
+                        setStandardProductDepartment('pets');
+                      }}
                     >
                       Standard Produkte
                     </button>
@@ -685,7 +725,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
                   <div className={styles.importTypeButtons}>
                     <button
                       className={styles.importTypeButton}
-                      onClick={() => setSelectedProductImportType('food-standard')}
+                      onClick={() => {
+                        setSelectedProductImportType('food-standard');
+                        setStandardProductDepartment('food');
+                      }}
                     >
                       Standard Produkte
                     </button>
@@ -726,8 +769,55 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
               </div>
             )}
 
+            {/* Input Method Selection for Standard Products */}
+            {selectedProductImportType && (selectedProductImportType === 'pets-standard' || selectedProductImportType === 'food-standard') && !productInputMethod && !isProductProcessing && !productImportResult && (
+              <>
+                <div className={styles.selectedImportType}>
+                  <span>Ausgewählt: </span>
+                  <strong>
+                    {selectedProductImportType === 'pets-standard' && 'Tiernahrung - Standard Produkte'}
+                    {selectedProductImportType === 'food-standard' && 'Lebensmittel - Standard Produkte'}
+                  </strong>
+                  <button 
+                    className={styles.changeTypeButton}
+                    onClick={() => {
+                      setSelectedProductImportType(null);
+                      setProductImportResult(null);
+                    }}
+                  >
+                    Ändern
+                  </button>
+                </div>
+                <div className={styles.inputMethodSelection}>
+                  <p className={styles.importTypeLabel}>Wie möchten Sie die Produkte hinzufügen?</p>
+                  <div className={styles.inputMethodButtons}>
+                    <button
+                      className={styles.inputMethodButton}
+                      onClick={() => setProductInputMethod('excel')}
+                    >
+                      <Upload size={24} weight="bold" />
+                      <span className={styles.inputMethodButtonTitle}>Excel Import</span>
+                      <span className={styles.inputMethodButtonDesc}>Mehrere Produkte aus Datei importieren</span>
+                    </button>
+                    <button
+                      className={styles.inputMethodButton}
+                      onClick={() => {
+                        setProductInputMethod('manual');
+                        setIsProductImportModalOpen(false);
+                        setIsCreateStandardProductModalOpen(true);
+                      }}
+                    >
+                      <Plus size={24} weight="bold" />
+                      <span className={styles.inputMethodButtonTitle}>Manuell erstellen</span>
+                      <span className={styles.inputMethodButtonDesc}>Produkte einzeln manuell eingeben</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* File Upload Area */}
-            {selectedProductImportType && (
+            {selectedProductImportType && productInputMethod === 'excel' && (
               <>
                 <div className={styles.selectedImportType}>
                   <span>Ausgewählt: </span>
@@ -741,6 +831,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
                     className={styles.changeTypeButton}
                     onClick={() => {
                       setSelectedProductImportType(null);
+                      setProductInputMethod(null);
                       setProductImportResult(null);
                     }}
                   >
@@ -983,6 +1074,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
         department={schutteDepartment}
       />
 
+      {/* Create Standard Product Modal */}
+      <CreateStandardProductModal
+        isOpen={isCreateStandardProductModalOpen}
+        onClose={() => {
+          setIsCreateStandardProductModalOpen(false);
+          setIsProductImportModalOpen(true); // Return to product import modal
+          setProductInputMethod(null);
+        }}
+        onSave={async (products) => {
+          try {
+            // Update the products in the data store and WAIT
+            const { addProducts } = await import('../../data/productsData');
+            await addProducts(products);
+            
+            // Trigger update event for ProductsPage AFTER products are saved
+            window.dispatchEvent(new Event('productsUpdated'));
+            
+            console.log('Created standard products:', products);
+            
+            setIsCreateStandardProductModalOpen(false);
+            setIsProductImportModalOpen(false);
+            setSelectedProductImportType(null);
+            setProductInputMethod(null);
+          } catch (error) {
+            console.error('Failed to save standard products:', error);
+            alert('Fehler beim Speichern der Produkte');
+          }
+        }}
+        department={standardProductDepartment}
+      />
+
       {/* Market Import Preview Modal */}
       {isImportPreviewOpen && (
         <MarketImportPreviewModal
@@ -1005,6 +1127,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
         onClose={() => setIsExportModalOpen(false)}
         availableGLs={availableGLs}
       />
+
+      {/* Dev Panel - Shift+G then H to toggle */}
+      <DevPanel onCompleteNextMarket={() => console.log('Admin dev action')} />
     </div>
   );
 };
