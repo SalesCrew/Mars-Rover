@@ -197,8 +197,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     return () => clearInterval(interval);
   }, [dayTrackingStatus]);
 
-  // Handle day tracking button click
-  const handleDayTrackingClick = async () => {
+  // TEMPORARILY DISABLED - Reserved for day tracking reactivation
+  const _handleDayTrackingClick = async () => {
     if (dayTrackingStatus === 'active') {
       // Show end modal
       if (user?.id) {

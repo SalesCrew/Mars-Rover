@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { X, ArrowLeft, Check, Plus, Trash, DotsSixVertical, Calendar, Infinity, Stack, Storefront, MagnifyingGlass, CaretLeft, CaretRight, WarningCircle, ArrowsClockwise, XCircle, Timer } from '@phosphor-icons/react';
+import { X, ArrowLeft, Check, Plus, Trash, DotsSixVertical, Calendar, Infinity, Stack, Storefront, MagnifyingGlass, CaretLeft, CaretRight, WarningCircle, ArrowsClockwise, XCircle } from '@phosphor-icons/react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';

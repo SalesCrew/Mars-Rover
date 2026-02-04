@@ -269,17 +269,20 @@ const getToday = (): string => {
   return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
 };
 
-const getYesterday = (): string => {
+// Reserved for future date filtering UI
+const _getYesterday = (): string => {
   const d = new Date();
   d.setDate(d.getDate() - 1);
   return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
 };
 
-const getTwoDaysAgo = (): string => {
+const _getTwoDaysAgo = (): string => {
   const d = new Date();
   d.setDate(d.getDate() - 2);
   return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
 };
+void _getYesterday;
+void _getTwoDaysAgo;
 
 // Parse interval string to minutes
 const parseIntervalToMinutes = (interval: string | null | undefined): number => {

@@ -182,7 +182,8 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
   
   // Profile view state
   const [selectedGLId, setSelectedGLId] = useState<string | null>(null);
-  const [timeframeFilter, setTimeframeFilter] = useState<'all' | 'mtd' | 'kw'>('all');
+  const [timeframeFilter, _setTimeframeFilter] = useState<'all' | 'mtd' | 'kw'>('all');
+  void _setTimeframeFilter; // Reserved for future timeframe filter UI
   const [glSearchQuery, setGlSearchQuery] = useState('');
 
   useEffect(() => {
@@ -226,16 +227,17 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       { fahrVon: '12:45', fahrBis: '13:15', fahrDiff: '00:30:00', besuchVon: '13:20', besuchBis: '14:30', besuchDiff: '01:10:00' },
     ];
 
-    return markets.map((market, i) => ({
-      id: `test-entry-${i + 1}`,
+    return markets.map((market, _i) => ({
+      id: `test-entry-${_i + 1}`,
       gebietsleiter_id: testGLId,
       market_id: market.id,
-      fahrzeit_von: times[i].fahrVon,
-      fahrzeit_bis: times[i].fahrBis,
-      fahrzeit_diff: times[i].fahrDiff,
-      besuchszeit_von: times[i].besuchVon,
-      besuchszeit_bis: times[i].besuchBis,
-      besuchszeit_diff: times[i].besuchDiff,
+      fahrzeit_von: times[_i].fahrVon,
+      fahrzeit_bis: times[_i].fahrBis,
+      fahrzeit_diff: times[_i].fahrDiff,
+      calculated_fahrzeit: times[_i].fahrDiff, // Auto-calculated from day tracking
+      besuchszeit_von: times[_i].besuchVon,
+      besuchszeit_bis: times[_i].besuchBis,
+      besuchszeit_diff: times[_i].besuchDiff,
       distanz_km: Math.floor(Math.random() * 20) + 5,
       kommentar: null,
       food_prozent: Math.floor(Math.random() * 30) + 10,
@@ -613,10 +615,10 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         const unterbrechungMinutes = glZusatzForDay.reduce((sum, z) => sum + parseInterval(z.zeit_diff), 0);
         const netMinutes = Math.max(0, totalMinutes - unterbrechungMinutes);
 
-        const ersteAktion = earliestTime
+        const ersteAktion = earliestTime && earliestTime instanceof Date
           ? `${earliestTime.getHours().toString().padStart(2, '0')}:${earliestTime.getMinutes().toString().padStart(2, '0')}`
           : '--:--';
-        const letzteAktion = latestTime
+        const letzteAktion = latestTime && latestTime instanceof Date
           ? `${latestTime.getHours().toString().padStart(2, '0')}:${latestTime.getMinutes().toString().padStart(2, '0')}`
           : '--:--';
 
@@ -733,16 +735,16 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         const unterbrechungMinutes = glZusatzForDay.reduce((sum, z) => sum + parseInterval(z.zeit_diff), 0);
         const netDayMinutes = Math.max(0, dayTotalMinutes - unterbrechungMinutes);
 
-        const ersteAktion = earliestTime
+        const ersteAktion = earliestTime && earliestTime instanceof Date
           ? `${earliestTime.getHours().toString().padStart(2, '0')}:${earliestTime.getMinutes().toString().padStart(2, '0')}`
           : '--:--';
-        const letzteAktion = latestTime
+        const letzteAktion = latestTime && latestTime instanceof Date
           ? `${latestTime.getHours().toString().padStart(2, '0')}:${latestTime.getMinutes().toString().padStart(2, '0')}`
           : '--:--';
 
         // Calculate erste-letzte span in minutes
         let ersteLetzteSpanMinutes = 0;
-        if (earliestTime && latestTime) {
+        if (earliestTime && latestTime && earliestTime instanceof Date && latestTime instanceof Date) {
           ersteLetzteSpanMinutes = Math.round((latestTime.getTime() - earliestTime.getTime()) / 60000);
         }
 
@@ -803,20 +805,6 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       day: 'numeric'
     };
     return date.toLocaleDateString('de-DE', options);
-  };
-
-  const getChainColor = (chain: string): string => {
-    const chainColors: Record<string, string> = {
-      'BILLA+': '#F59E0B',
-      'BILLA': '#F59E0B',
-      'SPAR': '#DC2626',
-      'PENNY': '#3B82F6',
-      'HOFER': '#0EA5E9',
-      'MERKUR': '#10B981',
-      'ADEG': '#8B5CF6',
-      'NETTO': '#F97316'
-    };
-    return chainColors[chain] || '#64748B';
   };
 
   // Get chain badge gradient styling (matching MarketListItem)

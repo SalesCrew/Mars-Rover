@@ -265,7 +265,8 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
   };
 
-  const toggleFahrzeitTimer = () => {
+  // Reserved for future use when Fahrzeit UI is restored
+  const _toggleFahrzeitTimer = () => {
     const currentTime = getCurrentTime();
     if (!fahrzeitRunning) {
       setZeiterfassung(prev => ({ ...prev, fahrzeitVon: currentTime }));
@@ -275,6 +276,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
       setFahrzeitRunning(false);
     }
   };
+  void _toggleFahrzeitTimer;
 
   // TEMPORARILY DISABLED - Enhanced toggle with day tracking
   // const toggleBesuchszeitTimer = () => {
