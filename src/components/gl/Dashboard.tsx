@@ -221,6 +221,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     }
     setIsDayTrackingModalOpen(true);
   };
+  void _handleDayTrackingClick; // Suppress unused warning
 
   // Handle start day
   const handleStartDay = async (skipFahrzeit: boolean) => {

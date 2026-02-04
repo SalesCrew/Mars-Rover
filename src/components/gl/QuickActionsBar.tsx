@@ -40,6 +40,8 @@ export const QuickActionsBar: React.FC<QuickActionsBarProps> = ({
   onZusatzZeiterfassung,
   onZeiterfassungVerlauf,
 }) => {
+  void onZusatzZeiterfassung; // Suppress unused warning - will be reactivated
+  void onZeiterfassungVerlauf; // Suppress unused warning - will be reactivated
   const { isMobile } = useResponsive();
 
   const actions: QuickAction[] = [
