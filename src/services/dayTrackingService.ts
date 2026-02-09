@@ -72,8 +72,11 @@ class DayTrackingService {
    * Start a new day tracking session
    */
   async startDay(glId: string, options: StartDayRequest): Promise<DayTracking> {
+    const url = `${DAY_TRACKING_API}/start`;
+    console.log('🟡 dayTrackingService.startDay:', { url, glId, options });
+    
     try {
-      const response = await fetch(`${DAY_TRACKING_API}/start`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,14 +88,21 @@ class DayTrackingService {
         }),
       });
 
+      console.log('🟡 startDay response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to start day');
+        const errorText = await response.text();
+        console.error('❌ startDay error response:', errorText);
+        let errorData;
+        try { errorData = JSON.parse(errorText); } catch { errorData = { error: errorText }; }
+        throw new Error(errorData.error || `Failed to start day (HTTP ${response.status})`);
       }
 
-      return response.json();
+      const data = await response.json();
+      console.log('✅ startDay success:', data);
+      return data;
     } catch (error) {
-      console.error('Error starting day:', error);
+      console.error('❌ Error in startDay:', error);
       throw error;
     }
   }

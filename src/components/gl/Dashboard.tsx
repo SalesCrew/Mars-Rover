@@ -222,15 +222,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
   // Handle start day
   const handleStartDay = async (skipFahrzeit: boolean) => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.error('❌ handleStartDay: No user ID available');
+      return;
+    }
+    
+    console.log('🟡 handleStartDay called:', { userId: user.id, skipFahrzeit });
     
     try {
-      await dayTrackingService.startDay(user.id, { skipFahrzeit });
+      const result = await dayTrackingService.startDay(user.id, { skipFahrzeit });
+      console.log('✅ Day started successfully:', result);
       setDayTrackingStatus('active');
       setIsDayTrackingModalOpen(false);
-    } catch (error) {
-      console.error('Error starting day:', error);
-      alert('Fehler beim Starten des Tages');
+    } catch (error: any) {
+      console.error('❌ Error starting day:', error);
+      console.error('❌ Error message:', error?.message);
+      alert('Fehler beim Starten des Tages: ' + (error?.message || 'Unknown error'));
     }
   };
 
