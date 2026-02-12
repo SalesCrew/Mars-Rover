@@ -54,7 +54,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showMarketSelection, setShowMarketSelection] = useState(false);
   const [showItemSelection, setShowItemSelection] = useState(false);
-  const [_showPhotoCapture, _setShowPhotoCapture] = useState(false); void _showPhotoCapture; void _setShowPhotoCapture;
+  const [_showPhotoCapture, __setShowPhotoCapture] = useState(false); void _showPhotoCapture; void __setShowPhotoCapture;
   const [showFotoWelle, setShowFotoWelle] = useState(false);
   const [fotoWellePhotos, setFotoWellePhotos] = useState<Array<{ image: string; tags: string[] }>>([]);
   const [fotoTagsAllMode, setFotoTagsAllMode] = useState(true);
@@ -536,7 +536,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
       // Show success modal after completion animation
       setTimeout(() => {
         setIsSubmitCompleted(false);
-        setShowPhotoCapture(false);
+        _setShowPhotoCapture(false);
         setShowSuccess(true);
       }, 1500);
     } catch (error) {
@@ -583,7 +583,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     setSelectedCardId(null);
     setShowMarketSelection(false);
     setShowItemSelection(false);
-    setShowPhotoCapture(false);
+    _setShowPhotoCapture(false);
     setSelectedMarket(null);
     setItemQuantities({});
     setSearchQuery('');
