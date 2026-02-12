@@ -56,6 +56,26 @@ export interface WelleKWDay {
   days: string[];
 }
 
+export interface WelleFotoTag {
+  id?: string;
+  name: string;
+  type: 'fixed' | 'optional';
+}
+
+export interface WellePhoto {
+  id: string;
+  welleId: string;
+  welleName: string;
+  glId: string;
+  glName: string;
+  marketId: string;
+  marketName: string;
+  marketChain: string;
+  photoUrl: string;
+  tags: string[];
+  createdAt: string;
+}
+
 export interface Welle {
   id: string;
   name: string;
@@ -81,6 +101,10 @@ export interface Welle {
   assignedMarketIds?: string[];
   participatingGLs?: number;
   totalGLs?: number;
+  fotoEnabled?: boolean;
+  fotoHeader?: string | null;
+  fotoDescription?: string | null;
+  fotoTags?: WelleFotoTag[];
 }
 
 export interface CreateWelleDTO {
@@ -137,6 +161,10 @@ export interface CreateWelleDTO {
     days: string[];
   }>;
   assignedMarketIds: string[];
+  fotoEnabled?: boolean;
+  fotoHeader?: string | null;
+  fotoDescription?: string | null;
+  fotoTags?: WelleFotoTag[];
 }
 
 export interface UpdateWelleDTO extends CreateWelleDTO {
@@ -510,6 +538,80 @@ class WellenService {
       return await response.json();
     } catch (error) {
       console.error('Error uploading delivery photos:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload welle photos with tags
+   */
+  async uploadPhotos(data: {
+    welle_id: string;
+    gebietsleiter_id: string;
+    market_id: string;
+    photos: Array<{ image: string; tags: string[] }>;
+    submission_batch_id?: string;
+  }): Promise<{ uploaded: number; photos: WellePhoto[] }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/photos/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload photos');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error uploading photos:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get photos with filters
+   */
+  async getPhotos(params: {
+    welle_id?: string;
+    gl_id?: string;
+    market_id?: string;
+    tag?: string;
+    tags?: string;
+    start_date?: string;
+    end_date?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ photos: WellePhoto[]; total: number }> {
+    try {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => { if (v !== undefined) searchParams.set(k, String(v)); });
+      const url = `${this.baseUrl}/photos?${searchParams}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) throw new Error('Failed to fetch photos');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching photos:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a photo
+   */
+  async deletePhoto(photoId: string): Promise<{ message: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/photos/${photoId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) throw new Error('Failed to delete photo');
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting photo:', error);
       throw error;
     }
   }

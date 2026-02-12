@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { X, CalendarBlank, Package, Info, MagnifyingGlass, Check, Plus, Minus, Image as ImageIcon, CheckCircle, TrendUp, CaretDown, CaretRight, Cube } from '@phosphor-icons/react';
+import { X, CalendarBlank, Package, Info, MagnifyingGlass, Check, Plus, Minus, Image as ImageIcon, CheckCircle, TrendUp, CaretDown, CaretRight, Cube, Camera } from '@phosphor-icons/react';
 import { RingLoader } from 'react-spinners';
 import styles from './VorbestellerModal.module.css';
 import type { Market } from '../../types/market-types';
@@ -55,6 +55,11 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const [showMarketSelection, setShowMarketSelection] = useState(false);
   const [showItemSelection, setShowItemSelection] = useState(false);
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
+  const [showFotoWelle, setShowFotoWelle] = useState(false);
+  const [fotoWellePhotos, setFotoWellePhotos] = useState<Array<{ image: string; tags: string[] }>>([]);
+  const [fotoTagsAllMode, setFotoTagsAllMode] = useState(true);
+  const [fotoSelectedTags, setFotoSelectedTags] = useState<Set<string>>(new Set());
+  const [fotoTaggingIndex, setFotoTaggingIndex] = useState<number | null>(null); // which photo is being tagged
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -294,8 +299,78 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   };
 
   const handleFertigClick = () => {
-    if (totalQuantity > 0) {
-      setShowPhotoCapture(true);
+    if (totalQuantity > 0 || selectedVorbesteller?.fotoEnabled) {
+      if (selectedVorbesteller?.fotoEnabled) {
+        setShowFotoWelle(true);
+      } else {
+        // Skip Mengenerhebung photo - go directly to submit
+        handleSubmitPhoto();
+      }
+    }
+  };
+
+  const handleFotoWelleWeiter = () => {
+    setShowFotoWelle(false);
+    // Skip Mengenerhebung - go directly to submit
+    handleSubmitPhoto();
+  };
+
+  const handleFotoWelleAddPhoto = (imageData: string) => {
+    const fixedTags = (selectedVorbesteller?.fotoTags || []).filter(t => t.type === 'fixed').map(t => t.name);
+    const selectedOptional = fotoTagsAllMode ? Array.from(fotoSelectedTags) : [];
+    setFotoWellePhotos(prev => {
+      const newPhotos = [...prev, { image: imageData, tags: [...fixedTags, ...selectedOptional] }];
+      // Enter tagging mode for new photo if optional tags exist and in per-photo mode
+      if (!fotoTagsAllMode && (selectedVorbesteller?.fotoTags || []).some(t => t.type === 'optional')) {
+        setTimeout(() => setFotoTaggingIndex(newPhotos.length - 1), 100);
+      }
+      return newPhotos;
+    });
+  };
+
+  const handleFotoWelleAddMultiple = (files: FileList) => {
+    const fileArr = Array.from(files);
+    fileArr.forEach((file, i) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleFotoWelleAddPhoto(reader.result as string);
+        // Show tagging for last file in per-photo mode
+        if (!fotoTagsAllMode && i === fileArr.length - 1) {
+          // tagging auto-triggered in handleFotoWelleAddPhoto
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFotoWelleRemovePhoto = (index: number) => {
+    setFotoWellePhotos(prev => prev.filter((_, i) => i !== index));
+    if (fotoTaggingIndex === index) setFotoTaggingIndex(null);
+    else if (fotoTaggingIndex !== null && fotoTaggingIndex > index) setFotoTaggingIndex(fotoTaggingIndex - 1);
+  };
+
+  const toggleFotoTag = (tag: string, photoIndex?: number) => {
+    if (fotoTagsAllMode || photoIndex === undefined) {
+      // Toggle for all photos
+      setFotoSelectedTags(prev => {
+        const next = new Set(prev);
+        if (next.has(tag)) next.delete(tag); else next.add(tag);
+        return next;
+      });
+      // Apply to all photos
+      setFotoWellePhotos(prev => prev.map(p => {
+        const fixedTags = (selectedVorbesteller?.fotoTags || []).filter(t => t.type === 'fixed').map(t => t.name);
+        const newSelectedTags = new Set(fotoSelectedTags);
+        if (newSelectedTags.has(tag)) newSelectedTags.delete(tag); else newSelectedTags.add(tag);
+        return { ...p, tags: [...fixedTags, ...Array.from(newSelectedTags)] };
+      }));
+    } else {
+      // Toggle for specific photo
+      setFotoWellePhotos(prev => prev.map((p, i) => {
+        if (i !== photoIndex) return p;
+        const has = p.tags.includes(tag);
+        return { ...p, tags: has ? p.tags.filter(t => t !== tag) : [...p.tags, tag] };
+      }));
     }
   };
 
@@ -436,6 +511,20 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
           items,
           photo_url: capturedPhoto || undefined
         });
+
+        // Upload foto welle photos if any
+        if (fotoWellePhotos.length > 0) {
+          try {
+            await wellenService.uploadPhotos({
+              welle_id: selectedVorbesteller.id,
+              gebietsleiter_id: user.id,
+              market_id: selectedMarket.id,
+              photos: fotoWellePhotos,
+            });
+          } catch (photoError) {
+            console.warn('Could not upload foto welle photos:', photoError);
+          }
+        }
         
         // Only record visit if user chose to create a new visit
         if (createNewVisit) {
@@ -513,6 +602,12 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     setIsSuccessAnimating(false);
     setShowVisitChoiceModal(false);
     setPendingCreateNewVisit(null);
+    // Reset foto welle states
+    setShowFotoWelle(false);
+    setFotoWellePhotos([]);
+    setFotoTagsAllMode(true);
+    setFotoSelectedTags(new Set());
+    setFotoTaggingIndex(null);
     // Reset delivery photo states
     setShowDeliveryPhotoModal(false);
     setPendingDeliverySubmissions([]);
@@ -528,7 +623,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
         handleClose();
       }
     }}>
-      <div className={`${styles.modal} ${showPhotoCapture && !showSuccess ? styles.photoModal : ''} ${showSuccess ? styles.successModal : ''}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`${styles.modal} ${showSuccess ? styles.successModal : ''}`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         {!showSuccess && (
           <div className={styles.header}>
@@ -789,7 +884,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                 </div>
               </div>
             </div>
-          ) : !showMarketSelection && !showItemSelection && !showPhotoCapture ? (
+          ) : !showMarketSelection && !showItemSelection && !showFotoWelle ? (
             /* Card Selection View */
             <div className={styles.cardsSection}>
               <div className={styles.sectionHeader}>
@@ -952,7 +1047,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                 )}
               </div>
             </div>
-          ) : !showItemSelection && !showPhotoCapture ? (
+          ) : !showItemSelection && !showFotoWelle ? (
             /* Market Selection View */
             <div className={styles.marketSelectionSection}>
               {/* Search Bar */}
@@ -1087,7 +1182,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                 )}
               </div>
             </div>
-          ) : !showPhotoCapture ? (
+          ) : !showFotoWelle ? (
             /* Item Selection View */
             <div className={styles.itemSelectionSection}>
               <div className={styles.itemsList}>
@@ -1425,13 +1520,13 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                 )}
               </div>
             </div>
-          ) : (
-            /* Photo Capture View */
-            <div className={styles.photoCaptureSection}>
+          ) : showFotoWelle ? (
+            /* Foto Welle Step */
+            <div className={styles.fotoSection}>
               {isSubmitting ? (
                 <div className={styles.loadingState}>
                   <RingLoader color="#3B82F6" size={80} />
-                  <h3 className={styles.loadingTitle}>Daten werden geprüft...</h3>
+                  <h3 className={styles.loadingTitle}>Fotos werden hochgeladen...</h3>
                 </div>
               ) : isSubmitCompleted ? (
                 <div className={styles.loadingState}>
@@ -1441,56 +1536,155 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                       <Check size={40} weight="bold" />
                     </div>
                   </div>
-                  <h3 className={styles.loadingTitle}>Erfolgreich übermittelt!</h3>
+                  <h3 className={styles.loadingTitle}>Erfolgreich!</h3>
                 </div>
               ) : (
                 <>
-                  <div className={styles.photoInstructions}>
-                    <h3 className={styles.photoTitle}>Mengenerhebung mit Unterschrift</h3>
-                    <p className={styles.photoDescription}>
-                      Bitte lade ein Foto der Mengenerhebung mit der Unterschrift des Marktkontakts hoch.
-                    </p>
+                  {/* Hero */}
+                  <div className={styles.fotoHero}>
+                    <div className={styles.fotoHeroIcon}>
+                      <Camera size={30} weight="duotone" />
+                    </div>
+                    <h3 className={styles.fotoHeroTitle}>{selectedVorbesteller?.fotoHeader || 'Fotos'}</h3>
+                    {selectedVorbesteller?.fotoDescription && (
+                      <p className={styles.fotoHeroDesc}>{selectedVorbesteller.fotoDescription}</p>
+                    )}
+                    <div className={`${styles.fotoCounter} ${fotoWellePhotos.length > 0 ? styles.fotoCounterActive : ''}`}>
+                      {fotoWellePhotos.length > 0
+                        ? `${fotoWellePhotos.length} ${fotoWellePhotos.length === 1 ? 'Foto' : 'Fotos'}`
+                        : 'Noch keine Fotos'}
+                    </div>
                   </div>
 
-                  {capturedPhoto ? (
-                    <div className={styles.photoPreview}>
-                      <img src={capturedPhoto} alt="Mengenerhebung" className={styles.previewImage} />
-                      <button
-                        className={styles.removePhotoButton}
-                        onClick={() => setCapturedPhoto(null)}
-                        aria-label="Foto entfernen"
-                      >
-                        <X size={16} weight="bold" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div 
-                      className={styles.dropZone}
-                      onDragOver={handleDragOver}
-                      onDrop={handleDrop}
-                      onClick={handleBrowseClick}
-                    >
-                      <div className={styles.dropZoneIcon}>
-                        <ImageIcon size={28} weight="regular" />
-                      </div>
-                      <div className={styles.dropZoneText}>
-                        <span className={styles.dropZonePrimary}>Datei hierher ziehen oder klicken</span>
-                        <span className={styles.dropZoneSecondary}>PNG, JPG oder GIF bis zu 10MB</span>
-                      </div>
+                  {/* Tags - "Alle" mode: selected/available split */}
+                  {(selectedVorbesteller?.fotoTags || []).length > 0 && fotoTaggingIndex === null && (
+                    <div className={styles.fotoTagsSection}>
+                      {(selectedVorbesteller?.fotoTags || []).some(t => t.type === 'optional') && (
+                        <div className={styles.fotoModeToggle}>
+                          <div className={styles.fotoModeSlider} style={{ transform: fotoTagsAllMode ? 'translateX(0)' : 'translateX(100%)' }} />
+                          <button className={`${styles.fotoModeBtn} ${fotoTagsAllMode ? styles.fotoModeBtnActive : ''}`} onClick={() => setFotoTagsAllMode(true)}>Alle</button>
+                          <button className={`${styles.fotoModeBtn} ${!fotoTagsAllMode ? styles.fotoModeBtnActive : ''}`} onClick={() => setFotoTagsAllMode(false)}>Pro Foto</button>
+                        </div>
+                      )}
+                      {fotoTagsAllMode && (
+                        <div className={styles.fotoTagSplit}>
+                          {/* Selected optional tags */}
+                          {(selectedVorbesteller?.fotoTags || []).filter(t => t.type === 'optional' && fotoSelectedTags.has(t.name)).map(tag => (
+                            <button key={`s-${tag.name}`} type="button" className={styles.fotoTagSelected} onClick={() => toggleFotoTag(tag.name)}>
+                              <Check size={10} weight="bold" />
+                              {tag.name}
+                            </button>
+                          ))}
+                          {/* Divider if both selected and available exist */}
+                          {fotoSelectedTags.size > 0 && (selectedVorbesteller?.fotoTags || []).filter(t => t.type === 'optional' && !fotoSelectedTags.has(t.name)).length > 0 && (
+                            <div className={styles.fotoTagDivider} />
+                          )}
+                          {/* Available optional tags */}
+                          {(selectedVorbesteller?.fotoTags || []).filter(t => t.type === 'optional' && !fotoSelectedTags.has(t.name)).map(tag => (
+                            <button key={`a-${tag.name}`} type="button" className={styles.fotoTagAvailable} onClick={() => toggleFotoTag(tag.name)}>
+                              <Plus size={10} weight="bold" />
+                              {tag.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    style={{ display: 'none' }}
-                  />
+                  {/* Photo tagging overlay (per-photo mode) */}
+                  {fotoTaggingIndex !== null && fotoWellePhotos[fotoTaggingIndex] ? (
+                    <div className={styles.fotoTaggingOverlay}>
+                      <div className={styles.fotoTaggingCard}>
+                        <img src={fotoWellePhotos[fotoTaggingIndex].image} alt="" className={styles.fotoTaggingImg} />
+                        <div className={styles.fotoTaggingContent}>
+                          <h4 className={styles.fotoTaggingTitle}>Tags fur Foto {fotoTaggingIndex + 1}</h4>
+                          <div className={styles.fotoTaggingPills}>
+                            {(selectedVorbesteller?.fotoTags || []).filter(t => t.type === 'optional').map(tag => {
+                              const isOn = fotoWellePhotos[fotoTaggingIndex!].tags.includes(tag.name);
+                              return (
+                                <button
+                                  key={`to-${tag.name}`}
+                                  type="button"
+                                  className={`${styles.fotoTaggingPill} ${isOn ? styles.fotoTaggingPillOn : ''}`}
+                                  onClick={() => toggleFotoTag(tag.name, fotoTaggingIndex!)}
+                                >
+                                  {isOn ? <Check size={12} weight="bold" /> : <Plus size={12} weight="bold" />}
+                                  {tag.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <button className={styles.fotoTaggingDone} onClick={() => setFotoTaggingIndex(null)}>
+                            <Check size={14} weight="bold" /> Fertig
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Photo area */
+                    <div className={styles.fotoArea}>
+                      {fotoWellePhotos.length === 0 ? (
+                        <label className={styles.fotoDropZone}>
+                          <div className={styles.fotoDropIcon}><Camera size={36} weight="regular" /></div>
+                          <span className={styles.fotoDropTitle}>Fotos aufnehmen oder hochladen</span>
+                          <span className={styles.fotoDropHint}>Tippen oder Dateien hierher ziehen</span>
+                          <input type="file" accept="image/*" multiple style={{ display: 'none' }}
+                            onChange={(e) => { if (e.target.files) handleFotoWelleAddMultiple(e.target.files); e.target.value = ''; }} />
+                        </label>
+                      ) : (
+                        <div className={styles.fotoGrid}>
+                          {fotoWellePhotos.map((photo, idx) => (
+                            <div
+                              key={idx}
+                              className={styles.fotoCard}
+                              style={{ animationDelay: `${idx * 50}ms` }}
+                              onClick={!fotoTagsAllMode ? () => setFotoTaggingIndex(idx) : undefined}
+                            >
+                              <img src={photo.image} alt="" className={styles.fotoCardImg} />
+                              <div className={styles.fotoCardBadge}>{idx + 1}</div>
+                              <button className={styles.fotoCardRemove} onClick={(e) => { e.stopPropagation(); handleFotoWelleRemovePhoto(idx); }}>
+                                <X size={11} weight="bold" />
+                              </button>
+                              {/* Tag count badge on card */}
+                              {(() => {
+                                const fixedNames = new Set((selectedVorbesteller?.fotoTags || []).filter(t => t.type === 'fixed').map(t => t.name));
+                                const optCount = photo.tags.filter(t => !fixedNames.has(t)).length;
+                                return optCount > 0 ? (
+                                <div className={styles.fotoCardTagCount}>
+                                  {optCount} {optCount === 1 ? 'Tag' : 'Tags'}
+                                </div>
+                              ) : null;
+                              })()}
+                            </div>
+                          ))}
+                          <label className={styles.fotoAddMore}>
+                            <Plus size={20} weight="bold" />
+                            <input type="file" accept="image/*" multiple style={{ display: 'none' }}
+                              onChange={(e) => { if (e.target.files) handleFotoWelleAddMultiple(e.target.files); e.target.value = ''; }} />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Summary bar */}
+                  {fotoWellePhotos.length > 0 && (
+                    <div className={styles.fotoSummaryBar}>
+                      <div className={styles.fotoSummaryLeft}>
+                        <CheckCircle size={16} weight="fill" />
+                        <span>{fotoWellePhotos.length} {fotoWellePhotos.length === 1 ? 'Foto' : 'Fotos'} bereit</span>
+                      </div>
+                      {fotoSelectedTags.size > 0 && fotoTagsAllMode && (
+                        <div className={styles.fotoSummaryRight}>
+                          {fotoSelectedTags.size} Tags
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Footer Buttons */}
@@ -1499,16 +1693,12 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
             <button className={styles.primaryButton} onClick={handleSuccessClose}>
               Zurück zum Dashboard
             </button>
-          ) : showPhotoCapture ? (
+          ) : showFotoWelle ? (
             <>
-              <button className={styles.secondaryButton} onClick={() => setShowPhotoCapture(false)}>
+              <button className={styles.secondaryButton} onClick={() => setShowFotoWelle(false)}>
                 Zurück
               </button>
-              <button 
-                className={styles.primaryButton} 
-                onClick={handleSubmitPhoto}
-                disabled={!capturedPhoto}
-              >
+              <button className={styles.primaryButton} onClick={handleFotoWelleWeiter} disabled={fotoWellePhotos.length === 0}>
                 Absenden
               </button>
             </>
@@ -1520,9 +1710,9 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
               <button 
                 className={styles.primaryButton} 
                 onClick={handleFertigClick}
-                disabled={totalQuantity === 0}
+                disabled={totalQuantity === 0 && !selectedVorbesteller?.fotoEnabled}
               >
-                Fertig
+                {selectedVorbesteller?.fotoEnabled ? 'Weiter' : 'Fertig'}
               </button>
             </>
           ) : showMarketSelection ? (

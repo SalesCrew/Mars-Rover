@@ -114,7 +114,12 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
           throw new Error('Failed to fetch progress');
         }
         const data = await response.json();
-        setProgressData(data);
+        // Support both old format (array) and new format ({ entries })
+        if (Array.isArray(data)) {
+          setProgressData(data);
+        } else {
+          setProgressData(data.entries || []);
+        }
       } catch (error) {
         console.error('Error fetching wave progress:', error);
       } finally {

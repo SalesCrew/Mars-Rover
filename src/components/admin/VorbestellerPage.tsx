@@ -189,6 +189,10 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
           itemValue: k.itemValue?.toString() || ''
         })) || []);
         setKwDays(waveToEdit.kwDays || []);
+        setFotoEnabled(waveToEdit.fotoEnabled || false);
+        setFotoHeader(waveToEdit.fotoHeader || '');
+        setFotoDescription(waveToEdit.fotoDescription || '');
+        setFotoTags((waveToEdit.fotoTags || []).map(t => ({ name: t.name, type: t.type })));
         setCurrentStep(2); // Skip type selection when editing
         onOpenCreateWelleModal();
         // Clear the waveIdToEdit
@@ -257,6 +261,14 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   
   // KW + Days
   const [kwDays, setKwDays] = useState<KWDay[]>([]);
+  
+  // Foto Welle
+  const [fotoEnabled, setFotoEnabled] = useState(false);
+  const [fotoHeader, setFotoHeader] = useState('');
+  const [fotoDescription, setFotoDescription] = useState('');
+  const [fotoTags, setFotoTags] = useState<{ name: string; type: 'fixed' | 'optional' }[]>([]);
+  const [newFixedTag, setNewFixedTag] = useState('');
+  const [newOptionalTag, setNewOptionalTag] = useState('');
   
   // Saving state
   const [isSaving, setIsSaving] = useState(false);
@@ -641,7 +653,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
           kw: kw.kw,
           days: kw.days
         })),
-        assignedMarketIds
+        assignedMarketIds,
+        fotoEnabled,
+        fotoHeader: fotoEnabled ? fotoHeader : null,
+        fotoDescription: fotoEnabled ? fotoDescription : null,
+        fotoTags: fotoEnabled ? fotoTags : []
       };
 
       if (editingWelle) {
@@ -925,6 +941,12 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     setSchutteItems([]);
     setEinzelprodukte([]);
     setKwDays([]);
+    setFotoEnabled(false);
+    setFotoHeader('');
+    setFotoDescription('');
+    setFotoTags([]);
+    setNewFixedTag('');
+    setNewOptionalTag('');
     setEditingWelle(null);
     setSelectedWelle(null);
     onCloseCreateWelleModal();
@@ -1456,7 +1478,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                       )}
                     </button>
                   </div>
-                </div>
+              </div>
               )}
 
               {/* Step 2: Wave Details */}
@@ -1590,6 +1612,128 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                       <small className={styles.fieldHint}>
                         {assignedMarketIds.length} {assignedMarketIds.length === 1 ? 'Markt' : 'Märkte'} dieser Welle zugewiesen
                       </small>
+                    )}
+                  </div>
+
+                  {/* Foto Welle Toggle */}
+                  <div className={styles.formSection} style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #E2E8F0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: fotoEnabled ? '16px' : '0' }}>
+                      <div>
+                        <label className={styles.label} style={{ margin: 0 }}>Foto Welle</label>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', margin: '2px 0 0' }}>Fotos von GLs sammeln</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFotoEnabled(!fotoEnabled)}
+                        style={{
+                          width: '44px', height: '24px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+                          background: fotoEnabled ? '#3B82F6' : '#CBD5E1', position: 'relative', transition: 'background 0.2s ease'
+                        }}
+                      >
+                        <div style={{
+                          width: '20px', height: '20px', borderRadius: '10px', background: 'white',
+                          position: 'absolute', top: '2px', transition: 'left 0.2s ease',
+                          left: fotoEnabled ? '22px' : '2px', boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
+                        }} />
+                      </button>
+                    </div>
+
+                    {fotoEnabled && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div>
+                          <label className={styles.label}>Überschrift</label>
+                          <input
+                            type="text"
+                            className={styles.input}
+                            placeholder="z.B. Regal-Fotos"
+                            value={fotoHeader}
+                            onChange={(e) => setFotoHeader(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className={styles.label}>Beschreibung</label>
+                          <textarea
+                            className={styles.input}
+                            placeholder="Beschreibung für die GLs..."
+                            value={fotoDescription}
+                            onChange={(e) => setFotoDescription(e.target.value)}
+                            rows={2}
+                            style={{ resize: 'vertical', minHeight: '60px' }}
+                          />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div>
+                            <label className={styles.label}>Feste Tags (automatisch)</label>
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                              <input
+                                type="text"
+                                className={styles.input}
+                                placeholder="Tag hinzufügen..."
+                                value={newFixedTag}
+                                onChange={(e) => setNewFixedTag(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newFixedTag.trim()) {
+                                    e.preventDefault();
+                                    setFotoTags(prev => [...prev, { name: newFixedTag.trim(), type: 'fixed' }]);
+                                    setNewFixedTag('');
+                                  }
+                                }}
+                                style={{ flex: 1 }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {fotoTags.filter(t => t.type === 'fixed').map((tag, i) => (
+                                <span key={`fixed-${i}`} style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                  padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
+                                  background: 'rgba(59, 130, 246, 0.1)', color: '#2563EB', border: '1px solid rgba(59, 130, 246, 0.2)'
+                                }}>
+                                  {tag.name}
+                                  <button onClick={() => setFotoTags(prev => prev.filter((_, idx) => idx !== fotoTags.indexOf(tag)))}
+                                    style={{ background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer', padding: 0, fontSize: '14px', lineHeight: 1 }}>
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className={styles.label}>Optionale Tags (GL wählt)</label>
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                              <input
+                                type="text"
+                                className={styles.input}
+                                placeholder="Tag hinzufügen..."
+                                value={newOptionalTag}
+                                onChange={(e) => setNewOptionalTag(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newOptionalTag.trim()) {
+                                    e.preventDefault();
+                                    setFotoTags(prev => [...prev, { name: newOptionalTag.trim(), type: 'optional' }]);
+                                    setNewOptionalTag('');
+                                  }
+                                }}
+                                style={{ flex: 1 }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {fotoTags.filter(t => t.type === 'optional').map((tag, i) => (
+                                <span key={`opt-${i}`} style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                  padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
+                                  background: 'rgba(34, 197, 94, 0.1)', color: '#16A34A', border: '1px solid rgba(34, 197, 94, 0.2)'
+                                }}>
+                                  {tag.name}
+                                  <button onClick={() => setFotoTags(prev => prev.filter((_, idx) => idx !== fotoTags.indexOf(tag)))}
+                                    style={{ background: 'none', border: 'none', color: '#16A34A', cursor: 'pointer', padding: 0, fontSize: '14px', lineHeight: 1 }}>
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>

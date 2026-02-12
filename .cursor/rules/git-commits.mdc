@@ -1,0 +1,22 @@
+---
+description: Git commit message rules
+alwaysApply: true
+---
+
+# Git Commit Rules
+
+## No Co-Author Attribution
+
+NEVER include "Co-authored-by" or any co-author attribution in commit messages.
+
+```
+# BAD - Never do this
+git commit -m "Fix bug
+
+Co-authored-by: Someone <email>"
+
+# GOOD - Clean commit message
+git commit -m "Fix bug"
+```
+
+Keep commit messages clean and focused on describing the changes only.
