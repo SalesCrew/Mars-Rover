@@ -18,7 +18,9 @@ import {
   ShoppingCart,
   ArrowsLeftRight,
   Pause,
-  CircleNotch
+  CircleNotch,
+  Star,
+  Trash
 } from '@phosphor-icons/react';
 import { useAuth } from '../../contexts/AuthContext';
 import fragebogenService from '../../services/fragebogenService';
@@ -195,6 +197,8 @@ interface ZusatzEntry {
   duration: string;
   kommentar?: string;
   isWorkTimeDeduction?: boolean;
+  marketName?: string;
+  marketChain?: string;
 }
 
 type TimeEntry = MarketVisitEntry | ZusatzEntry;
@@ -230,6 +234,7 @@ const reasonIcons: Record<string, React.ElementType> = {
   heimfahrt: Path,
   hotel: Bed,
   unterbrechung: Pause,
+  sonderaufgabe: Star,
 };
 
 // Chain colors
@@ -268,6 +273,15 @@ const formatMinutes = (minutes: number): string => {
 const getToday = (): string => {
   const d = new Date();
   return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+};
+
+// Check if a date is within the editable window (2 weeks)
+const isWithinEditWindow = (dateStr: string): boolean => {
+  const entryDate = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - entryDate.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  return diffDays <= 14;
 };
 
 // Reserved for future date filtering UI
@@ -319,6 +333,10 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [dayTrackingMap, setDayTrackingMap] = useState<Record<string, DayTracking>>({});
+  
+  // Delete state
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   
   // Editing state for Anfahrt/Heimfahrt (day_start_time / day_end_time)
   const [editingDayTime, setEditingDayTime] = useState<{ date: string; field: 'start' | 'end' } | null>(null);
@@ -383,6 +401,8 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
           bis: entry.zeit_bis || '--:--',
           duration: entry.zeit_diff ? formatMinutes(parseIntervalToMinutes(entry.zeit_diff)) : '0:00',
           kommentar: entry.kommentar,
+          marketName: entry.market?.name,
+          marketChain: entry.market?.chain,
           isWorkTimeDeduction: entry.is_work_time_deduction,
         }));
 
@@ -690,6 +710,28 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
     setEditingId(null);
     setEditData({});
     setActiveTimePicker(null);
+    setConfirmDeleteId(null);
+  };
+
+  // Delete a zeiterfassung entry
+  const handleDeleteEntry = async (entryId: string) => {
+    setDeleting(true);
+    try {
+      const response = await fetch(`${fragebogenService.API_URL}/zeiterfassung/${entryId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete');
+      
+      // Remove from local state
+      setEntries(prev => prev.filter(e => e.id !== entryId));
+      setConfirmDeleteId(null);
+      setEditingId(null);
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      alert('Fehler beim Löschen');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   // Save edited Anfahrt/Heimfahrt time
@@ -910,7 +952,7 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                               </span>
                             </div>
                             <span className={styles.fahrzeitDuration}>({formatGapTime(anfahrtMinutes)})</span>
-                            {!isEditingAnfahrt && (
+                            {!isEditingAnfahrt && isWithinEditWindow(group.date) && (
                               <button 
                                 className={styles.editButton}
                                 onClick={() => {
@@ -1015,7 +1057,7 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                                   {entry.market.chain}
                                 </div>
                                 <span className={styles.marketName}>{entry.market.name}</span>
-                                {!isEditing && (
+                                {!isEditing && isWithinEditWindow(group.date) && (
                                   <button 
                                     className={styles.editButton}
                                     onClick={() => handleEditClick(entry.id, entry)}
@@ -1080,6 +1122,9 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                                     </div>
                                   </div>
                                   <div className={styles.editActions}>
+                                    <button className={styles.deleteEntryBtn} onClick={() => setConfirmDeleteId(entry.id)}>
+                                      <Trash size={14} weight="regular" />
+                                    </button>
                                     <button className={styles.cancelBtn} onClick={handleCancelEdit}>
                                       Abbrechen
                                     </button>
@@ -1088,6 +1133,13 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                                       Speichern
                                     </button>
                                   </div>
+                                  {confirmDeleteId === entry.id && (
+                                    <div className={styles.confirmDeleteRow}>
+                                      <span className={styles.confirmDeleteText}>Eintrag löschen?</span>
+                                      <button className={styles.confirmDeleteYes} onClick={() => handleDeleteEntry(entry.id)} disabled={deleting}>Ja</button>
+                                      <button className={styles.confirmDeleteNo} onClick={() => setConfirmDeleteId(null)}>Nein</button>
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <>
@@ -1142,8 +1194,11 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                             </div>
                             <div className={styles.zusatzContent}>
                               <div className={styles.zusatzHeader}>
-                                <span className={styles.zusatzLabel}>{entry.reasonLabel}</span>
-                                {!isEditing && (
+                                <span className={styles.zusatzLabel}>
+                                  {entry.reasonLabel}
+                                  {entry.marketName && <span className={styles.zusatzMarket}> - {entry.marketName}</span>}
+                                </span>
+                                {!isEditing && isWithinEditWindow(group.date) && (
                                   <button 
                                     className={styles.editButton}
                                     onClick={() => handleEditClick(entry.id, entry)}
@@ -1262,7 +1317,7 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                               </span>
                             </div>
                             <span className={styles.fahrzeitDuration}>({formatGapTime(heimfahrtMinutes)})</span>
-                            {!isEditingHeimfahrt && (
+                            {!isEditingHeimfahrt && isWithinEditWindow(group.date) && (
                               <button 
                                 className={styles.editButton}
                                 onClick={() => {

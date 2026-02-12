@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CaretDown, CaretRight, CaretLeft, Storefront, Car, CalendarCheck, TrendUp, Receipt, User, MagnifyingGlass, Pause } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, CaretLeft, Storefront, Car, CalendarCheck, TrendUp, Receipt, User, MagnifyingGlass, Pause, Star, FirstAidKit, House, GraduationCap, Warehouse, Path, Bed } from '@phosphor-icons/react';
 import XLSX from 'xlsx-js-style';
 import fragebogenService from '../../services/fragebogenService';
 import styles from './ZeiterfassungPage.module.css';
@@ -96,6 +96,8 @@ interface ZusatzZeiterfassungEntry {
   zeit_diff: string | null;
   kommentar: string | null;
   is_work_time_deduction: boolean;
+  market_id?: string;
+  market?: { id: string; name: string; chain: string } | null;
   created_at: string;
   gebietsleiter?: {
     id: string;
@@ -103,6 +105,20 @@ interface ZusatzZeiterfassungEntry {
     last_name: string;
   };
 }
+
+// Reason icon mapping for zusatz entries
+const zusatzReasonIcons: Record<string, React.ElementType> = {
+  marktbesuch: Storefront,
+  arztbesuch: FirstAidKit,
+  werkstatt: Car,
+  homeoffice: House,
+  schulung: GraduationCap,
+  lager: Warehouse,
+  heimfahrt: Path,
+  hotel: Bed,
+  unterbrechung: Pause,
+  sonderaufgabe: Star,
+};
 
 interface ZeiterfassungPageProps {
   viewMode: 'date' | 'profile';
@@ -1300,16 +1316,20 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                   );
                                 } else {
                                   const zusatz = item.entry;
+                                  const ZusatzIcon = zusatzReasonIcons[zusatz.reason] || Pause;
                                   renderedItems.push(
                                     <div 
                                       key={zusatz.id} 
                                       className={styles.fahrzeitLine}
                                     >
                                       <div className={styles.fahrzeitInfo}>
-                                        <Pause size={16} weight="fill" />
+                                        <ZusatzIcon size={16} weight="fill" />
                                         <span className={styles.fahrzeitLabel}>
                                           {zusatz.reason_label}
                                           {zusatz.is_work_time_deduction && ' (Abzug)'}
+                                          {zusatz.reason === 'sonderaufgabe' && zusatz.market?.name && (
+                                            <span style={{ color: '#3B82F6', fontWeight: 500, marginLeft: '6px' }}>@ {zusatz.market.name}</span>
+                                          )}
                                           {zusatz.kommentar && <span style={{ color: '#64748B', fontWeight: 400, marginLeft: '8px' }}>{zusatz.kommentar}</span>}
                                         </span>
                                         <div className={styles.fahrzeitTimeRight}>
@@ -1744,16 +1764,20 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                 );
                               } else {
                                 const zusatz = item.entry;
+                                const ZusatzIcon = zusatzReasonIcons[zusatz.reason] || Pause;
                                 renderedItems.push(
                                   <div 
                                     key={zusatz.id} 
                                     className={styles.fahrzeitLine}
                                   >
                                     <div className={styles.fahrzeitInfo}>
-                                      <Pause size={16} weight="fill" />
+                                      <ZusatzIcon size={16} weight="fill" />
                                       <span className={styles.fahrzeitLabel}>
                                         {zusatz.reason_label}
                                         {zusatz.is_work_time_deduction && ' (Abzug)'}
+                                        {zusatz.reason === 'sonderaufgabe' && zusatz.market?.name && (
+                                          <span style={{ color: '#3B82F6', fontWeight: 500, marginLeft: '6px' }}>@ {zusatz.market.name}</span>
+                                        )}
                                         {zusatz.kommentar && <span style={{ color: '#64748B', fontWeight: 400, marginLeft: '8px' }}>{zusatz.kommentar}</span>}
                                       </span>
                                       <div className={styles.fahrzeitTimeRight}>

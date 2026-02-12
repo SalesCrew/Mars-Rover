@@ -561,6 +561,12 @@
   color: #1E293B;
 }
 
+.zusatzMarket {
+  font-weight: 400;
+  color: #64748B;
+  font-size: 12px;
+}
+
 .zusatzTimes {
   font-size: 13px;
   color: #475569;
@@ -925,6 +931,93 @@
 .saveBtn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Delete entry button (in edit mode) */
+.deleteEntryBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+  color: #F87171;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-right: auto;
+}
+
+.deleteEntryBtn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+}
+
+/* Confirm delete row */
+@keyframes slideInConfirm {
+  0% { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  50% { opacity: 1; transform: translateY(2px) scale(1.01); }
+  75% { transform: translateY(-1px) scale(0.995); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.confirmDeleteRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(254, 242, 242, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(254, 202, 202, 0.5);
+  border-radius: 10px;
+  margin-top: 8px;
+  animation: slideInConfirm 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.confirmDeleteText {
+  font-size: 12px;
+  color: #B91C1C;
+  font-weight: 500;
+}
+
+.confirmDeleteYes {
+  padding: 5px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #DC2626;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.confirmDeleteYes:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.confirmDeleteYes:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.confirmDeleteNo {
+  padding: 5px 14px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #94A3B8;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.confirmDeleteNo:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: #64748B;
 }
 
 /* Mobile Responsive */

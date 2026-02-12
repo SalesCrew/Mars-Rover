@@ -127,6 +127,15 @@ const formatCompactDate = (dateStr: string): string => {
 const formatValue = (v: number): string =>
   `€${v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// Check if a date is within the editable window (1 month)
+const isWithinEditWindow = (dateStr: string): boolean => {
+  const entryDate = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - entryDate.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  return diffDays <= 30;
+};
+
 const typeLabel: Record<string, string> = {
   display: 'D', kartonware: 'K', palette: 'P', schuette: 'S', einzelprodukt: 'E',
 };
@@ -364,8 +373,10 @@ export const VorbestellerHistoryPage: React.FC = () => {
   }, [submissionsByWave]);
 
   // ---- RENDER: QUANTITY STEPPER ----
-  const renderQuantity = (id: string, qty: number, waveId: string, isSubItem?: boolean) => {
-    if (editingId === id) {
+  const renderQuantity = (id: string, qty: number, waveId: string, dayDate: string, isSubItem?: boolean) => {
+    const editable = isWithinEditWindow(dayDate);
+    
+    if (editingId === id && editable) {
       return (
         <div className={styles.editRow}>
           <div className={styles.quantityControls}>
@@ -403,7 +414,11 @@ export const VorbestellerHistoryPage: React.FC = () => {
       );
     }
     return (
-      <span className={isSubItem ? styles.subItemQty : styles.itemQuantity} onClick={() => startEdit(id, qty)}>
+      <span
+        className={isSubItem ? styles.subItemQty : styles.itemQuantity}
+        onClick={editable ? () => startEdit(id, qty) : undefined}
+        style={editable ? undefined : { cursor: 'default' }}
+      >
         {qty}x
       </span>
     );
@@ -422,6 +437,8 @@ export const VorbestellerHistoryPage: React.FC = () => {
 
   // ---- RENDER: ADD ROW ----
   const renderAddRow = (waveId: string, day: DayGroup) => {
+    if (!isWithinEditWindow(day.date)) return null;
+    
     if (!addState || addState.waveId !== waveId || addState.dayDate !== day.date) {
       return (
         <button className={styles.addBtn} onClick={() => startAdd(waveId, day.date, day.markets[0]?.id || '')}>
@@ -749,7 +766,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
                                       {hasSubs && <span className={styles.productCount}>{entry.products!.length} Produkte</span>}
                                     </div>
                                   </div>
-                                  {!hasSubs && renderQuantity(entry.id, entry.quantity, wave.id)}
+                                  {!hasSubs && renderQuantity(entry.id, entry.quantity, wave.id, day.date)}
                                   <span className={`${styles.itemValue} ${entry.value > 0 ? styles.itemValueCash : styles.itemValueCount}`}>
                                     {entry.value > 0 ? formatValue(entry.value) : `${entry.quantity} Stk`}
                                   </span>
@@ -767,7 +784,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
                                         <React.Fragment key={product.id}>
                                           <div className={styles.subItem}>
                                             <span className={styles.subItemName}>{product.name}</span>
-                                            {renderQuantity(product.id, product.quantity, wave.id, true)}
+                                            {renderQuantity(product.id, product.quantity, wave.id, day.date, true)}
                                             <span className={`${styles.subItemValue} ${product.value > 0 ? styles.subItemValueCash : styles.subItemValueCount}`}>
                                               {product.value > 0 ? formatValue(product.value) : `${product.quantity} Stk`}
                                             </span>
