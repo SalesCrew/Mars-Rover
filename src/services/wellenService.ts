@@ -254,8 +254,6 @@ class WellenService {
    */
   async createWelle(welle: CreateWelleDTO): Promise<{ id: string; message: string }> {
     try {
-      console.log('🔧 createWelle: calling URL:', this.baseUrl);
-      console.log('🔧 createWelle: payload keys:', Object.keys(welle));
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
@@ -264,10 +262,8 @@ class WellenService {
         body: JSON.stringify(welle),
       });
 
-      console.log('🔧 createWelle: response status:', response.status, response.statusText);
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('🔧 createWelle: FULL ERROR RESPONSE:', JSON.stringify(errorData, null, 2));
         throw new Error(errorData.error || `Failed to create welle: ${response.statusText}`);
       }
 
@@ -284,7 +280,6 @@ class WellenService {
    */
   async updateWelle(id: string, welle: CreateWelleDTO): Promise<{ message: string }> {
     try {
-      console.log('🔧 updateWelle: calling URL:', `${this.baseUrl}/${id}`);
       const response = await fetch(`${this.baseUrl}/${id}`, {
         method: 'PUT',
         headers: {
@@ -293,10 +288,8 @@ class WellenService {
         body: JSON.stringify(welle),
       });
 
-      console.log('🔧 updateWelle: response status:', response.status, response.statusText);
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('🔧 updateWelle: FULL ERROR RESPONSE:', JSON.stringify(errorData, null, 2));
         throw new Error(errorData.error || `Failed to update welle: ${response.statusText}`);
       }
 
