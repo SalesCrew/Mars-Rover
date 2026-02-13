@@ -73,6 +73,7 @@ export interface WellePhoto {
   marketChain: string;
   photoUrl: string;
   tags: string[];
+  comment?: string;
   createdAt: string;
 }
 
@@ -551,7 +552,7 @@ class WellenService {
     welle_id: string;
     gebietsleiter_id: string;
     market_id: string;
-    photos: Array<{ image: string; tags: string[] }>;
+    photos: Array<{ image: string; tags: string[]; comment?: string }>;
     submission_batch_id?: string;
   }): Promise<{ uploaded: number; photos: WellePhoto[] }> {
     try {

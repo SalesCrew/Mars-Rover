@@ -56,7 +56,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const [showItemSelection, setShowItemSelection] = useState(false);
   const [_showPhotoCapture, _setShowPhotoCapture] = useState(false); void _showPhotoCapture; void _setShowPhotoCapture;
   const [showFotoWelle, setShowFotoWelle] = useState(false);
-  const [fotoWellePhotos, setFotoWellePhotos] = useState<Array<{ image: string; tags: string[] }>>([]);
+  const [fotoWellePhotos, setFotoWellePhotos] = useState<Array<{ image: string; tags: string[]; comment?: string }>>([]);
+  const [fotoComment, setFotoComment] = useState('');
   const [fotoTagsAllMode, setFotoTagsAllMode] = useState(true);
   const [fotoSelectedTags, setFotoSelectedTags] = useState<Set<string>>(new Set());
   const [fotoTaggingIndex, setFotoTaggingIndex] = useState<number | null>(null); // which photo is being tagged
@@ -532,11 +533,15 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
         // Upload foto welle photos if any
         if (fotoWellePhotos.length > 0) {
           try {
+            // Attach optional comment to all photos in this batch
+            const photosWithComment = fotoComment.trim()
+              ? fotoWellePhotos.map(p => ({ ...p, comment: fotoComment.trim() }))
+              : fotoWellePhotos;
             await wellenService.uploadPhotos({
               welle_id: selectedVorbesteller.id,
               gebietsleiter_id: user.id,
               market_id: selectedMarket.id,
-              photos: fotoWellePhotos,
+              photos: photosWithComment,
             });
           } catch (photoError) {
             console.warn('Could not upload foto welle photos:', photoError);
@@ -622,6 +627,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     // Reset foto welle states
     setShowFotoWelle(false);
     setFotoWellePhotos([]);
+    setFotoComment('');
     setFotoTagsAllMode(true);
     setFotoSelectedTags(new Set());
     setFotoTaggingIndex(null);
@@ -1692,6 +1698,17 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                       )}
                     </div>
                   )}
+
+                  {/* Optional comment */}
+                  <div className={styles.fotoCommentSection}>
+                    <textarea
+                      className={styles.fotoCommentInput}
+                      placeholder="Optionaler Kommentar..."
+                      value={fotoComment}
+                      onChange={e => setFotoComment(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
 
                   {/* Summary bar */}
                   {fotoWellePhotos.length > 0 && (

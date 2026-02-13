@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Camera, CircleNotch, CaretLeft, CaretRight, Trash, X, Image as ImageIcon } from '@phosphor-icons/react';
+import { Camera, CircleNotch, CaretLeft, CaretRight, Trash, X, Image as ImageIcon, DownloadSimple, CheckCircle } from '@phosphor-icons/react';
+import JSZip from 'jszip';
 import { wellenService, type WellePhoto, type Welle } from '../../services/wellenService';
 import styles from './FotosPage.module.css';
 
@@ -92,6 +93,96 @@ export const FotosPage: React.FC = () => {
     const d = new Date(dateStr);
     return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
+
+  // Export state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [zipName, setZipName] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportDone, setExportDone] = useState(false);
+
+  const openExportModal = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setZipName(`Fotos_${today}`);
+    setExportDone(false);
+    setExportProgress(0);
+    setShowExportModal(true);
+  };
+
+  const handleExportZip = async () => {
+    if (photos.length === 0 || !zipName.trim()) return;
+    setIsExporting(true);
+    setExportProgress(0);
+
+    try {
+      const zip = new JSZip();
+      const nameCount: Record<string, number> = {};
+
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        setExportProgress(Math.round(((i + 1) / photos.length) * 100));
+
+        // Build filename from tags + date
+        const tagPart = (photo.tags && photo.tags.length > 0)
+          ? photo.tags.join('-').replace(/[^a-zA-Z0-9äöüÄÖÜß\-_]/g, '_')
+          : 'foto';
+        const datePart = new Date(photo.createdAt).toISOString().split('T')[0];
+        let baseName = `${tagPart}-${datePart}`;
+
+        // Handle duplicate names
+        if (nameCount[baseName] !== undefined) {
+          nameCount[baseName]++;
+          baseName = `${baseName}_${nameCount[baseName]}`;
+        } else {
+          nameCount[baseName] = 0;
+        }
+
+        // Determine extension from URL
+        const urlPath = new URL(photo.photoUrl).pathname;
+        const ext = urlPath.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `${baseName}.${ext}`;
+
+        // Fetch the image
+        try {
+          const response = await fetch(photo.photoUrl);
+          const blob = await response.blob();
+          zip.file(fileName, blob);
+        } catch (err) {
+          console.error(`Failed to fetch photo ${photo.id}:`, err);
+        }
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${zipName.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß\-_ ]/g, '_')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setExportDone(true);
+      setTimeout(() => {
+        setShowExportModal(false);
+        setIsExporting(false);
+        setExportDone(false);
+      }, 1500);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Export fehlgeschlagen');
+      setIsExporting(false);
+    }
+  };
+
+  // Listen for export event from AdminPanel header
+  useEffect(() => {
+    const handleExportEvent = () => {
+      openExportModal();
+    };
+    window.addEventListener('fotos:export', handleExportEvent);
+    return () => window.removeEventListener('fotos:export', handleExportEvent);
+  }, [photos]);
 
   const lightboxPhoto = lightboxIndex !== null ? photos[lightboxIndex] : null;
 
@@ -222,10 +313,93 @@ export const FotosPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+                {lightboxPhoto.comment && (
+                  <div>
+                    <p className={styles.lightboxLabel}>Kommentar</p>
+                    <p className={styles.lightboxComment}>{lightboxPhoto.comment}</p>
+                  </div>
+                )}
               </div>
               <button className={styles.lightboxDelete} onClick={() => handleDelete(lightboxPhoto.id)}>
                 <Trash size={14} weight="regular" style={{ marginRight: '6px' }} />
                 Foto löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className={styles.exportOverlay} onClick={() => !isExporting && setShowExportModal(false)}>
+          <div className={styles.exportModal} onClick={e => e.stopPropagation()}>
+            <div className={styles.exportHeader}>
+              <div className={styles.exportIconWrapper}>
+                <DownloadSimple size={20} weight="bold" />
+              </div>
+              <div>
+                <h3 className={styles.exportTitle}>Fotos exportieren</h3>
+                <p className={styles.exportSubtitle}>{photos.length} {photos.length === 1 ? 'Foto' : 'Fotos'} als ZIP herunterladen</p>
+              </div>
+              {!isExporting && (
+                <button className={styles.exportCloseBtn} onClick={() => setShowExportModal(false)}>
+                  <X size={16} weight="bold" />
+                </button>
+              )}
+            </div>
+
+            <div className={styles.exportBody}>
+              <label className={styles.exportLabel}>ZIP-Ordnername</label>
+              <input
+                type="text"
+                className={styles.exportInput}
+                value={zipName}
+                onChange={e => setZipName(e.target.value)}
+                placeholder="z.B. Fotos_KW7"
+                disabled={isExporting}
+              />
+              <p className={styles.exportHint}>
+                Dateinamen: Tags und Datum werden automatisch vergeben
+              </p>
+
+              {isExporting && (
+                <div className={styles.exportProgressContainer}>
+                  <div className={styles.exportProgressBar}>
+                    <div className={styles.exportProgressFill} style={{ width: `${exportProgress}%` }} />
+                  </div>
+                  <span className={styles.exportProgressText}>{exportProgress}%</span>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.exportFooter}>
+              <button
+                className={styles.exportCancelBtn}
+                onClick={() => setShowExportModal(false)}
+                disabled={isExporting}
+              >
+                Abbrechen
+              </button>
+              <button
+                className={`${styles.exportStartBtn} ${exportDone ? styles.exportStartBtnDone : ''}`}
+                onClick={handleExportZip}
+                disabled={isExporting || exportDone || !zipName.trim()}
+              >
+                {isExporting ? (
+                  <>
+                    <CircleNotch size={16} weight="bold" className={styles.spinner} />
+                    <span>Exportiere...</span>
+                  </>
+                ) : exportDone ? (
+                  <>
+                    <CheckCircle size={16} weight="fill" />
+                    <span>Fertig!</span>
+                  </>
+                ) : (
+                  <>
+                    <DownloadSimple size={16} weight="bold" />
+                    <span>ZIP herunterladen</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

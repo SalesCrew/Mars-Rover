@@ -32,9 +32,12 @@ CREATE TABLE IF NOT EXISTS wellen_photos (
   market_id VARCHAR(50) NOT NULL,
   photo_url TEXT NOT NULL,
   tags TEXT[] DEFAULT '{}',
+  comment TEXT,
   submission_batch_id UUID,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE wellen_photos ADD COLUMN IF NOT EXISTS comment TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_wellen_photos_welle ON wellen_photos(welle_id);
 CREATE INDEX IF NOT EXISTS idx_wellen_photos_gl ON wellen_photos(gebietsleiter_id);

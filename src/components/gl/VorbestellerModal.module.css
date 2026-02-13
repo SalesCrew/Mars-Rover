@@ -1543,6 +1543,36 @@
   transform: scale(1.02);
 }
 
+/* Comment */
+.fotoCommentSection {
+  width: 100%;
+  max-width: 460px;
+  margin-top: 4px;
+}
+.fotoCommentInput {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1E293B;
+  background: rgba(248, 250, 252, 0.6);
+  backdrop-filter: blur(8px);
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  box-sizing: border-box;
+}
+.fotoCommentInput:focus {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: white;
+}
+.fotoCommentInput::placeholder {
+  color: #94A3B8;
+  font-size: 13px;
+}
+
 /* Summary bar */
 .fotoSummaryBar {
   display: flex;

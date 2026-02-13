@@ -149,6 +149,11 @@
   padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
   background: rgba(59,130,246,0.08); color: #3B82F6;
 }
+.lightboxComment {
+  font-size: 13px; color: #475569; margin: 0; line-height: 1.5;
+  background: rgba(248,250,252,0.8); padding: 8px 12px; border-radius: 8px;
+  border: 1px solid #E2E8F0;
+}
 .lightboxDelete {
   margin-top: auto; padding: 10px; border-radius: 8px; border: none;
   background: rgba(239,68,68,0.08); color: #EF4444;
@@ -163,6 +168,104 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner { animation: spin 1s linear infinite; }
+
+/* Export Modal */
+.exportOverlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000; padding: 20px;
+  animation: exportFadeIn 0.2s ease;
+}
+@keyframes exportFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.exportModal {
+  background: white; border-radius: 16px; width: 100%; max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  animation: exportSlideUp 0.25s ease;
+  overflow: hidden;
+}
+@keyframes exportSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.exportHeader {
+  display: flex; align-items: center; gap: 12px;
+  padding: 20px 20px 0; position: relative;
+}
+.exportIconWrapper {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: linear-gradient(135deg, #EFF6FF, #DBEAFE); color: #3B82F6;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.exportTitle { font-size: 16px; font-weight: 700; color: #0F172A; margin: 0; }
+.exportSubtitle { font-size: 12px; color: #94A3B8; margin: 2px 0 0; }
+.exportCloseBtn {
+  position: absolute; top: 16px; right: 16px;
+  width: 28px; height: 28px; border-radius: 8px;
+  background: #F1F5F9; border: none; color: #64748B; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.exportCloseBtn:hover { background: #E2E8F0; }
+
+.exportBody { padding: 20px; }
+.exportLabel {
+  display: block; font-size: 12px; font-weight: 600; color: #475569;
+  margin-bottom: 6px;
+}
+.exportInput {
+  width: 100%; height: 40px; padding: 0 12px; border: 1px solid #E2E8F0;
+  border-radius: 10px; font-size: 14px; color: #1E293B; background: #F8FAFC;
+  outline: none; transition: border-color 0.15s; box-sizing: border-box;
+}
+.exportInput:focus { border-color: #3B82F6; background: white; }
+.exportInput:disabled { opacity: 0.6; }
+.exportHint {
+  font-size: 11px; color: #94A3B8; margin: 8px 0 0; line-height: 1.4;
+}
+
+.exportProgressContainer {
+  display: flex; align-items: center; gap: 10px; margin-top: 16px;
+}
+.exportProgressBar {
+  flex: 1; height: 6px; border-radius: 3px; background: #E2E8F0; overflow: hidden;
+}
+.exportProgressFill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #3B82F6, #2563EB);
+  transition: width 0.3s ease;
+}
+.exportProgressText {
+  font-size: 12px; font-weight: 600; color: #3B82F6; min-width: 36px; text-align: right;
+}
+
+.exportFooter {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 0 20px 20px; 
+}
+.exportCancelBtn {
+  height: 38px; padding: 0 16px; border-radius: 10px; border: 1px solid #E2E8F0;
+  background: white; color: #64748B; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.exportCancelBtn:hover { background: #F8FAFC; border-color: #CBD5E1; }
+.exportCancelBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.exportStartBtn {
+  display: flex; align-items: center; gap: 6px;
+  height: 38px; padding: 0 18px; border-radius: 10px; border: none;
+  background: linear-gradient(135deg, #3B82F6, #2563EB); color: white;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(59,130,246,0.25);
+}
+.exportStartBtn:hover { box-shadow: 0 4px 14px rgba(59,130,246,0.35); }
+.exportStartBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+.exportStartBtnDone {
+  background: linear-gradient(135deg, #22C55E, #16A34A);
+  box-shadow: 0 2px 8px rgba(34,197,94,0.25);
+}
 
 /* Responsive */
 @media (max-width: 768px) {

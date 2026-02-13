@@ -534,6 +534,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
               </button>
             </div>
           )}
+          {selectedPage === 'fotos' && (
+            <div className={styles.headerButtons}>
+              <button 
+                className={styles.exportButton}
+                onClick={() => window.dispatchEvent(new CustomEvent('fotos:export'))}
+              >
+                <DownloadSimple size={18} weight="bold" />
+                <span>Export</span>
+              </button>
+            </div>
+          )}
           {selectedPage === 'zeiterfassung' && (
             <div className={styles.headerButtons}>
               <div className={styles.viewToggle}>
