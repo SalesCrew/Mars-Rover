@@ -71,6 +71,7 @@ export interface WellePhoto {
   marketId: string;
   marketName: string;
   marketChain: string;
+  marketAddress?: string;
   photoUrl: string;
   tags: string[];
   comment?: string;

@@ -440,6 +440,7 @@ export const FotosPage: React.FC = () => {
                 <div>
                   <p className={styles.lightboxLabel}>Markt</p>
                   <p className={styles.lightboxValue}>{lightboxPhoto.marketName} {lightboxPhoto.marketChain && `(${lightboxPhoto.marketChain})`}</p>
+                  {lightboxPhoto.marketAddress && <p className={styles.lightboxSubvalue}>{lightboxPhoto.marketAddress}</p>}
                 </div>
                 <div>
                   <p className={styles.lightboxLabel}>Welle</p>
