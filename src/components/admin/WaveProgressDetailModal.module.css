@@ -919,4 +919,268 @@
   .deleteBtn {
     opacity: 1;
   }
+
+  .fotoGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .fotoLightboxContent {
+    flex-direction: column;
+  }
+
+  .fotoLightboxSidebar {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #E2E8F0;
+  }
+}
+
+/* ================================ */
+/* Foto-Only Wave Styles            */
+/* ================================ */
+
+.goalBannerFoto {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(8, 145, 178, 0.05));
+  border-bottom-color: rgba(6, 182, 212, 0.2);
+  color: #0891B2;
+}
+
+/* Foto Grid */
+.fotoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.fotoCard {
+  background: white;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.fotoCard:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.fotoThumb {
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+  background: #F1F5F9;
+}
+
+.fotoThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.fotoInfo {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fotoGl {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1E293B;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fotoMarket {
+  font-size: 11px;
+  color: #64748B;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fotoDate {
+  font-size: 11px;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+.fotoTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.fotoTag {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.08);
+  color: #3B82F6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+
+.fotoTagMore {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(107, 114, 128, 0.08);
+  color: #6B7280;
+}
+
+/* Foto Lightbox */
+.fotoLightboxOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 10002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.2s ease;
+}
+
+.fotoLightboxContent {
+  display: flex;
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  max-width: 900px;
+  max-height: 80vh;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.fotoLightboxImage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: #0F172A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fotoLightboxImage img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+.fotoLightboxNav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #1F2937;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.15s ease;
+}
+
+.fotoLightboxNav:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.fotoLightboxPrev { left: 12px; }
+.fotoLightboxNext { right: 12px; }
+
+.fotoLightboxSidebar {
+  width: 280px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-left: 1px solid rgba(226, 232, 240, 0.6);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.fotoLightboxClose {
+  align-self: flex-end;
+  background: none;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  color: #6B7280;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fotoLightboxClose:hover {
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #EF4444;
+}
+
+.fotoLightboxMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fotoLightboxLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94A3B8;
+  margin: 0 0 4px;
+}
+
+.fotoLightboxValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1E293B;
+  margin: 0;
+}
+
+.fotoLightboxSubvalue {
+  font-size: 12px;
+  font-weight: 400;
+  color: #64748B;
+  margin: 2px 0 0;
+}
+
+.fotoLightboxTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fotoLightboxTag {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.08);
+  color: #3B82F6;
 }

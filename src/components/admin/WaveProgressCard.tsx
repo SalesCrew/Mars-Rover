@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CalendarBlank, Package, Users, Storefront, CheckCircle, PencilSimple } from '@phosphor-icons/react';
+import { CalendarBlank, Camera, Package, Users, Storefront, CheckCircle, PencilSimple } from '@phosphor-icons/react';
 import styles from './WaveProgressCard.module.css';
 import { WaveMarketsModal } from './WaveMarketsModal';
 
@@ -23,6 +23,8 @@ interface WaveProgressData {
   currentValue?: number;
   assignedMarkets: number;
   participatingGLs: number;
+  fotoOnly?: boolean;
+  photoCount?: number;
 }
 
 interface WaveProgressCardProps {
@@ -132,8 +134,8 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
       {/* Header */}
       <div className={`${styles.header} ${isTruncated ? styles.headerTruncated : ''}`}>
         <div className={styles.headerLeft}>
-          <div className={styles.iconWrapper}>
-            <CalendarBlank size={20} weight="duotone" />
+          <div className={`${styles.iconWrapper} ${wave.fotoOnly ? styles.iconWrapperFoto : ''}`}>
+            {wave.fotoOnly ? <Camera size={20} weight="duotone" /> : <CalendarBlank size={20} weight="duotone" />}
           </div>
           <div className={styles.headerInfo}>
             <h3 ref={waveNameRef} className={styles.waveName}>{name}</h3>
@@ -148,47 +150,74 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
         </div>
       </div>
 
-      {/* Goal Display */}
-      <div className={styles.goalDisplay}>
-        {goalType === 'percentage' ? (
-          <>
-            <div className={`${styles.goalValue} ${goalMet ? styles.goalValueSuccess : ''}`}>
-              {totalItems}/{Math.round(goalItemCount * 10) / 10}
+      {wave.fotoOnly ? (
+        <>
+          {/* Foto-Only Goal Display */}
+          <div className={styles.goalDisplay}>
+            <div className={styles.goalValue}>
+              {wave.photoCount || 0}
             </div>
-            <div className={styles.goalLabel}>Artikel ({goalPercentage}% von {totalTargets})</div>
-          </>
-        ) : (
-          <>
-            <div className={`${styles.goalValue} ${goalMet ? styles.goalValueSuccess : ''}`}>
-              €{(currentValue || 0).toLocaleString('de-DE')}
-            </div>
-            <div className={styles.goalLabel}>von €{(goalValue || 0).toLocaleString('de-DE')} Ziel</div>
-          </>
-        )}
-      </div>
-
-      {/* Single Unified Progress Bar */}
-      <div className={styles.progressSection}>
-        <div className={styles.progressHeader}>
-          <div className={styles.progressLabel}>
-            <Package size={14} weight="fill" />
-            <span>Fortschritt</span>
+            <div className={styles.goalLabel}>Fotos hochgeladen</div>
           </div>
-          <div className={styles.progressCount}>
+
+          {/* Foto Progress Info */}
+          <div className={styles.progressSection}>
+            <div className={styles.progressHeader}>
+              <div className={styles.progressLabel}>
+                <Camera size={14} weight="fill" />
+                <span>Fotowelle</span>
+              </div>
+              <div className={styles.progressCount}>
+                {wave.photoCount || 0} Fotos gesammelt
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Goal Display */}
+          <div className={styles.goalDisplay}>
             {goalType === 'percentage' ? (
-              <>{overallProgress}% ({totalItems}/{totalTargets} Artikel)</>
+              <>
+                <div className={`${styles.goalValue} ${goalMet ? styles.goalValueSuccess : ''}`}>
+                  {totalItems}/{Math.round(goalItemCount * 10) / 10}
+                </div>
+                <div className={styles.goalLabel}>Artikel ({goalPercentage}% von {totalTargets})</div>
+              </>
             ) : (
-              <>€{(currentValue || 0).toLocaleString('de-DE')} erreicht</>
+              <>
+                <div className={`${styles.goalValue} ${goalMet ? styles.goalValueSuccess : ''}`}>
+                  €{(currentValue || 0).toLocaleString('de-DE')}
+                </div>
+                <div className={styles.goalLabel}>von €{(goalValue || 0).toLocaleString('de-DE')} Ziel</div>
+              </>
             )}
           </div>
-        </div>
-        <div className={styles.progressTrack}>
-          <div
-            className={`${styles.progressBar} ${goalMet ? styles.progressSuccess : ''}`}
-            style={{ width: `${goalType === 'percentage' ? Math.min(100, (totalItems / goalItemCount) * 100) : Math.min(100, ((currentValue || 0) / (goalValue || 1)) * 100)}%` }}
-          />
-        </div>
-      </div>
+
+          {/* Single Unified Progress Bar */}
+          <div className={styles.progressSection}>
+            <div className={styles.progressHeader}>
+              <div className={styles.progressLabel}>
+                <Package size={14} weight="fill" />
+                <span>Fortschritt</span>
+              </div>
+              <div className={styles.progressCount}>
+                {goalType === 'percentage' ? (
+                  <>{overallProgress}% ({totalItems}/{totalTargets} Artikel)</>
+                ) : (
+                  <>€{(currentValue || 0).toLocaleString('de-DE')} erreicht</>
+                )}
+              </div>
+            </div>
+            <div className={styles.progressTrack}>
+              <div
+                className={`${styles.progressBar} ${goalMet ? styles.progressSuccess : ''}`}
+                style={{ width: `${goalType === 'percentage' ? Math.min(100, (totalItems / goalItemCount) * 100) : Math.min(100, ((currentValue || 0) / (goalValue || 1)) * 100)}%` }}
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Metrics Footer */}
       <div className={styles.footer}>
@@ -217,12 +246,12 @@ export const WaveProgressCard: React.FC<WaveProgressCardProps> = ({ wave, isFini
           </div>
         </div>
         <div className={styles.footerMetric}>
-          <Package size={16} weight="fill" />
+          {wave.fotoOnly ? <Camera size={16} weight="fill" /> : <Package size={16} weight="fill" />}
           <div className={styles.footerMetricInfo}>
             <div className={styles.footerMetricValue}>
-              {totalItems}/{totalTargets}
+              {wave.fotoOnly ? (wave.photoCount || 0) : `${totalItems}/${totalTargets}`}
             </div>
-            <div className={styles.footerMetricLabel}>Artikel</div>
+            <div className={styles.footerMetricLabel}>{wave.fotoOnly ? 'Fotos' : 'Artikel'}</div>
           </div>
         </div>
       </div>

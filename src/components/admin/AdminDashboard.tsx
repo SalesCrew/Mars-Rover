@@ -51,6 +51,8 @@ interface WaveProgress {
   kartonwareTarget: number;
   assignedMarkets: number;
   participatingGLs: number;
+  fotoOnly?: boolean;
+  photoCount?: number;
 }
 
 interface AdminDashboardProps {

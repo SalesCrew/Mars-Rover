@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { X, CalendarBlank, TrendUp, User, Package, CheckCircle, Clock, CalendarDots, Users, Plus, Minus, Trash, CaretDown, CaretRight, Check } from '@phosphor-icons/react';
+import { X, CalendarBlank, Camera, TrendUp, User, Package, CheckCircle, Clock, CalendarDots, Users, Plus, Minus, Trash, CaretDown, CaretLeft, CaretRight, Check } from '@phosphor-icons/react';
 import { API_BASE_URL } from '../../config/database';
 import { wellenService } from '../../services/wellenService';
 import styles from './WaveProgressDetailModal.module.css';
@@ -14,8 +14,23 @@ interface WaveProgressDetailModalProps {
     goalType: 'percentage' | 'value';
     goalPercentage?: number | null;
     goalValue?: number | null;
+    fotoOnly?: boolean;
   };
   onClose: () => void;
+}
+
+interface FotoEntry {
+  id: string;
+  photoUrl: string;
+  tags: string[];
+  comment: string | null;
+  glId: string;
+  glName: string;
+  marketId: string;
+  marketName: string;
+  marketChain: string;
+  marketAddress: string;
+  createdAt: string;
 }
 
 interface ProductDetail {
@@ -57,6 +72,10 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Foto-only states
+  const [fotoEntries, setFotoEntries] = useState<FotoEntry[]>([]);
+  const [fotoLightboxIndex, setFotoLightboxIndex] = useState<number | null>(null);
 
   const toggleGL = (glName: string) => {
     setCollapsedGLs(prev => {
@@ -114,8 +133,10 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
           throw new Error('Failed to fetch progress');
         }
         const data = await response.json();
-        // Support both old format (array) and new format ({ entries })
-        if (Array.isArray(data)) {
+        // Handle foto-only response
+        if (data.type === 'foto') {
+          setFotoEntries(data.photos || []);
+        } else if (Array.isArray(data)) {
           setProgressData(data);
         } else {
           setProgressData(data.entries || []);
@@ -167,6 +188,23 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
 
     return Object.fromEntries(sortedEntries);
   }, [progressData]);
+
+  // Foto-only: unique GLs count and group by GL
+  const fotoByGL = useMemo(() => {
+    const grouped: Record<string, FotoEntry[]> = {};
+    fotoEntries.forEach(f => {
+      if (!grouped[f.glName]) grouped[f.glName] = [];
+      grouped[f.glName].push(f);
+    });
+    return grouped;
+  }, [fotoEntries]);
+
+  const fotoFormatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const fotoLightboxPhoto = fotoLightboxIndex !== null ? fotoEntries[fotoLightboxIndex] : null;
 
   // Format timestamp to Vienna time
   const formatTimestamp = (timestamp: string) => {
@@ -544,44 +582,54 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
-            <CalendarBlank size={28} weight="duotone" />
+            {welle.fotoOnly ? <Camera size={28} weight="duotone" /> : <CalendarBlank size={28} weight="duotone" />}
             <div className={styles.headerInfo}>
               <h2 className={styles.title}>{welle.name}</h2>
               <p className={styles.subtitle}>{welle.startDate} - {welle.endDate}</p>
             </div>
           </div>
           <div className={styles.headerRight}>
-            {/* View Toggle */}
-            <div className={styles.viewToggle}>
-              <button 
-                className={`${styles.viewToggleBtn} ${viewMode === 'gl' ? styles.viewToggleBtnActive : ''}`}
-                onClick={() => setViewMode('gl')}
-                title="Nach Gebietsleiter"
-              >
-                <Users size={18} weight={viewMode === 'gl' ? 'fill' : 'regular'} />
-              </button>
-              <button 
-                className={`${styles.viewToggleBtn} ${viewMode === 'days' ? styles.viewToggleBtnActive : ''}`}
-                onClick={() => setViewMode('days')}
-                title="Nach Tagen"
-              >
-                <CalendarDots size={18} weight={viewMode === 'days' ? 'fill' : 'regular'} />
-              </button>
-            </div>
+            {!welle.fotoOnly && (
+              <div className={styles.viewToggle}>
+                <button 
+                  className={`${styles.viewToggleBtn} ${viewMode === 'gl' ? styles.viewToggleBtnActive : ''}`}
+                  onClick={() => setViewMode('gl')}
+                  title="Nach Gebietsleiter"
+                >
+                  <Users size={18} weight={viewMode === 'gl' ? 'fill' : 'regular'} />
+                </button>
+                <button 
+                  className={`${styles.viewToggleBtn} ${viewMode === 'days' ? styles.viewToggleBtnActive : ''}`}
+                  onClick={() => setViewMode('days')}
+                  title="Nach Tagen"
+                >
+                  <CalendarDots size={18} weight={viewMode === 'days' ? 'fill' : 'regular'} />
+                </button>
+              </div>
+            )}
             <button className={styles.closeButton} onClick={onClose}>
               <X size={24} weight="bold" />
             </button>
           </div>
         </div>
 
-        {/* Goal Display */}
-        <div className={styles.goalBanner}>
-          <TrendUp size={20} weight="bold" />
-          <span>
-            Ziel: {welle.goalType === 'percentage' 
-              ? `${welle.goalPercentage}%` 
-              : `€${(welle.goalValue || 0).toLocaleString('de-DE')}`}
-          </span>
+        {/* Goal / Type Display */}
+        <div className={`${styles.goalBanner} ${welle.fotoOnly ? styles.goalBannerFoto : ''}`}>
+          {welle.fotoOnly ? (
+            <>
+              <Camera size={20} weight="bold" />
+              <span>Fotowelle</span>
+            </>
+          ) : (
+            <>
+              <TrendUp size={20} weight="bold" />
+              <span>
+                Ziel: {welle.goalType === 'percentage' 
+                  ? `${welle.goalPercentage}%` 
+                  : `€${(welle.goalValue || 0).toLocaleString('de-DE')}`}
+              </span>
+            </>
+          )}
         </div>
 
         {/* Content */}
@@ -589,8 +637,37 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
           {isLoading ? (
             <div className={styles.loadingState}>
               <div className={styles.spinner} />
-              <p>Lade Fortschritt...</p>
+              <p>{welle.fotoOnly ? 'Lade Fotos...' : 'Lade Fortschritt...'}</p>
             </div>
+          ) : welle.fotoOnly ? (
+            /* Foto-Only Content */
+            fotoEntries.length === 0 ? (
+              <div className={styles.emptyState}>
+                <Camera size={48} weight="thin" />
+                <p>Noch keine Fotos hochgeladen</p>
+              </div>
+            ) : (
+              <div className={styles.fotoGrid}>
+                {fotoEntries.map((foto, idx) => (
+                  <div key={foto.id} className={styles.fotoCard} onClick={() => setFotoLightboxIndex(idx)}>
+                    <div className={styles.fotoThumb}>
+                      <img src={foto.photoUrl} alt="" loading="lazy" decoding="async" />
+                    </div>
+                    <div className={styles.fotoInfo}>
+                      <p className={styles.fotoGl}>{foto.glName}</p>
+                      <p className={styles.fotoMarket}>{foto.marketName} {foto.marketChain && `(${foto.marketChain})`}</p>
+                      <span className={styles.fotoDate}>{fotoFormatDate(foto.createdAt)}</span>
+                      {foto.tags.length > 0 && (
+                        <div className={styles.fotoTags}>
+                          {foto.tags.slice(0, 3).map(t => <span key={t} className={styles.fotoTag}>{t}</span>)}
+                          {foto.tags.length > 3 && <span className={styles.fotoTagMore}>+{foto.tags.length - 3}</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           ) : progressData.length === 0 ? (
             <div className={styles.emptyState}>
               <Package size={48} weight="thin" />
@@ -601,7 +678,6 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
             <div className={styles.progressList}>
               {Object.entries(progressByGL).map(([glName, progresses]) => (
                 <div key={glName} className={styles.glSection}>
-                  {/* GL Header - Clickable to collapse */}
                   <div 
                     className={styles.glHeader}
                     onClick={() => toggleGL(glName)}
@@ -621,8 +697,6 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                       </span>
                     </div>
                   </div>
-
-                  {/* Progress Entries - Collapsible */}
                   <div className={`${styles.progressEntries} ${collapsedGLs.has(glName) ? styles.entriesCollapsed : ''}`}>
                     {progresses.map((progress, idx) => renderProgressEntry(progress, idx, false))}
                   </div>
@@ -634,7 +708,6 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
             <div className={styles.daysView}>
               {Object.entries(progressByDate).map(([dateKey, progresses]) => (
                 <div key={dateKey} className={styles.daySection}>
-                  {/* Day Header - Clickable to expand/collapse */}
                   <div 
                     className={`${styles.dayHeader} ${expandedDays.has(dateKey) ? styles.dayHeaderExpanded : ''}`}
                     onClick={() => toggleDay(dateKey)}
@@ -658,8 +731,6 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                       </span>
                     </div>
                   </div>
-
-                  {/* Day Entries - Expandable */}
                   {expandedDays.has(dateKey) && (
                     <div className={styles.dayEntries}>
                       {progresses.map((progress, idx) => renderProgressEntry(progress, idx, true))}
@@ -672,34 +743,95 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
         </div>
 
         {/* Footer Summary */}
-        {!isLoading && progressData.length > 0 && (
+        {!isLoading && (welle.fotoOnly ? fotoEntries.length > 0 : progressData.length > 0) && (
           <div className={styles.footer}>
             <div className={styles.footerStat}>
               <User size={20} weight="bold" />
               <div className={styles.footerStatInfo}>
                 <span className={styles.footerStatLabel}>Teilnehmende GLs</span>
-                <span className={styles.footerStatValue}>{Object.keys(progressByGL).length}</span>
-              </div>
-            </div>
-            <div className={styles.footerStat}>
-              <CheckCircle size={20} weight="bold" />
-              <div className={styles.footerStatInfo}>
-                <span className={styles.footerStatLabel}>Einträge</span>
-                <span className={styles.footerStatValue}>{progressData.length}</span>
-              </div>
-            </div>
-            <div className={styles.footerStat}>
-              <Package size={20} weight="bold" />
-              <div className={styles.footerStatInfo}>
-                <span className={styles.footerStatLabel}>Gesamtwert</span>
                 <span className={styles.footerStatValue}>
-                  €{progressData.reduce((sum, p) => sum + p.value, 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {welle.fotoOnly ? Object.keys(fotoByGL).length : Object.keys(progressByGL).length}
                 </span>
               </div>
             </div>
+            <div className={styles.footerStat}>
+              {welle.fotoOnly ? <Camera size={20} weight="bold" /> : <CheckCircle size={20} weight="bold" />}
+              <div className={styles.footerStatInfo}>
+                <span className={styles.footerStatLabel}>{welle.fotoOnly ? 'Fotos' : 'Einträge'}</span>
+                <span className={styles.footerStatValue}>
+                  {welle.fotoOnly ? fotoEntries.length : progressData.length}
+                </span>
+              </div>
+            </div>
+            {!welle.fotoOnly && (
+              <div className={styles.footerStat}>
+                <Package size={20} weight="bold" />
+                <div className={styles.footerStatInfo}>
+                  <span className={styles.footerStatLabel}>Gesamtwert</span>
+                  <span className={styles.footerStatValue}>
+                    €{progressData.reduce((sum, p) => sum + p.value, 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Foto Lightbox */}
+      {fotoLightboxPhoto && fotoLightboxIndex !== null && (
+        <div className={styles.fotoLightboxOverlay} onClick={() => setFotoLightboxIndex(null)}>
+          <div className={styles.fotoLightboxContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.fotoLightboxImage}>
+              <img src={fotoLightboxPhoto.photoUrl} alt="" />
+              {fotoLightboxIndex > 0 && (
+                <button className={`${styles.fotoLightboxNav} ${styles.fotoLightboxPrev}`} onClick={() => setFotoLightboxIndex(fotoLightboxIndex - 1)}>
+                  <CaretLeft size={18} weight="bold" />
+                </button>
+              )}
+              {fotoLightboxIndex < fotoEntries.length - 1 && (
+                <button className={`${styles.fotoLightboxNav} ${styles.fotoLightboxNext}`} onClick={() => setFotoLightboxIndex(fotoLightboxIndex + 1)}>
+                  <CaretRight size={18} weight="bold" />
+                </button>
+              )}
+            </div>
+            <div className={styles.fotoLightboxSidebar}>
+              <button className={styles.fotoLightboxClose} onClick={() => setFotoLightboxIndex(null)}>
+                <X size={16} weight="bold" />
+              </button>
+              <div className={styles.fotoLightboxMeta}>
+                <div>
+                  <p className={styles.fotoLightboxLabel}>Gebietsleiter</p>
+                  <p className={styles.fotoLightboxValue}>{fotoLightboxPhoto.glName}</p>
+                </div>
+                <div>
+                  <p className={styles.fotoLightboxLabel}>Markt</p>
+                  <p className={styles.fotoLightboxValue}>{fotoLightboxPhoto.marketName} {fotoLightboxPhoto.marketChain && `(${fotoLightboxPhoto.marketChain})`}</p>
+                  {fotoLightboxPhoto.marketAddress && <p className={styles.fotoLightboxSubvalue}>{fotoLightboxPhoto.marketAddress}</p>}
+                </div>
+                <div>
+                  <p className={styles.fotoLightboxLabel}>Datum</p>
+                  <p className={styles.fotoLightboxValue}>{fotoFormatDate(fotoLightboxPhoto.createdAt)}</p>
+                </div>
+                {fotoLightboxPhoto.tags.length > 0 && (
+                  <div>
+                    <p className={styles.fotoLightboxLabel}>Tags</p>
+                    <div className={styles.fotoLightboxTags}>
+                      {fotoLightboxPhoto.tags.map(t => <span key={t} className={styles.fotoLightboxTag}>{t}</span>)}
+                    </div>
+                  </div>
+                )}
+                {fotoLightboxPhoto.comment && (
+                  <div>
+                    <p className={styles.fotoLightboxLabel}>Kommentar</p>
+                    <p className={styles.fotoLightboxSubvalue}>{fotoLightboxPhoto.comment}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );
