@@ -148,6 +148,7 @@
 .typePalette { background: linear-gradient(135deg, #3B82F6, #2563EB); }
 .typeSchuette { background: linear-gradient(135deg, #10B981, #059669); }
 .typeEinzelprodukt { background: linear-gradient(135deg, #EC4899, #DB2777); }
+.typeFoto { background: linear-gradient(135deg, #06B6D4, #0891B2); }
 
 .itemInfo { flex: 1; min-width: 0; }
 .itemName {

@@ -10,12 +10,14 @@ import {
   Minus,
   CircleNotch,
   CalendarBlank,
-  CheckCircle
+  CheckCircle,
+  Camera
 } from '@phosphor-icons/react';
 import Aurora from './Aurora';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../config/database';
 import { wellenService, type Welle } from '../../services/wellenService';
+import { VorbestellerModal } from './VorbestellerModal';
 import styles from './VorbestellerHistoryPage.module.css';
 
 // ============================================================================
@@ -33,6 +35,8 @@ interface WaveInfo {
   currentValue?: number;
   displayCount: number;
   kartonwareCount: number;
+  fotoOnly?: boolean;
+  fotoEnabled?: boolean;
 }
 
 interface ProductDetail {
@@ -175,6 +179,9 @@ export const VorbestellerHistoryPage: React.FC = () => {
   // Add
   const [addState, setAddState] = useState<AddState | null>(null);
 
+  // Foto modal
+  const [fotoModalWaveId, setFotoModalWaveId] = useState<string | null>(null);
+
   // ---- FETCH WAVES ----
   useEffect(() => {
     if (!user?.id) return;
@@ -281,6 +288,11 @@ export const VorbestellerHistoryPage: React.FC = () => {
 
   const cancelAdd = useCallback(() => setAddState(null), []);
 
+  const handleFotoModalClose = useCallback(async (waveId: string) => {
+    setFotoModalWaveId(null);
+    await refetchWave(waveId);
+  }, [refetchWave]);
+
   const toggleSelectItem = useCallback((id: string, name: string, valuePerUnit: number) => {
     setAddState(prev => {
       if (!prev) return null;
@@ -362,6 +374,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
   }, []);
 
   const getWaveTotal = useCallback((waveId: string, wave: WaveInfo): string => {
+    if (wave.fotoOnly) return 'Foto';
     const subs = submissionsByWave[waveId];
     if (subs) {
       const total = subs.reduce((s, e) => s + e.value, 0);
@@ -459,6 +472,18 @@ export const VorbestellerHistoryPage: React.FC = () => {
       return false;
     });
 
+    // Check if this wave is foto-only or has foto enabled
+    const waveInfo = waves.find(w => w.id === waveId);
+    const isFotoOnlyWave = waveInfo?.fotoOnly || (waveInfo?.fotoEnabled && availableTypes.length === 0);
+    const hasFotoEnabled = waveInfo?.fotoEnabled;
+
+    // For foto-only waves, skip type selector and open modal directly
+    if (addState.step === 'type' && isFotoOnlyWave) {
+      cancelAdd();
+      setFotoModalWaveId(waveId);
+      return null;
+    }
+
     // Step: select type
     if (addState.step === 'type') {
       return (
@@ -483,6 +508,15 @@ export const VorbestellerHistoryPage: React.FC = () => {
                 <span className={styles.typeOptionLabel}>{typeLabelFull[t]}</span>
               </button>
             ))}
+            {hasFotoEnabled && !isFotoOnlyWave && (
+              <button
+                className={`${styles.typeOption} ${styles.typeFoto}`}
+                onClick={() => { cancelAdd(); setFotoModalWaveId(waveId); }}
+              >
+                <Camera size={16} weight="bold" />
+                <span className={styles.typeOptionLabel}>Foto</span>
+              </button>
+            )}
           </div>
           {/* Market picker if multiple markets */}
           {day.markets.length > 1 && (
@@ -700,7 +734,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
               <div key={wave.id} className={`${styles.waveCard} ${isExpanded ? styles.expanded : ''}`}>
                 <div className={styles.waveHeader} onClick={() => toggleWave(wave.id)}>
                   <div className={styles.waveIcon}>
-                    <CalendarBlank size={20} weight="duotone" />
+                    {wave.fotoOnly ? <Camera size={20} weight="duotone" /> : <CalendarBlank size={20} weight="duotone" />}
                   </div>
                   <div className={styles.waveInfo}>
                     <h3 className={styles.waveName}>{wave.name}</h3>
@@ -728,8 +762,25 @@ export const VorbestellerHistoryPage: React.FC = () => {
                       </div>
                     ) : !subs || subs.length === 0 ? (
                       <div className={styles.emptyState}>
-                        <Package size={36} weight="regular" />
-                        <span>Noch keine Einträge</span>
+                        {wave.fotoOnly || (wave.fotoEnabled && !(waveDefinitions[wave.id]?.types?.length)) ? (
+                          <>
+                            <Camera size={36} weight="regular" />
+                            <span>Noch keine Fotos</span>
+                            <button className={styles.addBtn} onClick={() => setFotoModalWaveId(wave.id)} style={{ marginTop: '8px' }}>
+                              <Camera size={14} weight="bold" /> Foto hinzufügen
+                            </button>
+                          </>
+                        ) : addState && addState.waveId === wave.id ? (
+                          renderAddRow(wave.id, { date: addState.dayDate, dateLabel: new Date().toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), entries: [], markets: [], dayTotal: 0 })
+                        ) : (
+                          <>
+                            <Package size={36} weight="regular" />
+                            <span>Noch keine Einträge</span>
+                            <button className={styles.addBtn} onClick={() => startAdd(wave.id, new Date().toISOString().split('T')[0], '')} style={{ marginTop: '8px' }}>
+                              <Plus size={14} weight="bold" /> Eintrag hinzufügen
+                            </button>
+                          </>
+                        )}
                       </div>
                     ) : (
                       dayGroups.map(day => (
@@ -811,6 +862,15 @@ export const VorbestellerHistoryPage: React.FC = () => {
           })
         )}
       </div>
+
+      {/* Foto Modal - reuses existing VorbestellerModal in foto mode */}
+      {fotoModalWaveId && (
+        <VorbestellerModal
+          isOpen={true}
+          onClose={() => handleFotoModalClose(fotoModalWaveId)}
+          preSelectedWaveId={fotoModalWaveId}
+        />
+      )}
     </>
   );
 };

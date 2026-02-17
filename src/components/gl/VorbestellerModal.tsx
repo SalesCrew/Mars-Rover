@@ -14,6 +14,7 @@ import type { Product } from '../../types/product-types';
 interface VorbestellerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  preSelectedWaveId?: string | null;
 }
 
 // Mock data removed - using real data from database
@@ -43,7 +44,7 @@ const isWithinThreeWeeks = (lastVisitDate: string | null | undefined): boolean =
   return lastVisit >= threeWeeksAgo;
 };
 
-export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, onClose }) => {
+export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, onClose, preSelectedWaveId }) => {
   const { user } = useAuth();
   const [wellen, setWellen] = useState<Welle[]>([]);
   const [allMarkets, setAllMarkets] = useState<Market[]>([]);
@@ -132,6 +133,17 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
       loadMarkets();
     }
   }, [isOpen]);
+
+  // Auto-select wave and jump to market selection when preSelectedWaveId is provided
+  useEffect(() => {
+    if (preSelectedWaveId && wellen.length > 0 && !isLoadingWellen) {
+      const targetWave = wellen.find(w => w.id === preSelectedWaveId);
+      if (targetWave && !selectedCardId) {
+        setSelectedCardId(preSelectedWaveId);
+        setShowMarketSelection(true);
+      }
+    }
+  }, [preSelectedWaveId, wellen, isLoadingWellen]);
 
   const selectedVorbesteller = wellen.find(v => v.id === selectedCardId);
 
