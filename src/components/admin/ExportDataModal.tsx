@@ -356,29 +356,25 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
               <h3 className={styles.sectionTitle}>Export Optionen</h3>
               
               {/* Date range filter */}
-              {(selectedDatasets.includes('wellen_submissions') || 
-                selectedDatasets.includes('vorverkauf_entries') || 
-                selectedDatasets.includes('action_history')) && (
-                <div className={styles.optionGroup}>
-                  <label className={styles.optionLabel}>Zeitraum (optional)</label>
-                  <div className={styles.dateRangeInputs}>
-                    <CustomDatePicker
-                      value={dateRange.start}
-                      onChange={(value) => setDateRange(prev => ({ ...prev, start: value }))}
-                      placeholder="Startdatum"
-                    />
-                    <span className={styles.dateRangeDivider}>bis</span>
-                    <CustomDatePicker
-                      value={dateRange.end}
-                      onChange={(value) => setDateRange(prev => ({ ...prev, end: value }))}
-                      placeholder="Enddatum"
-                    />
-                  </div>
+              <div className={styles.optionGroup}>
+                <label className={styles.optionLabel}>Zeitraum (optional)</label>
+                <div className={styles.dateRangeInputs}>
+                  <CustomDatePicker
+                    value={dateRange.start}
+                    onChange={(value) => setDateRange(prev => ({ ...prev, start: value }))}
+                    placeholder="Startdatum"
+                  />
+                  <span className={styles.dateRangeDivider}>bis</span>
+                  <CustomDatePicker
+                    value={dateRange.end}
+                    onChange={(value) => setDateRange(prev => ({ ...prev, end: value }))}
+                    placeholder="Enddatum"
+                  />
                 </div>
-              )}
+              </div>
 
               {/* GL filter */}
-              {(selectedDatasets.includes('wellen_submissions') || selectedDatasets.includes('markets')) && (
+              {(selectedDatasets.includes('wellen_submissions') || selectedDatasets.includes('markets') || selectedDatasets.includes('vorverkauf_entries')) && (
                 <div className={styles.optionGroup}>
                   <label className={styles.optionLabel}>Gebietsleiter Filter (optional)</label>
                   <div className={styles.glFilterContainer}>
