@@ -11,6 +11,7 @@ export interface Gebietsleiter {
   phone: string;
   email: string;
   profile_picture_url: string | null;
+  is_test?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,7 @@ export interface CreateGebietsleiterDto {
   email: string;
   password: string;
   profilePictureUrl?: string | null;
+  isTest?: boolean;
 }
 
 export interface UpdateGebietsleiterDto {
@@ -35,6 +37,7 @@ export interface UpdateGebietsleiterDto {
   email?: string;
   password?: string;
   profilePictureUrl?: string | null;
+  isTest?: boolean;
 }
 
 class GebietsleiterService {

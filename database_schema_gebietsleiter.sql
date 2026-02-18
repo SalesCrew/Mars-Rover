@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS gebietsleiter (
 -- Migration: Add is_active column if it doesn't exist (run this on existing databases)
 ALTER TABLE gebietsleiter ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
+-- Migration: Add is_test column for test GL accounts (excluded from statistics)
+ALTER TABLE gebietsleiter ADD COLUMN IF NOT EXISTS is_test BOOLEAN DEFAULT FALSE;
+
 -- Create index on email for faster lookups
 CREATE INDEX IF NOT EXISTS idx_gebietsleiter_email ON gebietsleiter(email);
 

@@ -64,7 +64,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
   const [chainAverages, setChainAverages] = useState<ChainAverage[]>([]);
   const [activeWaves, setActiveWaves] = useState<WaveProgress[]>([]);
   const [finishedWaves, setFinishedWaves] = useState<WaveProgress[]>([]);
-  const [availableGLs, setAvailableGLs] = useState<Array<{ id: string; name: string }>>([]);
+  const [availableGLs, setAvailableGLs] = useState<Array<{ id: string; name: string; is_test?: boolean }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedWave, setSelectedWave] = useState<WaveProgress | null>(null);
@@ -283,7 +283,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
           
           return {
             id: gl.id,
-            name: abbreviatedName
+            name: gl.is_test ? `${abbreviatedName} (Test)` : abbreviatedName,
+            is_test: gl.is_test || false
           };
         });
         setAvailableGLs(formattedGLs);
@@ -416,14 +417,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
             {chainAverages.map(chain => {
               // Check if specific GLs are selected (not "Alle" and not "none")
               const hasSpecificGLFilter = chainSelectedGLs.length > 0 && !chainSelectedGLs.includes('__none__');
-              const totalGLs = availableGLs.length || 1;
+              const realGLs = availableGLs.filter(gl => !gl.is_test);
+              const totalGLs = realGLs.length || 1;
               
               // Only adjust goal when specific GLs are selected
+              const selectedRealGLCount = chainSelectedGLs.filter(id => !availableGLs.find(gl => gl.id === id)?.is_test).length;
               const adjustedChain = hasSpecificGLFilter ? {
                 ...chain,
-                // Goal is proportional: (full goal / total GLs) * selected GLs
-                goalPercentage: chain.goalPercentage ? (chain.goalPercentage / totalGLs) * chainSelectedGLs.length : undefined,
-                goalValue: chain.goalValue ? (chain.goalValue / totalGLs) * chainSelectedGLs.length : undefined,
+                // Goal is proportional: (full goal / total real GLs) * selected real GLs
+                goalPercentage: chain.goalPercentage ? (chain.goalPercentage / totalGLs) * selectedRealGLCount : undefined,
+                goalValue: chain.goalValue ? (chain.goalValue / totalGLs) * selectedRealGLCount : undefined,
               } : chain; // No filter or "none" = show original backend values
               
               return <ChainAverageCard key={chain.chainName} data={adjustedChain} />;

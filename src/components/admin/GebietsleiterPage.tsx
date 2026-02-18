@@ -21,6 +21,7 @@ interface GL {
   phone: string;
   email: string;
   profile_picture_url: string | null;
+  is_test?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +40,7 @@ export const GebietsleiterPage: React.FC<GebietsleiterPageProps> = ({ isCreateMo
     phone: '',
     email: '',
     profilePicture: null as File | null,
+    isTest: false,
   });
   const [emailText, setEmailText] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState('');
@@ -120,6 +122,7 @@ Das Mars Rover Team`;
       email: formData.email,
       password: generatedPassword,
         profilePictureUrl: profilePictureUrl,
+        isTest: formData.isTest,
       });
       
       // TODO: Wire up Outlook API to send email
@@ -140,6 +143,7 @@ Das Mars Rover Team`;
       phone: '',
       email: '',
       profilePicture: null,
+      isTest: false,
     });
     setProfilePictureUrl(null);
     } catch (error) {
@@ -183,7 +187,10 @@ Das Mars Rover Team`;
 
               {/* GL Info */}
               <div className={styles.glInfo}>
-                <h3 className={styles.glName}>{gl.name}</h3>
+                <div className={styles.glNameRow}>
+                  <h3 className={styles.glName}>{gl.name}</h3>
+                  {gl.is_test && <span className={styles.testBadge}>TEST</span>}
+                </div>
                 
                 <div className={styles.glDetail}>
                   <MapPin size={14} weight="regular" className={styles.glDetailIcon} />
@@ -361,6 +368,21 @@ Das Mars Rover Team`;
                   className={styles.input}
                   required
                 />
+              </div>
+
+              {/* Test Account Toggle */}
+              <div className={styles.testToggleRow}>
+                <div className={styles.testToggleInfo}>
+                  <span className={styles.testToggleLabel}>Test-Account</span>
+                  <span className={styles.testToggleHint}>Wird nicht in Statistiken &amp; Zielberechnungen einbezogen</span>
+                </div>
+                <button
+                  type="button"
+                  className={`${styles.testToggle} ${formData.isTest ? styles.testToggleActive : ''}`}
+                  onClick={() => setFormData(prev => ({ ...prev, isTest: !prev.isTest }))}
+                >
+                  <span className={styles.testToggleKnob} />
+                </button>
               </div>
             </div>
 

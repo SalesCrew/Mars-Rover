@@ -39,6 +39,7 @@ interface GL {
   profilePicture?: string | null;
   profile_picture_url?: string | null;
   password?: string;
+  is_test?: boolean;
   createdAt?: Date;
   created_at?: string;
   updated_at?: string;
@@ -629,7 +630,10 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
               )}
             </div>
             <div>
-              <h2 className={styles.modalTitle}>{gl.name}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 className={styles.modalTitle}>{gl.name}</h2>
+                {gl.is_test && <span className={styles.testBadge}>TEST</span>}
+              </div>
               <span className={styles.modalSubtitle}>{gl.email}</span>
             </div>
           </div>
