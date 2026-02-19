@@ -145,6 +145,18 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     }
   }, [preSelectedWaveId, wellen, isLoadingWellen]);
 
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [isOpen, showMarketSelection, showItemSelection, showFotoWelle]);
+
   const selectedVorbesteller = wellen.find(v => v.id === selectedCardId);
 
   // Fetch master products when wave has einzelprodukt type
