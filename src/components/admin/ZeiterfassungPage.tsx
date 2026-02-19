@@ -393,52 +393,116 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
     };
   }, []);
 
+  // Export helper: build timeline rows for a set of market entries + zusatz + day tracking
+  const buildTimelineExportRows = (
+    marketEntries: ZeiterfassungEntry[],
+    glZusatz: ZusatzZeiterfassungEntry[],
+    dayTrack: { day_start_time: string | null; day_end_time: string | null; skipped_first_fahrzeit: boolean } | null,
+    dateStr: string,
+    glName?: string
+  ): string[][] => {
+    const rows: string[][] = [];
+    const formattedDate = new Date(dateStr + 'T12:00:00').toLocaleDateString('de-DE');
+
+    type TItem =
+      | { type: 'market'; entry: ZeiterfassungEntry; startTime: string; endTime: string }
+      | { type: 'zusatz'; entry: ZusatzZeiterfassungEntry; startTime: string; endTime: string };
+
+    const items: TItem[] = [
+      ...marketEntries.map(e => ({ type: 'market' as const, entry: e, startTime: e.besuchszeit_von || '00:00', endTime: e.besuchszeit_bis || '00:00' })),
+      ...glZusatz.map(e => ({ type: 'zusatz' as const, entry: e, startTime: e.zeit_von || '00:00', endTime: e.zeit_bis || '00:00' }))
+    ];
+    items.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    const gapMins = (end: string | null, start: string | null): number => {
+      if (!end || !start) return 0;
+      const [eH, eM] = end.split(':').map(Number);
+      const [sH, sM] = start.split(':').map(Number);
+      let eMins = eH * 60 + eM, sMins = sH * 60 + sM;
+      if (sMins < eMins) sMins += 24 * 60;
+      return Math.max(0, sMins - eMins);
+    };
+    const fmtGap = (m: number): string => {
+      if (m <= 0) return '00:00:00';
+      return `${Math.floor(m / 60).toString().padStart(2, '0')}:${(m % 60).toString().padStart(2, '0')}:00`;
+    };
+
+    items.forEach((item, idx) => {
+      if (item.type !== 'market') return;
+
+      const prev = idx > 0 ? items[idx - 1] : null;
+      let fVon = '', fBis = '', fDauer = '';
+
+      if (idx === 0 && dayTrack?.day_start_time && !dayTrack.skipped_first_fahrzeit) {
+        const gap = gapMins(dayTrack.day_start_time, item.startTime);
+        if (gap > 0) { fVon = dayTrack.day_start_time; fBis = item.startTime; fDauer = fmtGap(gap); }
+      } else if (prev) {
+        const gap = gapMins(prev.endTime, item.startTime);
+        if (gap > 0) { fVon = prev.endTime; fBis = item.startTime; fDauer = fmtGap(gap); }
+      }
+
+      const entry = item.entry;
+      const row = glName
+        ? [formattedDate, glName, entry.market.name, entry.market.chain, entry.market.address || '', entry.market.postal_code || '', entry.market.city || '', fVon, fBis, fDauer, entry.besuchszeit_von || '', entry.besuchszeit_bis || '', entry.besuchszeit_diff || '', entry.distanz_km?.toString() || '']
+        : [formattedDate, entry.market.name, entry.market.chain, entry.market.address || '', entry.market.postal_code || '', entry.market.city || '', fVon, fBis, fDauer, entry.besuchszeit_von || '', entry.besuchszeit_bis || '', entry.besuchszeit_diff || '', entry.distanz_km?.toString() || ''];
+      rows.push(row);
+    });
+
+    return rows;
+  };
+
   // Export handler
   useEffect(() => {
-    const handleExport = () => {
+    const handleExport = async () => {
       if (viewMode === 'date') {
-        // Export all entries grouped by date
         const exportData: string[][] = [
           ['Datum', 'Gebietsleiter', 'Markt', 'Handelskette', 'Adresse', 'PLZ', 'Ort', 'Fahrzeit Von', 'Fahrzeit Bis', 'Fahrzeit Dauer', 'Besuchszeit Von', 'Besuchszeit Bis', 'Besuchszeit Dauer', 'Distanz (km)']
         ];
 
-        // Sort entries by date descending, then by GL name
-        const sortedEntries = [...entries].sort((a, b) => {
-          const dateCompare = b.created_at.localeCompare(a.created_at);
-          if (dateCompare !== 0) return dateCompare;
-          const nameA = `${a.gebietsleiter.first_name} ${a.gebietsleiter.last_name}`;
-          const nameB = `${b.gebietsleiter.first_name} ${b.gebietsleiter.last_name}`;
-          return nameA.localeCompare(nameB);
+        // Group entries by date + GL
+        const dateGLMap = new Map<string, Map<string, { glName: string; entries: ZeiterfassungEntry[] }>>();
+        entries.forEach(entry => {
+          const date = entry.created_at.split('T')[0];
+          if (!dateGLMap.has(date)) dateGLMap.set(date, new Map());
+          const glMap = dateGLMap.get(date)!;
+          const glId = entry.gebietsleiter_id;
+          if (!glMap.has(glId)) glMap.set(glId, { glName: `${entry.gebietsleiter.first_name} ${entry.gebietsleiter.last_name}`, entries: [] });
+          glMap.get(glId)!.entries.push(entry);
         });
 
-        sortedEntries.forEach(entry => {
-          const date = new Date(entry.created_at).toLocaleDateString('de-DE');
-          const glName = `${entry.gebietsleiter.first_name} ${entry.gebietsleiter.last_name}`;
-          
-          exportData.push([
-            date,
-            glName,
-            entry.market.name,
-            entry.market.chain,
-            entry.market.address || '',
-            entry.market.postal_code || '',
-            entry.market.city || '',
-            entry.fahrzeit_von || '',
-            entry.fahrzeit_bis || '',
-            entry.fahrzeit_diff || '',
-            entry.besuchszeit_von || '',
-            entry.besuchszeit_bis || '',
-            entry.besuchszeit_diff || '',
-            entry.distanz_km?.toString() || ''
-          ]);
-        });
+        // Fetch day tracking for each GL-date combo
+        const sortedDates = Array.from(dateGLMap.keys()).sort((a, b) => b.localeCompare(a));
+        for (const date of sortedDates) {
+          const glMap = dateGLMap.get(date)!;
+          const glIds = Array.from(glMap.keys());
+          // Fetch day tracking in parallel per GL
+          const trackingResults = await Promise.all(
+            glIds.map(async glId => {
+              try {
+                const r = await fetch(`${fragebogenService.API_URL}/day-tracking/${glId}/${date}/summary`);
+                if (r.ok) { const d = await r.json(); return { glId, dt: d.dayTracking }; }
+              } catch { /* ignore */ }
+              return { glId, dt: null };
+            })
+          );
+          const trackMap = new Map(trackingResults.map(r => [r.glId, r.dt]));
+
+          // Sort GLs by name
+          const sortedGLs = glIds.sort((a, b) => (glMap.get(a)!.glName).localeCompare(glMap.get(b)!.glName));
+          for (const glId of sortedGLs) {
+            const { glName: name, entries: marketEntries } = glMap.get(glId)!;
+            const glZusatz = zusatzEntries.filter(z => z.gebietsleiter_id === glId && z.entry_date === date);
+            const dt = trackMap.get(glId) || null;
+            const rows = buildTimelineExportRows(marketEntries, glZusatz, dt, date, name);
+            exportData.push(...rows);
+          }
+        }
 
         const today = new Date().toISOString().split('T')[0];
         exportToExcel(exportData, `Zeiterfassung_${today}.xlsx`);
       } else if (viewMode === 'profile' && selectedGLId) {
-        // Export selected GL's entries
         const glEntries = entries.filter(e => e.gebietsleiter_id === selectedGLId);
-        const glName = glEntries[0]?.gebietsleiter 
+        const glName = glEntries[0]?.gebietsleiter
           ? `${glEntries[0].gebietsleiter.first_name}_${glEntries[0].gebietsleiter.last_name}`
           : 'GL';
 
@@ -446,28 +510,35 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
           ['Datum', 'Markt', 'Handelskette', 'Adresse', 'PLZ', 'Ort', 'Fahrzeit Von', 'Fahrzeit Bis', 'Fahrzeit Dauer', 'Besuchszeit Von', 'Besuchszeit Bis', 'Besuchszeit Dauer', 'Distanz (km)']
         ];
 
-        // Sort by date descending
-        const sortedEntries = [...glEntries].sort((a, b) => b.created_at.localeCompare(a.created_at));
-
-        sortedEntries.forEach(entry => {
-          const date = new Date(entry.created_at).toLocaleDateString('de-DE');
-          
-          exportData.push([
-            date,
-            entry.market.name,
-            entry.market.chain,
-            entry.market.address || '',
-            entry.market.postal_code || '',
-            entry.market.city || '',
-            entry.fahrzeit_von || '',
-            entry.fahrzeit_bis || '',
-            entry.fahrzeit_diff || '',
-            entry.besuchszeit_von || '',
-            entry.besuchszeit_bis || '',
-            entry.besuchszeit_diff || '',
-            entry.distanz_km?.toString() || ''
-          ]);
+        // Group by date
+        const dateMap = new Map<string, ZeiterfassungEntry[]>();
+        glEntries.forEach(e => {
+          const d = e.created_at.split('T')[0];
+          if (!dateMap.has(d)) dateMap.set(d, []);
+          dateMap.get(d)!.push(e);
         });
+
+        const sortedDates = Array.from(dateMap.keys()).sort((a, b) => b.localeCompare(a));
+
+        // Fetch day tracking for each date in parallel
+        const trackingResults = await Promise.all(
+          sortedDates.map(async date => {
+            try {
+              const r = await fetch(`${fragebogenService.API_URL}/day-tracking/${selectedGLId}/${date}/summary`);
+              if (r.ok) { const d = await r.json(); return { date, dt: d.dayTracking }; }
+            } catch { /* ignore */ }
+            return { date, dt: null };
+          })
+        );
+        const trackMap = new Map(trackingResults.map(r => [r.date, r.dt]));
+
+        for (const date of sortedDates) {
+          const marketEntries = dateMap.get(date)!;
+          const glZusatz = zusatzEntries.filter(z => z.gebietsleiter_id === selectedGLId && z.entry_date === date);
+          const dt = trackMap.get(date) || null;
+          const rows = buildTimelineExportRows(marketEntries, glZusatz, dt, date);
+          exportData.push(...rows);
+        }
 
         const today = new Date().toISOString().split('T')[0];
         exportToExcel(exportData, `Zeiterfassung_${glName}_${today}.xlsx`);
@@ -476,7 +547,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
 
     window.addEventListener('zeiterfassung:export', handleExport);
     return () => window.removeEventListener('zeiterfassung:export', handleExport);
-  }, [viewMode, entries, selectedGLId]);
+  }, [viewMode, entries, zusatzEntries, selectedGLId]);
 
   const loadGLDayDetails = async (glId: string, date: string, key: string) => {
     if (detailedEntries[key]) return; // Already loaded
