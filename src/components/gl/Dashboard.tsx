@@ -31,6 +31,7 @@ import { MarketsVisitedModal } from './MarketsVisitedModal';
 import Aurora from './Aurora';
 import { produktersatzService } from '../../services/produktersatzService';
 import fragebogenService from '../../services/fragebogenService';
+import { getActiveVisit, clearActiveVisit, updateActiveVisit, updatePendingSync, type PersistedVisit } from '../../services/visitPersistence';
 import type { GLDashboard, NavigationTab, GLProfile, Bonuses, MarketFrequencyAlert } from '../../types/gl-types';
 import type { TourRoute, Market } from '../../types/market-types';
 import { allMarkets as mockMarkets } from '../../data/marketsData';
@@ -83,6 +84,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     market: Market;
     modules: any[];
     zeiterfassungActive: boolean;
+    resumeData?: PersistedVisit;
   } | null>(null);
   const [notificationTrigger, setNotificationTrigger] = useState(0);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -159,6 +161,75 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     
     setIsOnboardingOpen(false);
   };
+
+  // Auto-resume incomplete visit from localStorage
+  useEffect(() => {
+    const persisted = getActiveVisit();
+    if (!persisted || !persisted.besuchszeitVon) return;
+
+    const markets = realMarkets.length > 0 ? realMarkets : mockMarkets;
+    const market = markets.find((m: Market) => m.id === persisted.marketId);
+    if (!market) return;
+
+    setActiveVisit({
+      market,
+      modules: persisted.modules || [],
+      zeiterfassungActive: true,
+      resumeData: persisted
+    });
+  }, [realMarkets]);
+
+  // Retry pending syncs when coming back online
+  useEffect(() => {
+    const syncPending = async () => {
+      const persisted = getActiveVisit();
+      if (!persisted || !user?.id) return;
+
+      if (persisted.pendingSync.create && !persisted.submissionId) {
+        try {
+          const result = await fragebogenService.zeiterfassung.submit({
+            gebietsleiter_id: user.id,
+            market_id: persisted.marketId,
+            besuchszeit_von: persisted.besuchszeitVon,
+            besuchszeit_bis: persisted.besuchszeitBis || undefined
+          });
+          updateActiveVisit({ submissionId: result.id });
+          updatePendingSync({ create: false, von: false, bis: false });
+        } catch { /* still offline */ }
+        return;
+      }
+
+      if (!persisted.submissionId) return;
+
+      if (persisted.pendingSync.von || persisted.pendingSync.bis) {
+        try {
+          const patch: Record<string, string> = {};
+          if (persisted.pendingSync.von) patch.besuchszeit_von = persisted.besuchszeitVon;
+          if (persisted.pendingSync.bis && persisted.besuchszeitBis) patch.besuchszeit_bis = persisted.besuchszeitBis;
+          await fragebogenService.zeiterfassung.update(persisted.submissionId, patch);
+          updatePendingSync({ von: false, bis: false });
+        } catch { /* still offline */ }
+      }
+
+      if (persisted.pendingSync.final) {
+        try {
+          await fragebogenService.zeiterfassung.update(persisted.submissionId, {
+            besuchszeit_von: persisted.besuchszeitVon,
+            besuchszeit_bis: persisted.besuchszeitBis || undefined,
+            kommentar: persisted.kommentar,
+            food_prozent: persisted.foodProzent,
+            distanz_km: persisted.distanzKm
+          });
+          clearActiveVisit();
+        } catch { /* still offline */ }
+      }
+    };
+
+    window.addEventListener('online', syncPending);
+    syncPending();
+
+    return () => window.removeEventListener('online', syncPending);
+  }, [user?.id]);
 
   // Load day tracking status on mount
   useEffect(() => {
@@ -576,12 +647,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           market={activeVisit.market}
           modules={activeVisit.modules}
           zeiterfassungActive={activeVisit.zeiterfassungActive}
+          resumeData={activeVisit.resumeData}
           onClose={() => setActiveVisit(null)}
-          onComplete={async (answers: Record<string, string>) => {
+          onComplete={async (answers: Record<string, any>) => {
             console.log('Visit completed with answers:', answers);
             
-            // Save zeiterfassung data if it exists
-            if (answers.zeiterfassung && user?.id) {
+            const existingId = answers.submissionId as string | null;
+            if (answers.zeiterfassung && user?.id && !existingId) {
               try {
                 const zeitData = answers.zeiterfassung as any;
                 await fragebogenService.zeiterfassung.submit({
@@ -598,10 +670,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                 console.log('✅ Zeiterfassung saved successfully');
               } catch (error) {
                 console.error('Error saving zeiterfassung:', error);
-                // Don't block the flow if zeiterfassung fails
               }
             }
             
+            clearActiveVisit();
             setActiveVisit(null);
           }}
           onOpenVorbesteller={() => setIsVorbestellerOpen(true)}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -24,6 +24,9 @@ import {
 } from '@phosphor-icons/react';
 import Aurora from './Aurora';
 import type { Market } from '../../types/market-types';
+import { useAuth } from '../../contexts/AuthContext';
+import fragebogenService from '../../services/fragebogenService';
+import { saveActiveVisit, updateActiveVisit, updatePendingSync, clearActiveVisit, type PersistedVisit } from '../../services/visitPersistence';
 import styles from './MarketVisitPage.module.css';
 
 // Question types matching the fragebogen system
@@ -77,6 +80,7 @@ interface MarketVisitPageProps {
   market: Market;
   modules: Module[];
   zeiterfassungActive?: boolean;
+  resumeData?: PersistedVisit;
   onClose: () => void;
   onComplete: (answers: Record<string, any>) => void;
   onOpenVorbesteller: () => void;
@@ -85,18 +89,18 @@ interface MarketVisitPageProps {
 }
 
 export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
-  market: _market,
+  market,
   modules,
   zeiterfassungActive = true,
+  resumeData,
   onClose: _onClose,
   onComplete,
   onOpenVorbesteller,
   onOpenVorverkauf,
   onOpenProduktrechner
 }) => {
-  // Props prefixed with _ are available for future use
-  void _market;
   void _onClose;
+  const { user } = useAuth();
   // Flatten all questions with module context
   const allQuestions = useMemo(() => 
     modules.flatMap(module => 
@@ -112,22 +116,23 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   
   // Zeiterfassung state - if no fragebogen, go directly to 'end' step
   const [zeiterfassungStep, setZeiterfassungStep] = useState<'start' | 'questions' | 'end' | null>(
-    hasFragebogen ? 'questions' : 'end' // Go directly to end if no fragebogen
+    hasFragebogen ? 'questions' : 'end'
   );
-  const [zeiterfassung, setZeiterfassung] = useState({
-    fahrzeitVon: '', // Kept for backward compatibility
-    fahrzeitBis: '', // Kept for backward compatibility
-    distanzKm: '',
-    besuchszeitVon: '',
-    besuchszeitBis: '',
-    kommentar: '',
-    foodProzent: 50,
-    marketStartTime: '', // Auto-recorded when visit starts
-    marketEndTime: ''    // Auto-recorded when visit ends
-  });
+  const [zeiterfassung, setZeiterfassung] = useState(() => ({
+    fahrzeitVon: '',
+    fahrzeitBis: '',
+    distanzKm: resumeData?.distanzKm || '',
+    besuchszeitVon: resumeData?.besuchszeitVon || '',
+    besuchszeitBis: resumeData?.besuchszeitBis || '',
+    kommentar: resumeData?.kommentar || '',
+    foodProzent: resumeData?.foodProzent ?? 50,
+    marketStartTime: resumeData?.besuchszeitVon || '',
+    marketEndTime: resumeData?.besuchszeitBis || ''
+  }));
+  const [submissionId, setSubmissionId] = useState<string | null>(resumeData?.submissionId || null);
   const [fahrzeitRunning, setFahrzeitRunning] = useState(false);
   const [besuchszeitRunning, setBesuchszeitRunning] = useState(false);
-  const [visitStarted, setVisitStarted] = useState(false); // Track if visit has been started
+  const [visitStarted, setVisitStarted] = useState(!!resumeData?.besuchszeitVon);
   
   // Elapsed time in seconds for live counter
   const [fahrzeitElapsed, setFahrzeitElapsed] = useState(0);
@@ -201,8 +206,9 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     };
   }, [quickActionsExpanded]);
 
-  // Function to start the market visit (records timestamp)
-  const startMarketVisit = () => {
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startMarketVisit = async () => {
     const now = new Date();
     const startTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     setZeiterfassung(prev => ({
@@ -211,6 +217,48 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
       besuchszeitVon: startTime
     }));
     setVisitStarted(true);
+
+    if (user?.id) {
+      try {
+        const result = await fragebogenService.zeiterfassung.submit({
+          gebietsleiter_id: user.id,
+          market_id: market.id,
+          besuchszeit_von: startTime
+        });
+        setSubmissionId(result.id);
+        saveActiveVisit({
+          submissionId: result.id,
+          glId: user.id,
+          marketId: market.id,
+          marketName: market.name,
+          marketChain: market.chain || '',
+          besuchszeitVon: startTime,
+          besuchszeitBis: null,
+          kommentar: '',
+          foodProzent: 50,
+          distanzKm: '',
+          pendingSync: {},
+          modules,
+          savedAt: new Date().toISOString()
+        });
+      } catch {
+        saveActiveVisit({
+          submissionId: null,
+          glId: user.id,
+          marketId: market.id,
+          marketName: market.name,
+          marketChain: market.chain || '',
+          besuchszeitVon: startTime,
+          besuchszeitBis: null,
+          kommentar: '',
+          foodProzent: 50,
+          distanzKm: '',
+          pendingSync: { create: true },
+          modules,
+          savedAt: new Date().toISOString()
+        });
+      }
+    }
   };
 
   // Format elapsed seconds to HH:MM:SS
@@ -284,21 +332,31 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   };
   void _toggleFahrzeitTimer;
 
-  const toggleBesuchszeitTimer = () => {
+  const toggleBesuchszeitTimer = async () => {
     const currentTime = getCurrentTime();
     if (!besuchszeitRunning) {
-      // Start the visit - this creates the timestamp
       if (!visitStarted) {
-        startMarketVisit();
+        await startMarketVisit();
       } else {
-        // Resume - just update the start time for this session
         setZeiterfassung(prev => ({ ...prev, besuchszeitVon: prev.besuchszeitVon || currentTime }));
       }
       setBesuchszeitRunning(true);
     } else {
-      // Stop the timer and record end time
       setZeiterfassung(prev => ({ ...prev, besuchszeitBis: currentTime, marketEndTime: currentTime }));
       setBesuchszeitRunning(false);
+
+      if (submissionId) {
+        try {
+          await fragebogenService.zeiterfassung.update(submissionId, { besuchszeit_bis: currentTime });
+          updateActiveVisit({ besuchszeitBis: currentTime, pendingSync: {} });
+        } catch {
+          updateActiveVisit({ besuchszeitBis: currentTime });
+          updatePendingSync({ bis: true });
+        }
+      } else {
+        updateActiveVisit({ besuchszeitBis: currentTime });
+        updatePendingSync({ bis: true });
+      }
     }
   };
 
@@ -307,7 +365,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     setAnswers(prev => ({ ...prev, [currentQuestion.id]: value }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     // 'start' step is no longer used - Fahrzeit is auto-calculated by day tracking
     if (zeiterfassungStep === 'start') {
       // Legacy support: just move to questions
@@ -336,21 +394,67 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     }
     
     if (zeiterfassungStep === 'end') {
-      // Record market end time
       const now = new Date();
       const endTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const needsBis = !zeiterfassung.besuchszeitBis;
       setZeiterfassung(prev => ({
         ...prev,
         marketEndTime: endTime,
-        besuchszeitBis: prev.besuchszeitBis || endTime // Set if not already set
+        besuchszeitBis: prev.besuchszeitBis || endTime
       }));
       setIsCompleted(true);
-      // Don't call onComplete here - wait for user to click "Zurück zur Übersicht"
+
+      if (needsBis && submissionId) {
+        try {
+          await fragebogenService.zeiterfassung.update(submissionId, { besuchszeit_bis: endTime });
+          updateActiveVisit({ besuchszeitBis: endTime, pendingSync: {} });
+        } catch {
+          updateActiveVisit({ besuchszeitBis: endTime });
+          updatePendingSync({ bis: true });
+        }
+      }
     }
   };
   
-  const handleCompleteAndClose = () => {
-    onComplete({ ...answers, zeiterfassung });
+  const debouncedPatch = useCallback((field: string, value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      updateActiveVisit({ [field === 'besuchszeit_von' ? 'besuchszeitVon' : 'besuchszeitBis']: value });
+      if (submissionId) {
+        try {
+          await fragebogenService.zeiterfassung.update(submissionId, { [field]: value });
+        } catch {
+          updatePendingSync({ [field === 'besuchszeit_von' ? 'von' : 'bis']: true });
+        }
+      }
+    }, 500);
+  }, [submissionId]);
+
+  const handleCompleteAndClose = async () => {
+    if (submissionId) {
+      try {
+        await fragebogenService.zeiterfassung.update(submissionId, {
+          besuchszeit_von: zeiterfassung.besuchszeitVon,
+          besuchszeit_bis: zeiterfassung.besuchszeitBis,
+          distanz_km: zeiterfassung.distanzKm,
+          kommentar: zeiterfassung.kommentar,
+          food_prozent: zeiterfassung.foodProzent
+        });
+        clearActiveVisit();
+      } catch {
+        updateActiveVisit({
+          besuchszeitVon: zeiterfassung.besuchszeitVon,
+          besuchszeitBis: zeiterfassung.besuchszeitBis || null,
+          kommentar: zeiterfassung.kommentar,
+          foodProzent: zeiterfassung.foodProzent,
+          distanzKm: zeiterfassung.distanzKm
+        });
+        updatePendingSync({ final: true });
+      }
+    } else {
+      clearActiveVisit();
+    }
+    onComplete({ ...answers, zeiterfassung, submissionId });
   };
 
   const handlePrev = () => {
@@ -773,7 +877,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
                 type="text"
                 className={styles.timeInput}
                 value={zeiterfassung.besuchszeitVon}
-                onChange={(e) => setZeiterfassung(prev => ({ ...prev, besuchszeitVon: e.target.value }))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setZeiterfassung(prev => ({ ...prev, besuchszeitVon: val }));
+                  debouncedPatch('besuchszeit_von', val);
+                }}
                 placeholder="--:--"
                 maxLength={5}
               />
@@ -784,7 +892,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
                 type="text"
                 className={styles.timeInput}
                 value={zeiterfassung.besuchszeitBis}
-                onChange={(e) => setZeiterfassung(prev => ({ ...prev, besuchszeitBis: e.target.value }))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setZeiterfassung(prev => ({ ...prev, besuchszeitBis: val }));
+                  debouncedPatch('besuchszeit_bis', val);
+                }}
                 placeholder="--:--"
                 maxLength={5}
               />

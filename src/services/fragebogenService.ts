@@ -645,6 +645,30 @@ export const zeiterfassungApi = {
   },
 
   /**
+   * Update an existing zeiterfassung submission (partial update)
+   */
+  async update(id: string, data: {
+    besuchszeit_von?: string;
+    besuchszeit_bis?: string;
+    fahrzeit_von?: string;
+    fahrzeit_bis?: string;
+    distanz_km?: string;
+    kommentar?: string;
+    food_prozent?: number;
+  }): Promise<any> {
+    const response = await fetch(`${FRAGEBOGEN_API}/zeiterfassung/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update zeiterfassung');
+    }
+    return response.json();
+  },
+
+  /**
    * Get zeiterfassung submissions for a GL
    */
   async getByGL(glId: string, options?: { limit?: number; offset?: number }): Promise<any[]> {
