@@ -297,6 +297,8 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
               ...entry.submissions,
               vorbesteller: {
                 count: Math.floor(Math.random() * 3) + 1,
+                valueCount: 2,
+                nonValueCount: 1,
                 totalValue: Math.floor(Math.random() * 500) + 100,
                 items: [
                   { type: 'Display', name: 'Whiskas Display 24er', quantity: 2 },
@@ -323,7 +325,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
             ...entry,
             submissions: {
               ...entry.submissions,
-              vorbesteller: entry.submissions?.vorbesteller || { count: 0, totalValue: 0, items: [] },
+              vorbesteller: entry.submissions?.vorbesteller || { count: 0, valueCount: 0, nonValueCount: 0, totalValue: 0, items: [] },
               vorverkauf: {
                 count: Math.floor(Math.random() * 2) + 1,
                 items: [
@@ -348,7 +350,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
             ...entry,
             submissions: {
               ...entry.submissions,
-              vorbesteller: entry.submissions?.vorbesteller || { count: 0, totalValue: 0, items: [] },
+              vorbesteller: entry.submissions?.vorbesteller || { count: 0, valueCount: 0, nonValueCount: 0, totalValue: 0, items: [] },
               vorverkauf: entry.submissions?.vorverkauf || { count: 0, items: [] },
               produkttausch: {
                 count: Math.floor(Math.random() * 2) + 1,
