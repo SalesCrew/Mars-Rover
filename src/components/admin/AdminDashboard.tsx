@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Storefront, Sparkle, ClockCounterClockwise, X, ShoppingCart, ArrowsLeftRight, Clock } from '@phosphor-icons/react';
+import { Package, Storefront, Sparkle, ClockCounterClockwise, X, ShoppingCart, ArrowsLeftRight, Clock, Gift } from '@phosphor-icons/react';
 import { ChainAverageCard } from './ChainAverageCard';
 import { WaveProgressCard } from './WaveProgressCard';
 import { DashboardFilters } from './DashboardFilters';
@@ -9,7 +9,7 @@ import styles from './AdminDashboard.module.css';
 
 interface Activity {
   id: string;
-  type: 'vorbestellung' | 'vorverkauf' | 'produkttausch_pending';
+  type: 'vorbestellung' | 'vorverkauf' | 'produkttausch_pending' | 'nara_incentive';
   glId: string;
   glName: string;
   marketId: string;
@@ -534,6 +534,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
                     <Package size={14} weight="fill" />
                   ) : activity.type === 'produkttausch_pending' ? (
                     <Clock size={14} weight="fill" />
+                  ) : activity.type === 'nara_incentive' ? (
+                    <Gift size={14} weight="fill" />
                   ) : (
                     <ArrowsLeftRight size={14} weight="fill" />
                   )}
@@ -547,6 +549,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
                     <ShoppingCart size={16} weight="fill" className={styles.typeIconVorbestellung} />
                   ) : activity.type === 'produkttausch_pending' ? (
                     <Clock size={16} weight="fill" className={styles.typeIconPending} />
+                  ) : activity.type === 'nara_incentive' ? (
+                    <Gift size={16} weight="fill" className={styles.typeIconNara} />
                   ) : (
                     <ArrowsLeftRight size={16} weight="fill" className={styles.typeIconVorverkauf} />
                   )}
@@ -619,6 +623,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
                       <Package size={14} weight="fill" />
                     ) : activity.type === 'produkttausch_pending' ? (
                       <Clock size={14} weight="fill" />
+                    ) : activity.type === 'nara_incentive' ? (
+                      <Gift size={14} weight="fill" />
                     ) : (
                       <ArrowsLeftRight size={14} weight="fill" />
                     )}
@@ -670,15 +676,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
               </div>
               <div className={styles.editInfoRow}>
                 <span className={styles.editInfoLabel}>Typ</span>
-                <span className={`${styles.typeBadge} ${editingActivity.type === 'vorbestellung' ? styles.typeBadgeBlue : editingActivity.type === 'produkttausch_pending' ? styles.typeBadgePending : styles.typeBadgeOrange}`}>
-                  {editingActivity.type === 'vorbestellung' ? 'Vorbestellung' : editingActivity.type === 'produkttausch_pending' ? 'Vorgemerkt' : 'Vorverkauf'}
+                <span className={`${styles.typeBadge} ${editingActivity.type === 'vorbestellung' ? styles.typeBadgeBlue : editingActivity.type === 'produkttausch_pending' ? styles.typeBadgePending : editingActivity.type === 'nara_incentive' ? styles.typeBadgeGreen : styles.typeBadgeOrange}`}>
+                  {editingActivity.type === 'vorbestellung' ? 'Vorbestellung' : editingActivity.type === 'produkttausch_pending' ? 'Vorgemerkt' : editingActivity.type === 'nara_incentive' ? 'NaRa Incentive' : 'Vorverkauf'}
                 </span>
               </div>
             </div>
 
             {/* Editable Fields */}
             <div className={styles.editFieldsSection}>
-              {editingActivity.type === 'vorbestellung' ? (
+              {editingActivity.type === 'nara_incentive' ? (
+                <>
+                  <div className={styles.editFieldGroup}>
+                    <label className={styles.editFieldLabel}>Produkte</label>
+                    <div className={styles.productExchangeList}>
+                      {(editingActivity.details?.items || []).map((item: any, idx: number) => (
+                        <div key={idx} className={styles.productExchangeItem}>
+                          <span className={styles.productQuantity}>{item.quantity}×</span>
+                          <span className={styles.productName}>{item.productName}</span>
+                          <span className={styles.productPrice}>€{(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className={styles.exchangeTotalReplace}>
+                      Gesamt: <span className={styles.totalValueGreen}>€{(editingActivity.details?.totalValue || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </>
+              ) : editingActivity.type === 'vorbestellung' ? (
                 <>
                   {/* Check if this is a grouped palette/schuette with products */}
                   {editForm.products.length > 0 ? (
@@ -894,14 +918,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
                 className={styles.cancelButton}
                 onClick={() => setEditingActivity(null)}
               >
-                Abbrechen
+                {editingActivity.type === 'nara_incentive' ? 'Schließen' : 'Abbrechen'}
               </button>
-              <button 
-                className={styles.saveButton}
-                onClick={handleActivityEdit}
-              >
-                Speichern
-              </button>
+              {editingActivity.type !== 'nara_incentive' && (
+                <button 
+                  className={styles.saveButton}
+                  onClick={handleActivityEdit}
+                >
+                  Speichern
+                </button>
+              )}
             </div>
           </div>
         </div>

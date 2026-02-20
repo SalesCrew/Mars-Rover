@@ -483,6 +483,10 @@
   color: #F97316;
 }
 
+.typeIconNara {
+  color: #059669;
+}
+
 .pendingBadge {
   display: inline-flex;
   align-items: center;
@@ -884,6 +888,12 @@
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.06));
   color: #D97706;
   border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.typeBadgeGreen {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.12), rgba(5, 150, 105, 0.06));
+  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.2);
 }
 
 .editFieldsSection {
