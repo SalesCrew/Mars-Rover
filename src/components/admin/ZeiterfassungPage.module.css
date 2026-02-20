@@ -116,20 +116,6 @@
   background: rgba(255, 255, 255, 0.5);
 }
 
-.stat:nth-child(1) {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.12);
-}
-
-.stat:nth-child(2) {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.04) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.12);
-}
-
-.stat:nth-child(3) {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
-  border: 1px solid rgba(139, 92, 246, 0.12);
-}
 
 .statLabel {
   font-size: 12px;
@@ -138,17 +124,6 @@
   white-space: nowrap;
 }
 
-.stat:nth-child(1) .statLabel {
-  color: #3B82F6;
-}
-
-.stat:nth-child(2) .statLabel {
-  color: #10B981;
-}
-
-.stat:nth-child(3) .statLabel {
-  color: #8B5CF6;
-}
 
 .statValue {
   font-size: 14px;

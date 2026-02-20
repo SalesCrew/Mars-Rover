@@ -1,0 +1,26 @@
+---
+description: Git push rules - separate frontend and backend repos
+alwaysApply: true
+---
+
+# Git Push Rules
+
+## Repository Structure
+
+This is a MONOREPO workspace but frontend and backend are deployed from SEPARATE Git repositories.
+
+### Remotes in this workspace
+
+- `production` → `https://github.com/SalesCrew/Mars-Rover.git` — **FRONTEND production repo (Vercel)**
+- `origin` → `https://github.com/SalesCrew/Test-Mars-Rover.git` — **TEST remote, do NOT push here unless explicitly asked**
+
+### Backend
+
+The `backend/` folder is its OWN separate Git repository (`https://github.com/SalesCrew/Mars_rover-Backend.git`) deployed on Railway.
+It has its own `.git` directory. To push backend changes, `cd` into `backend/` and commit+push from there.
+
+## Push Rules
+
+1. When user says "push", push frontend to `production` AND if backend files changed, also cd into `backend/` and commit+push there separately.
+2. NEVER push to `origin` (test remote) on the root repo unless the user explicitly says "push to test" or "push to origin".
+3. Backend pushes: `cd backend/` → `git add -A` → `git commit` → `git push origin main`.

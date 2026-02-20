@@ -432,8 +432,6 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
     };
 
     items.forEach((item, idx) => {
-      if (item.type !== 'market') return;
-
       const prev = idx > 0 ? items[idx - 1] : null;
       let fVon = '', fBis = '', fDauer = '';
 
@@ -445,12 +443,33 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         if (gap > 0) { fVon = prev.endTime; fBis = item.startTime; fDauer = fmtGap(gap); }
       }
 
-      const entry = item.entry;
-      const row = glName
-        ? [formattedDate, glName, entry.market.name, entry.market.chain, entry.market.address || '', entry.market.postal_code || '', entry.market.city || '', fVon, fBis, fDauer, entry.besuchszeit_von || '', entry.besuchszeit_bis || '', entry.besuchszeit_diff || '', entry.distanz_km?.toString() || '']
-        : [formattedDate, entry.market.name, entry.market.chain, entry.market.address || '', entry.market.postal_code || '', entry.market.city || '', fVon, fBis, fDauer, entry.besuchszeit_von || '', entry.besuchszeit_bis || '', entry.besuchszeit_diff || '', entry.distanz_km?.toString() || ''];
-      rows.push(row);
+      if (item.type === 'market') {
+        const entry = item.entry;
+        const row = glName
+          ? [formattedDate, glName, entry.market.name, entry.market.chain, entry.market.address || '', entry.market.postal_code || '', entry.market.city || '', fVon, fBis, fDauer, entry.besuchszeit_von || '', entry.besuchszeit_bis || '', entry.besuchszeit_diff || '', entry.distanz_km?.toString() || '']
+          : [formattedDate, entry.market.name, entry.market.chain, entry.market.address || '', entry.market.postal_code || '', entry.market.city || '', fVon, fBis, fDauer, entry.besuchszeit_von || '', entry.besuchszeit_bis || '', entry.besuchszeit_diff || '', entry.distanz_km?.toString() || ''];
+        rows.push(row);
+      } else {
+        const zusatz = item.entry;
+        const label = `${zusatz.reason_label}${zusatz.is_work_time_deduction ? ' (Abzug)' : ''}`;
+        const row = glName
+          ? [formattedDate, glName, label, '', zusatz.kommentar || '', '', '', fVon, fBis, fDauer, zusatz.zeit_von || '', zusatz.zeit_bis || '', zusatz.zeit_diff || '', '']
+          : [formattedDate, label, '', zusatz.kommentar || '', '', '', fVon, fBis, fDauer, zusatz.zeit_von || '', zusatz.zeit_bis || '', zusatz.zeit_diff || '', ''];
+        rows.push(row);
+      }
     });
+
+    // Add Heimfahrt row if day tracking has end time
+    if (dayTrack?.day_end_time && items.length > 0) {
+      const lastItem = items[items.length - 1];
+      const gap = gapMins(lastItem.endTime, dayTrack.day_end_time);
+      if (gap > 0) {
+        const row = glName
+          ? [formattedDate, glName, 'Heimfahrt', '', '', '', '', lastItem.endTime, dayTrack.day_end_time, fmtGap(gap), '', '', '', '']
+          : [formattedDate, 'Heimfahrt', '', '', '', '', lastItem.endTime, dayTrack.day_end_time, fmtGap(gap), '', '', '', ''];
+        rows.push(row);
+      }
+    }
 
     return rows;
   };
@@ -1216,6 +1235,12 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                         
                         return (
                           <>
+                            {unterbrechungMinutes > 0 && (
+                              <div className={styles.dayRowStatPill} style={{ background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(185, 28, 28, 0.05) 100%)', border: '1px solid rgba(220, 38, 38, 0.15)' }}>
+                                <span className={styles.dayRowStatLabel} style={{ color: '#DC2626' }}>Unterbrechung</span>
+                                <span className={styles.dayRowStatValue} style={{ color: '#DC2626' }}>{formatMins(unterbrechungMinutes)}</span>
+                              </div>
+                            )}
                             <div className={styles.dayRowStatPill} style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)', border: '1px solid rgba(59, 130, 246, 0.12)' }}>
                               <span className={styles.dayRowStatLabel} style={{ color: '#3B82F6' }}>Arbeitstag</span>
                               <span className={styles.dayRowStatValue}>{formatTime(startTime)} - {formatTime(endTime)}</span>
@@ -1224,12 +1249,6 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                               <span className={styles.dayRowStatLabel} style={{ color: '#10B981' }}>Reine Arbeitszeit</span>
                               <span className={styles.dayRowStatValue}>{formatMins(reineArbeitszeitMinutes)}</span>
                             </div>
-                            {unterbrechungMinutes > 0 && (
-                              <div className={styles.dayRowStatPill} style={{ background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(185, 28, 28, 0.05) 100%)', border: '1px solid rgba(220, 38, 38, 0.15)' }}>
-                                <span className={styles.dayRowStatLabel} style={{ color: '#DC2626' }}>Unterbrechung</span>
-                                <span className={styles.dayRowStatValue} style={{ color: '#DC2626' }}>{formatMins(unterbrechungMinutes)}</span>
-                              </div>
-                            )}
                             <div className={styles.dayRowStatPill} style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)', border: '1px solid rgba(139, 92, 246, 0.12)' }}>
                               <span className={styles.dayRowStatLabel} style={{ color: '#8B5CF6' }}>Märkte</span>
                               <span className={styles.dayRowStatValue} style={{ color: '#8B5CF6' }}>{day.maerkteBesucht}</span>
@@ -1332,7 +1351,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                 // Calculate Fahrzeit as gap from previous item's end to this item's start
                                 const prevItem = idx > 0 ? timelineItems[idx - 1] : null;
                                 const gapMinutes = prevItem ? calcGapMinutes(prevItem.endTime, item.startTime) : 0;
-                                const showFahrzeit = gapMinutes > 0 && item.type === 'market';
+                                const showFahrzeit = gapMinutes > 0;
                                 
                                 if (item.type === 'market') {
                                   const entry = item.entry;
@@ -1393,30 +1412,55 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                   const zusatz = item.entry;
                                   const ZusatzIcon = zusatzReasonIcons[zusatz.reason] || Pause;
                                   renderedItems.push(
-                                    <div 
-                                      key={zusatz.id} 
-                                      className={styles.fahrzeitLine}
-                                    >
-                                      <div className={styles.fahrzeitInfo}>
-                                        <ZusatzIcon size={16} weight="fill" />
-                                        <span className={styles.fahrzeitLabel}>
-                                          {zusatz.reason_label}
-                                          {zusatz.is_work_time_deduction && ' (Abzug)'}
-                                          {zusatz.reason === 'sonderaufgabe' && zusatz.market?.name && (
-                                            <span style={{ color: '#3B82F6', fontWeight: 500, marginLeft: '6px' }}>@ {zusatz.market.name}</span>
-                                          )}
-                                          {zusatz.kommentar && <span style={{ color: '#64748B', fontWeight: 400, marginLeft: '8px' }}>{zusatz.kommentar}</span>}
-                                        </span>
-                                        <div className={styles.fahrzeitTimeRight}>
-                                          <span className={styles.fahrzeitTime}>
-                                            {zusatz.zeit_von} - {zusatz.zeit_bis}
+                                    <React.Fragment key={zusatz.id}>
+                                      {showFahrzeit ? (
+                                        <div className={styles.fahrzeitLine}>
+                                          <div className={styles.fahrzeitInfo}>
+                                            <Car size={16} weight="fill" />
+                                            <span className={styles.fahrzeitLabel}>Fahrzeit</span>
+                                            <div className={styles.fahrzeitTimeRight}>
+                                              <span className={styles.fahrzeitTime}>
+                                                {prevItem?.endTime} - {item.startTime}
+                                              </span>
+                                              <span className={styles.duration}>
+                                                {formatGap(gapMinutes)}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ) : idx > 0 ? (
+                                        <div className={styles.fahrzeitLine} style={{ opacity: 0.4 }}>
+                                          <div className={styles.fahrzeitInfo}>
+                                            <Car size={16} weight="fill" />
+                                            <span className={styles.fahrzeitLabel}>Fahrzeit</span>
+                                            <div className={styles.fahrzeitTimeRight}>
+                                              <span className={styles.duration}>0:00</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                      <div className={styles.fahrzeitLine}>
+                                        <div className={styles.fahrzeitInfo}>
+                                          <ZusatzIcon size={16} weight="fill" />
+                                          <span className={styles.fahrzeitLabel}>
+                                            {zusatz.reason_label}
+                                            {zusatz.is_work_time_deduction && ' (Abzug)'}
+                                            {zusatz.reason === 'sonderaufgabe' && zusatz.market?.name && (
+                                              <span style={{ color: '#3B82F6', fontWeight: 500, marginLeft: '6px' }}>@ {zusatz.market.name}</span>
+                                            )}
+                                            {zusatz.kommentar && <span style={{ color: '#64748B', fontWeight: 400, marginLeft: '8px' }}>{zusatz.kommentar}</span>}
                                           </span>
-                                          <span className={styles.duration}>
-                                            {formatInterval(zusatz.zeit_diff)}
-                                          </span>
+                                          <div className={styles.fahrzeitTimeRight}>
+                                            <span className={styles.fahrzeitTime}>
+                                              {zusatz.zeit_von} - {zusatz.zeit_bis}
+                                            </span>
+                                            <span className={styles.duration}>
+                                              {formatInterval(zusatz.zeit_diff)}
+                                            </span>
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
+                                    </React.Fragment>
                                   );
                                 }
                               });
@@ -1663,24 +1707,24 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                       
                       return (
                         <>
-                          <div className={styles.stat}>
-                            <span className={styles.statLabel}>Arbeitstag</span>
-                            <span className={styles.statValue}>
-                              {formatTime(startTime)} - {formatTime(endTime)}
-                            </span>
-                          </div>
-
-                          <div className={styles.stat}>
-                            <span className={styles.statLabel}>Reine Arbeitszeit</span>
-                            <span className={styles.statValue}>{formatMins(reineArbeitszeitMinutes)}</span>
-                          </div>
-
                           {unterbrechungMinutes > 0 && (
                             <div className={styles.stat} style={{ background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(185, 28, 28, 0.05) 100%)', border: '1px solid rgba(220, 38, 38, 0.15)' }}>
                               <span className={styles.statLabel} style={{ color: '#DC2626' }}>Unterbrechung</span>
                               <span className={styles.statValue} style={{ color: '#DC2626' }}>{formatMins(unterbrechungMinutes)}</span>
                             </div>
                           )}
+
+                          <div className={styles.stat} style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)', border: '1px solid rgba(59, 130, 246, 0.12)' }}>
+                            <span className={styles.statLabel} style={{ color: '#3B82F6' }}>Arbeitstag</span>
+                            <span className={styles.statValue}>
+                              {formatTime(startTime)} - {formatTime(endTime)}
+                            </span>
+                          </div>
+
+                          <div className={styles.stat} style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.04) 100%)', border: '1px solid rgba(16, 185, 129, 0.12)' }}>
+                            <span className={styles.statLabel} style={{ color: '#10B981' }}>Reine Arbeitszeit</span>
+                            <span className={styles.statValue}>{formatMins(reineArbeitszeitMinutes)}</span>
+                          </div>
 
                           <div className={styles.stat} style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(124, 58, 237, 0.04) 100%)', border: '1px solid rgba(139, 92, 246, 0.12)' }}>
                             <span className={styles.statLabel} style={{ color: '#8B5CF6' }}>Märkte besucht</span>
@@ -1783,7 +1827,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                               // Calculate Fahrzeit as gap from previous item's end to this item's start
                               const prevItem = idx > 0 ? timelineItems[idx - 1] : null;
                               const gapMinutes = prevItem ? calcGapMinutes(prevItem.endTime, item.startTime) : 0;
-                              const showFahrzeit = gapMinutes > 0 && item.type === 'market';
+                              const showFahrzeit = gapMinutes > 0;
                               
                               if (item.type === 'market') {
                                 const entry = item.entry;
@@ -1844,30 +1888,55 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                 const zusatz = item.entry;
                                 const ZusatzIcon = zusatzReasonIcons[zusatz.reason] || Pause;
                                 renderedItems.push(
-                                  <div 
-                                    key={zusatz.id} 
-                                    className={styles.fahrzeitLine}
-                                  >
-                                    <div className={styles.fahrzeitInfo}>
-                                      <ZusatzIcon size={16} weight="fill" />
-                                      <span className={styles.fahrzeitLabel}>
-                                        {zusatz.reason_label}
-                                        {zusatz.is_work_time_deduction && ' (Abzug)'}
-                                        {zusatz.reason === 'sonderaufgabe' && zusatz.market?.name && (
-                                          <span style={{ color: '#3B82F6', fontWeight: 500, marginLeft: '6px' }}>@ {zusatz.market.name}</span>
-                                        )}
-                                        {zusatz.kommentar && <span style={{ color: '#64748B', fontWeight: 400, marginLeft: '8px' }}>{zusatz.kommentar}</span>}
-                                      </span>
-                                      <div className={styles.fahrzeitTimeRight}>
-                                        <span className={styles.fahrzeitTime}>
-                                          {zusatz.zeit_von} - {zusatz.zeit_bis}
+                                  <React.Fragment key={zusatz.id}>
+                                    {showFahrzeit ? (
+                                      <div className={styles.fahrzeitLine}>
+                                        <div className={styles.fahrzeitInfo}>
+                                          <Car size={16} weight="fill" />
+                                          <span className={styles.fahrzeitLabel}>Fahrzeit</span>
+                                          <div className={styles.fahrzeitTimeRight}>
+                                            <span className={styles.fahrzeitTime}>
+                                              {prevItem?.endTime} - {item.startTime}
+                                            </span>
+                                            <span className={styles.duration}>
+                                              {formatGap(gapMinutes)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : idx > 0 ? (
+                                      <div className={styles.fahrzeitLine} style={{ opacity: 0.4 }}>
+                                        <div className={styles.fahrzeitInfo}>
+                                          <Car size={16} weight="fill" />
+                                          <span className={styles.fahrzeitLabel}>Fahrzeit</span>
+                                          <div className={styles.fahrzeitTimeRight}>
+                                            <span className={styles.duration}>0:00</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    <div className={styles.fahrzeitLine}>
+                                      <div className={styles.fahrzeitInfo}>
+                                        <ZusatzIcon size={16} weight="fill" />
+                                        <span className={styles.fahrzeitLabel}>
+                                          {zusatz.reason_label}
+                                          {zusatz.is_work_time_deduction && ' (Abzug)'}
+                                          {zusatz.reason === 'sonderaufgabe' && zusatz.market?.name && (
+                                            <span style={{ color: '#3B82F6', fontWeight: 500, marginLeft: '6px' }}>@ {zusatz.market.name}</span>
+                                          )}
+                                          {zusatz.kommentar && <span style={{ color: '#64748B', fontWeight: 400, marginLeft: '8px' }}>{zusatz.kommentar}</span>}
                                         </span>
-                                        <span className={styles.duration}>
-                                          {formatInterval(zusatz.zeit_diff)}
-                                        </span>
+                                        <div className={styles.fahrzeitTimeRight}>
+                                          <span className={styles.fahrzeitTime}>
+                                            {zusatz.zeit_von} - {zusatz.zeit_bis}
+                                          </span>
+                                          <span className={styles.duration}>
+                                            {formatInterval(zusatz.zeit_diff)}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
+                                  </React.Fragment>
                                 );
                               }
                             });

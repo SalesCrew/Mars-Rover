@@ -6,6 +6,7 @@ import type { Market } from '../../types/market-types';
 import { wellenService, type Welle, type PendingDeliverySubmission } from '../../services/wellenService';
 import { useAuth } from '../../contexts/AuthContext';
 import { marketService } from '../../services/marketService';
+import { API_BASE_URL } from '../../config/database';
 import { MarketVisitChoiceModal } from './MarketVisitChoiceModal';
 import { VorbestellerDeliveryPhotoModal } from './VorbestellerDeliveryPhotoModal';
 import { getAllProducts } from '../../data/productsData';
@@ -80,6 +81,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const [masterProducts, setMasterProducts] = useState<Product[]>([]);
   const [showAllProducts, setShowAllProducts] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [submittedMarketIds, setSubmittedMarketIds] = useState<Set<string>>(new Set());
+  const [allSubmittedMarketIds, setAllSubmittedMarketIds] = useState<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +93,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
       try {
         setIsLoadingWellen(true);
         const fetchedWellen = await wellenService.getAllWellen();
-        setWellen(fetchedWellen);
+        setWellen(fetchedWellen.filter(w => w.status === 'active'));
       } catch (error) {
         console.error('Error loading wellen:', error);
       } finally {
@@ -144,6 +147,24 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
       }
     }
   }, [preSelectedWaveId, wellen, isLoadingWellen]);
+
+  // Fetch which markets already have submissions for the selected wave
+  useEffect(() => {
+    if (!showMarketSelection || !selectedCardId || !user?.id) return;
+    const fetchSubmittedMarkets = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/wellen/${selectedCardId}/submitted-markets/${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSubmittedMarketIds(new Set(data.marketIds || []));
+          setAllSubmittedMarketIds(new Set(data.allMarketIds || []));
+        }
+      } catch (e) {
+        console.error('Error fetching submitted markets:', e);
+      }
+    };
+    fetchSubmittedMarkets();
+  }, [showMarketSelection, selectedCardId, user?.id]);
 
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -635,6 +656,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const handleSuccessClose = () => {
     setFlippedCardId(null);
     setSelectedCardId(null);
+    setSubmittedMarketIds(new Set());
+    setAllSubmittedMarketIds(new Set());
     setShowMarketSelection(false);
     setShowItemSelection(false);
     _setShowPhotoCapture(false);
@@ -1132,6 +1155,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.marketsGroupLabel}>Verfügbar</div>
                         {uncompletedMarkets.map((market) => {
                           const isSelected = selectedMarket?.id === market.id;
+                          const hasSubmission = submittedMarketIds.has(market.id);
                           return (
                             <div
                               key={market.id}
@@ -1144,6 +1168,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                   {market.address}, {market.postalCode} {market.city}
                                 </div>
                               </div>
+                              <div className={styles.submissionDot} style={{ background: hasSubmission ? '#10B981' : '#EF4444' }} />
                             </div>
                           );
                         })}
@@ -1156,6 +1181,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.marketsGroupLabel}>Abgeschlossen</div>
                         {completedMarkets.map((market) => {
                           const isSelected = selectedMarket?.id === market.id;
+                          const hasSubmission = submittedMarketIds.has(market.id);
                           return (
                             <div
                               key={market.id}
@@ -1171,6 +1197,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                   {market.address}, {market.postalCode} {market.city}
                                 </div>
                               </div>
+                              <div className={styles.submissionDot} style={{ background: hasSubmission ? '#10B981' : '#EF4444' }} />
                             </div>
                           );
                         })}
@@ -1190,6 +1217,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.marketsGroupLabel}>Verfügbar</div>
                         {otherUncompletedMarkets.map((market) => {
                           const isSelected = selectedMarket?.id === market.id;
+                          const hasSubmission = allSubmittedMarketIds.has(market.id);
                           return (
                             <div
                               key={market.id}
@@ -1202,6 +1230,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                   {market.address}, {market.postalCode} {market.city}
                                 </div>
                               </div>
+                              <div className={styles.submissionDot} style={{ background: hasSubmission ? '#10B981' : '#EF4444', opacity: 0.5 }} />
                             </div>
                           );
                         })}
@@ -1214,6 +1243,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.marketsGroupLabel}>Abgeschlossen</div>
                         {otherCompletedMarkets.map((market) => {
                           const isSelected = selectedMarket?.id === market.id;
+                          const hasSubmission = allSubmittedMarketIds.has(market.id);
                           return (
                             <div
                               key={market.id}
@@ -1229,6 +1259,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                   {market.address}, {market.postalCode} {market.city}
                                 </div>
                               </div>
+                              <div className={styles.submissionDot} style={{ background: hasSubmission ? '#10B981' : '#EF4444', opacity: 0.5 }} />
                             </div>
                           );
                         })}
