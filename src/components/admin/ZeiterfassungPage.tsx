@@ -36,6 +36,8 @@ interface ZeiterfassungEntry {
   submissions?: {
     vorbesteller: {
       count: number;
+      valueCount: number;
+      nonValueCount: number;
       totalValue: number;
       items: any[];
     };
@@ -1449,6 +1451,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                             {(() => {
                               const totalVorbesteller = dayDetailedEntries.reduce((sum, e) => sum + (e.submissions?.vorbesteller.count || 0), 0);
                               const totalVorbestellerValue = dayDetailedEntries.reduce((sum, e) => sum + (e.submissions?.vorbesteller.totalValue || 0), 0);
+                              const totalNonValueVorbesteller = dayDetailedEntries.reduce((sum, e) => sum + (e.submissions?.vorbesteller.nonValueCount || 0), 0);
                               const totalVorverkauf = dayDetailedEntries.reduce((sum, e) => sum + (e.submissions?.vorverkauf.count || 0), 0);
                               const totalProduktausch = dayDetailedEntries.reduce((sum, e) => sum + (e.submissions?.produkttausch.count || 0), 0);
 
@@ -1466,7 +1469,9 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                         </div>
                                       </div>
                                       <span className={styles.statCardValue} style={{ color: '#10B981' }}>
-                                        €{totalVorbestellerValue.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+                                        {totalVorbestellerValue > 0 && `€${totalVorbestellerValue.toLocaleString('de-DE', { minimumFractionDigits: 2 })}`}
+                                        {totalVorbestellerValue > 0 && totalNonValueVorbesteller > 0 && ' + '}
+                                        {totalNonValueVorbesteller > 0 && `${totalNonValueVorbesteller} Stk`}
                                       </span>
                                     </div>
                                   )}
@@ -1899,6 +1904,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                             const allSubs = detailedEntries[glKey] || [];
                             const totalVorbesteller = allSubs.reduce((sum, e) => sum + (e.submissions?.vorbesteller.count || 0), 0);
                             const totalVorbestellerValue = allSubs.reduce((sum, e) => sum + (e.submissions?.vorbesteller.totalValue || 0), 0);
+                            const totalNonValueVorbesteller = allSubs.reduce((sum, e) => sum + (e.submissions?.vorbesteller.nonValueCount || 0), 0);
                             const totalVorverkauf = allSubs.reduce((sum, e) => sum + (e.submissions?.vorverkauf.count || 0), 0);
                             const totalProduktausch = allSubs.reduce((sum, e) => sum + (e.submissions?.produkttausch.count || 0), 0);
 
@@ -1914,7 +1920,9 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                       <div className={styles.statCardDetails}>
                                         <span className={styles.statCardCount}>{totalVorbesteller} Submissions</span>
                                         <span className={styles.statCardValue} style={{ color: '#10B981' }}>
-                                          €{totalVorbestellerValue.toFixed(2)}
+                                          {totalVorbestellerValue > 0 && `€${totalVorbestellerValue.toFixed(2)}`}
+                                          {totalVorbestellerValue > 0 && totalNonValueVorbesteller > 0 && ' + '}
+                                          {totalNonValueVorbesteller > 0 && `${totalNonValueVorbesteller} Stk`}
                                         </span>
                                       </div>
                                     </div>
