@@ -45,7 +45,7 @@ export const GebietsleiterPage: React.FC<GebietsleiterPageProps> = ({ isCreateMo
   });
   const [emailText, setEmailText] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState('');
-  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
+  const [_profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
 
   // Load gebietsleiter on mount
   useEffect(() => {
