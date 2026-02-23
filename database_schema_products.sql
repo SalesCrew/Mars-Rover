@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS products (
   -- SKU / EAN
   sku VARCHAR(255), -- Stock Keeping Unit or EAN-Code
   
+  -- Artikel Nr (persistent unique article number, survives name/price changes)
+  artikel_nr VARCHAR(255), -- Unique article number from supplier
+  
   -- Palette Products (for palette type only)
   palette_products JSONB, -- Structured array of products in a palette (name, value, ve, ean)
   
@@ -111,6 +114,13 @@ INSERT INTO products (id, name, department, product_type, weight, content, price
 -- FROM products
 -- GROUP BY department, product_type
 -- ORDER BY department, product_type;
+
+-- ============================================
+-- Migration: Add artikel_nr column
+-- Run this if the table already exists:
+-- ============================================
+-- ALTER TABLE products ADD COLUMN IF NOT EXISTS artikel_nr VARCHAR(255);
+-- CREATE INDEX IF NOT EXISTS idx_products_artikel_nr ON products(artikel_nr) WHERE artikel_nr IS NOT NULL;
 
 -- ============================================
 -- Notes

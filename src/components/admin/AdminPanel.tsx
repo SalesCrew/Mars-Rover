@@ -18,6 +18,7 @@ import { CreateSchutteModal } from './CreateSchutteModal';
 import { CreateStandardProductModal } from './CreateStandardProductModal';
 import { MarketImportPreviewModal } from './MarketImportPreviewModal';
 import { AdminAccountsModal } from './AdminAccountsModal';
+import { ExcelColumnMapper } from './ExcelColumnMapper';
 import { ExportDataModal } from './ExportDataModal';
 import { parseMarketFile, validateImportFile } from '../../utils/marketImporter';
 import { actionHistoryService, type ActionHistoryEntry } from '../../services/actionHistoryService';
@@ -25,6 +26,7 @@ import { marketService } from '../../services/marketService';
 import { useAuth } from '../../contexts/AuthContext';
 import { DevPanel } from '../gl/DevPanel';
 import type { AdminMarket } from '../../types/market-types';
+import type { Product } from '../../types/product-types';
 import styles from './AdminPanel.module.css';
 
 interface AdminPanelProps {
@@ -80,6 +82,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [isProductDragging, setIsProductDragging] = useState(false);
   const [isProductProcessing, setIsProductProcessing] = useState(false);
   const [productImportResult, setProductImportResult] = useState<{ success: boolean; message: string; count?: number } | null>(null);
+  const [pendingProductFile, setPendingProductFile] = useState<File | null>(null);
+  const [showColumnMapper, setShowColumnMapper] = useState(false);
   const [waveIdToEdit, setWaveIdToEdit] = useState<string | null>(null);
   const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
   const [pendingImportMarkets, setPendingImportMarkets] = useState<AdminMarket[]>([]);
@@ -326,11 +330,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   };
 
   // Product import handlers
+  const isStandardImport = selectedProductImportType === 'pets-standard' || selectedProductImportType === 'food-standard';
+
   const handleProductDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsProductDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) {
+    if (!file) return;
+    if (isStandardImport) {
+      setPendingProductFile(file);
+      setShowColumnMapper(true);
+    } else {
       processProductFile(file);
     }
   };
@@ -346,9 +356,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
 
   const handleProductFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (!file) return;
+    if (isStandardImport) {
+      setPendingProductFile(file);
+      setShowColumnMapper(true);
+    } else {
       processProductFile(file);
     }
+  };
+
+  const handleColumnMapperImport = async (products: Product[]) => {
+    try {
+      const { addProducts } = await import('../../data/productsData');
+      await addProducts(products);
+      window.dispatchEvent(new Event('productsUpdated'));
+    } catch (err) {
+      console.error('Error saving mapped products:', err);
+    }
+    setShowColumnMapper(false);
+    setPendingProductFile(null);
+    setIsProductImportModalOpen(false);
+    setSelectedProductImportType(null);
+    setProductInputMethod(null);
   };
 
   const processProductFile = async (file: File) => {
@@ -902,6 +931,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
             )}
           </div>
         </div>,
+        document.body
+      )}
+
+      {showColumnMapper && pendingProductFile && selectedProductImportType && ReactDOM.createPortal(
+        <ExcelColumnMapper
+          file={pendingProductFile}
+          department={selectedProductImportType.startsWith('pets') ? 'pets' : 'food'}
+          onImport={handleColumnMapperImport}
+          onCancel={() => {
+            setShowColumnMapper(false);
+            setPendingProductFile(null);
+          }}
+        />,
         document.body
       )}
 

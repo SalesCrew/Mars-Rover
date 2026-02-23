@@ -113,7 +113,8 @@ export const ProductsPage: React.FC = () => {
       filtered = filtered.filter(p =>
         p.name.toLowerCase().includes(query) ||
         p.weight.toLowerCase().includes(query) ||
-        (p.sku && p.sku.toLowerCase().includes(query))
+        (p.sku && p.sku.toLowerCase().includes(query)) ||
+        (p.artikelNr && p.artikelNr.toLowerCase().includes(query))
       );
     }
 
@@ -391,7 +392,7 @@ export const ProductsPage: React.FC = () => {
             <MagnifyingGlass size={20} weight="regular" className={styles.searchIcon} />
             <input
               type="text"
-              placeholder="Suche nach Name, Gewicht oder SKU..."
+              placeholder="Suche nach Name, Gewicht, SKU oder Art. Nr..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={styles.searchInput}
@@ -956,6 +957,18 @@ export const ProductsPage: React.FC = () => {
                     value={editedProduct.sku || ''}
                     onChange={(e) => handleInputChange('sku', e.target.value)}
                     placeholder="Automatisch generiert"
+                  />
+                </div>
+
+                {/* Artikel Nr. */}
+                <div className={styles.detailItem}>
+                  <label className={styles.detailLabel}>Artikel Nr.</label>
+                  <input
+                    type="text"
+                    className={styles.detailInput}
+                    value={editedProduct.artikelNr || ''}
+                    onChange={(e) => handleInputChange('artikelNr', e.target.value)}
+                    placeholder="Eindeutige Artikelnummer"
                   />
                 </div>
               </div>

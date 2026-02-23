@@ -255,6 +255,126 @@ const parseImportType = (importType: ProductImportType): ['pets' | 'food', 'stan
   return [dept, type];
 };
 
+// --- Column Mapping Import ---
+
+export interface ColumnMapping {
+  name: string;       // required - column letter for Produktname
+  weight: string;     // required - column letter for Gewicht/Größe
+  price: string;      // required - column letter for Preis
+  palletSize?: string; // optional - column letter for Palette
+  artikelNr?: string;  // optional - column letter for Artikel Nr.
+  skipHeaderRow: boolean;
+}
+
+const columnLetterToIndex = (letter: string): number => {
+  const upper = letter.toUpperCase().trim();
+  let index = 0;
+  for (let i = 0; i < upper.length; i++) {
+    index = index * 26 + (upper.charCodeAt(i) - 64);
+  }
+  return index - 1;
+};
+
+const parseMultiColumnLetters = (letters: string): number[] => {
+  return letters.toUpperCase().trim().split('').map(ch => ch.charCodeAt(0) - 65);
+};
+
+const resolveMultiColumnValue = (row: any[], indices: number[]): string => {
+  return indices
+    .map(idx => (row[idx] != null ? String(row[idx]).trim() : ''))
+    .filter(Boolean)
+    .join(' ');
+};
+
+export const readExcelPreview = async (file: File, maxRows = 5): Promise<string[][]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        const preview = raw.slice(0, maxRows).map(row =>
+          row.map((cell: any) => (cell == null ? '' : String(cell)))
+        );
+        resolve(preview);
+      } catch (err) {
+        reject(new Error(`Fehler beim Lesen der Vorschau: ${err}`));
+      }
+    };
+    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
+    reader.readAsBinaryString(file);
+  });
+};
+
+export const parseProductFileWithMapping = async (
+  file: File,
+  department: 'pets' | 'food',
+  mapping: ColumnMapping
+): Promise<Product[]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+        const nameIndices = parseMultiColumnLetters(mapping.name);
+        const weightIdx = columnLetterToIndex(mapping.weight);
+        const priceIdx = columnLetterToIndex(mapping.price);
+        const palletIdx = mapping.palletSize ? columnLetterToIndex(mapping.palletSize) : -1;
+        const artikelIdx = mapping.artikelNr ? columnLetterToIndex(mapping.artikelNr) : -1;
+
+        const startRow = mapping.skipHeaderRow ? 1 : 0;
+        const products: Product[] = [];
+        const seenNames = new Set<string>();
+
+        for (let i = startRow; i < rawData.length; i++) {
+          const row = rawData[i];
+          if (!row || row.length === 0) continue;
+
+          const name = resolveMultiColumnValue(row, nameIndices);
+          const weight = row[weightIdx] ? String(row[weightIdx]).trim() : '';
+          const priceRaw = row[priceIdx];
+          const price = priceRaw ? parseFloat(String(priceRaw).replace(',', '.')) : 0;
+
+          if (!name || !weight || price === 0) continue;
+          if (seenNames.has(name)) continue;
+          seenNames.add(name);
+
+          const palletSize = palletIdx >= 0 && row[palletIdx]
+            ? parseFloat(String(row[palletIdx]).replace(',', '.'))
+            : undefined;
+          const artikelNr = artikelIdx >= 0 && row[artikelIdx]
+            ? String(row[artikelIdx]).trim()
+            : undefined;
+
+          products.push({
+            id: generateProductId(name, i),
+            name,
+            department,
+            productType: 'standard',
+            weight,
+            palletSize: palletSize && !isNaN(palletSize) ? Math.round(palletSize) : undefined,
+            price,
+            artikelNr: artikelNr || undefined,
+            sku: generateSKU(name, weight),
+          });
+        }
+
+        resolve(products);
+      } catch (err) {
+        reject(new Error(`Fehler beim Verarbeiten der Datei: ${err}`));
+      }
+    };
+    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
+    reader.readAsBinaryString(file);
+  });
+};
+
 export const validateProductImportFile = (file: File): { valid: boolean; error?: string } => {
   const validExtensions = ['.csv', '.xlsx', '.xls'];
   const fileName = file.name.toLowerCase();

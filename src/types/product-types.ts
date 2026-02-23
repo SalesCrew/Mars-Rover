@@ -8,6 +8,7 @@ export interface Product {
   palletSize?: number; // Row F: Einheiten Pro Palette
   price: number; // Row K: Price in EUR (0 for palettes - value comes from products inside)
   sku?: string; // Generated or imported SKU
+  artikelNr?: string; // Persistent unique article number from supplier
   paletteProducts?: PaletteProduct[]; // Products contained in a palette (only for palette type)
 }
 

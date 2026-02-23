@@ -16,6 +16,7 @@ interface StandardProduct {
   content?: string;
   palletSize?: number;
   price: number;
+  artikelNr?: string;
 }
 
 export const CreateStandardProductModal: React.FC<CreateStandardProductModalProps> = ({
@@ -30,7 +31,8 @@ export const CreateStandardProductModal: React.FC<CreateStandardProductModalProp
     weight: '',
     content: '',
     palletSize: undefined,
-    price: 0
+    price: 0,
+    artikelNr: ''
   });
   const [createdProducts, setCreatedProducts] = useState<StandardProduct[]>([]);
 
@@ -44,7 +46,8 @@ export const CreateStandardProductModal: React.FC<CreateStandardProductModalProp
         weight: '',
         content: '',
         palletSize: undefined,
-        price: 0
+        price: 0,
+        artikelNr: ''
       });
     }
   };
@@ -69,6 +72,7 @@ export const CreateStandardProductModal: React.FC<CreateStandardProductModalProp
       content: product.content || undefined,
       palletSize: product.palletSize,
       price: product.price,
+      artikelNr: product.artikelNr || undefined,
       sku: generateSKU(product.name, product.weight)
     }));
 
@@ -84,7 +88,8 @@ export const CreateStandardProductModal: React.FC<CreateStandardProductModalProp
       weight: '',
       content: '',
       palletSize: undefined,
-      price: 0
+      price: 0,
+      artikelNr: ''
     });
     setCreatedProducts([]);
   };
@@ -203,6 +208,18 @@ export const CreateStandardProductModal: React.FC<CreateStandardProductModalProp
                 />
               </div>
 
+              {/* Artikel Nr. */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Artikel Nr.</label>
+                <input
+                  type="text"
+                  className={styles.input}
+                  value={currentProduct.artikelNr || ''}
+                  onChange={(e) => setCurrentProduct({ ...currentProduct, artikelNr: e.target.value })}
+                  placeholder="z.B. 12345678"
+                />
+              </div>
+
               {createdProducts.length > 0 && (
                 <div className={styles.createdCount}>
                   <Check size={16} weight="bold" />
@@ -239,6 +256,7 @@ export const CreateStandardProductModal: React.FC<CreateStandardProductModalProp
                         <span>Preis: €{product.price.toFixed(2)}</span>
                         {product.content && <span>Inhalt: {product.content}</span>}
                         {product.palletSize && <span>Palette: {product.palletSize} Einheiten</span>}
+                        {product.artikelNr && <span>Art. Nr.: {product.artikelNr}</span>}
                       </div>
                     </div>
                   ))}
