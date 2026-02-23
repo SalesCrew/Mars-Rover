@@ -21,6 +21,9 @@ export const API_ENDPOINTS = {
     update: (id: string) => `${API_BASE_URL}/products/${id}`,
     delete: (id: string) => `${API_BASE_URL}/products/${id}`,
   },
+  maps: {
+    drivingTimes: `${API_BASE_URL}/maps/driving-times`,
+  },
 };
 
 

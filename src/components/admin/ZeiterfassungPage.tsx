@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { CaretDown, CaretRight, CaretLeft, Storefront, Car, CalendarCheck, TrendUp, Receipt, User, MagnifyingGlass, Pause, Star, FirstAidKit, House, GraduationCap, Warehouse, Path, Bed, Check, X, Trash, Warning } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, CaretLeft, Storefront, Car, CalendarCheck, TrendUp, Receipt, User, MagnifyingGlass, Pause, Star, FirstAidKit, House, GraduationCap, Warehouse, Path, Bed, Check, X, Trash, Warning, NavigationArrow } from '@phosphor-icons/react';
 import XLSX from 'xlsx-js-style';
 import fragebogenService from '../../services/fragebogenService';
 import styles from './ZeiterfassungPage.module.css';
 import MagicBento from './MagicBento';
+import StichprobeModal from './StichprobeModal';
+import type { StichprobeSegment } from './StichprobeModal';
 
 interface ZeiterfassungEntry {
   id: string;
@@ -211,9 +213,102 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
   const [confirmDeleteTime, setConfirmDeleteTime] = useState<{ id: string; type: 'market' | 'zusatz'; label: string } | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Stichprobe state
+  const [stichprobeContextMenu, setStichprobeContextMenu] = useState<{ x: number; y: number; glName: string; glId: string; date: string } | null>(null);
+  const [stichprobeData, setStichprobeData] = useState<{ glName: string; date: string; segments: StichprobeSegment[] } | null>(null);
+
   useEffect(() => {
     loadData();
   }, []);
+
+  // Close stichprobe context menu on click outside
+  useEffect(() => {
+    if (!stichprobeContextMenu) return;
+    const handleClick = () => setStichprobeContextMenu(null);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [stichprobeContextMenu]);
+
+  const handleStichprobeContextMenu = (e: React.MouseEvent, glName: string, glId: string, date: string) => {
+    e.preventDefault();
+    setStichprobeContextMenu({ x: e.clientX, y: e.clientY, glName, glId, date });
+  };
+
+  const openStichprobe = () => {
+    if (!stichprobeContextMenu) return;
+    const { glName, glId, date } = stichprobeContextMenu;
+
+    const glKey1 = `${glId}-${date}`;
+    const glKey2 = `${date}-${glId}`;
+    const marketEntries = detailedEntries[glKey1] || detailedEntries[glKey2] || [];
+    const glZusatzEntries = zusatzEntries.filter(z => z.entry_date === date && z.gebietsleiter_id === glId);
+
+    type TimelineItem =
+      | { type: 'market'; entry: ZeiterfassungEntry; startTime: string; endTime: string }
+      | { type: 'zusatz'; entry: ZusatzZeiterfassungEntry; startTime: string; endTime: string };
+
+    const timelineItems: TimelineItem[] = [
+      ...marketEntries.map(entry => ({
+        type: 'market' as const,
+        entry,
+        startTime: entry.besuchszeit_von || '00:00',
+        endTime: entry.besuchszeit_bis || '00:00',
+      })),
+      ...glZusatzEntries.map(entry => ({
+        type: 'zusatz' as const,
+        entry,
+        startTime: entry.zeit_von || '00:00',
+        endTime: entry.zeit_bis || '00:00',
+      })),
+    ];
+    timelineItems.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    const segments: StichprobeSegment[] = [];
+    let lastMarket: (ZeiterfassungEntry & { endTime: string }) | null = null;
+    let lastWasMarket = false;
+
+    for (const item of timelineItems) {
+      if (item.type === 'market') {
+        if (lastMarket && lastWasMarket) {
+          const calcGapMin = (end: string, start: string) => {
+            const [eH, eM] = end.split(':').map(Number);
+            const [sH, sM] = start.split(':').map(Number);
+            let eMins = eH * 60 + eM;
+            let sMins = sH * 60 + sM;
+            if (sMins < eMins) sMins += 24 * 60;
+            return Math.max(0, sMins - eMins);
+          };
+          const appDur = calcGapMin(lastMarket.endTime, item.startTime);
+          segments.push({
+            fromMarket: {
+              name: lastMarket.market.name,
+              chain: lastMarket.market.chain,
+              address: lastMarket.market.address || '',
+              city: lastMarket.market.city || '',
+              postalCode: lastMarket.market.postal_code || '',
+            },
+            toMarket: {
+              name: item.entry.market.name,
+              chain: item.entry.market.chain,
+              address: item.entry.market.address || '',
+              city: item.entry.market.city || '',
+              postalCode: item.entry.market.postal_code || '',
+            },
+            appDurationMinutes: appDur,
+            fromEndTime: lastMarket.endTime,
+            toStartTime: item.startTime,
+          });
+        }
+        lastMarket = { ...item.entry, endTime: item.endTime };
+        lastWasMarket = true;
+      } else {
+        lastWasMarket = false;
+      }
+    }
+
+    setStichprobeData({ glName, date, segments });
+    setStichprobeContextMenu(null);
+  };
 
   const loadData = async () => {
     try {
@@ -1501,7 +1596,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                         </div>
                       ) : (
                         <>
-                          <div className={styles.timelineColumn}>
+                          <div className={styles.timelineColumn} onContextMenu={(e) => handleStichprobeContextMenu(e, selectedGL.glName, selectedGL.glId, day.date)}>
                             {(() => {
                               // Combine market entries and zusatz entries into a unified timeline
                               const glZusatzEntries = zusatzEntries.filter(z => 
@@ -1835,6 +1930,27 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
           </div>,
           document.body
         )}
+        {stichprobeContextMenu && ReactDOM.createPortal(
+          <div
+            className={styles.contextMenu}
+            style={{ position: 'fixed', top: stichprobeContextMenu.y, left: stichprobeContextMenu.x, zIndex: 10000 }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <button className={styles.contextMenuItem} onClick={openStichprobe}>
+              <NavigationArrow size={16} weight="fill" />
+              Stichprobe Fahrtzeiten
+            </button>
+          </div>,
+          document.body
+        )}
+        {stichprobeData && (
+          <StichprobeModal
+            glName={stichprobeData.glName}
+            date={stichprobeData.date}
+            segments={stichprobeData.segments}
+            onClose={() => setStichprobeData(null)}
+          />
+        )}
         </>
       );
     }
@@ -2013,7 +2129,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                       </div>
                     ) : (
                       <>
-                        <div className={styles.timelineColumn}>
+                        <div className={styles.timelineColumn} onContextMenu={(e) => handleStichprobeContextMenu(e, gl.glName, gl.glId, dayGroup.date)}>
                           {(() => {
                             // Combine market entries and zusatz entries into a unified timeline
                             const marketEntries = detailedEntries[glKey] || [];
@@ -2345,6 +2461,27 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
           </div>
         </div>,
         document.body
+      )}
+      {stichprobeContextMenu && ReactDOM.createPortal(
+        <div
+          className={styles.contextMenu}
+          style={{ position: 'fixed', top: stichprobeContextMenu.y, left: stichprobeContextMenu.x, zIndex: 10000 }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button className={styles.contextMenuItem} onClick={openStichprobe}>
+            <NavigationArrow size={16} weight="fill" />
+            Stichprobe Fahrtzeiten
+          </button>
+        </div>,
+        document.body
+      )}
+      {stichprobeData && (
+        <StichprobeModal
+          glName={stichprobeData.glName}
+          date={stichprobeData.date}
+          segments={stichprobeData.segments}
+          onClose={() => setStichprobeData(null)}
+        />
       )}
     </div>
   );
