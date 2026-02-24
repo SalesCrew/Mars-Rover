@@ -174,11 +174,13 @@
 .previewWrapper {
   border: 1px solid rgba(226, 232, 240, 0.6);
   border-radius: 10px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .previewTable {
-  width: 100%;
+  min-width: 100%;
+  width: max-content;
   border-collapse: collapse;
   font-size: 12px;
 }

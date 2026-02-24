@@ -136,7 +136,7 @@ export const ExcelColumnMapper: React.FC<ExcelColumnMapperProps> = ({
                       <tr key={ri}>
                         <td style={{ color: '#94A3B8', fontWeight: 600 }}>{ri + 1}</td>
                         {Array.from({ length: maxCols }, (_, ci) => (
-                          <td key={ci}>{row[ci] ?? ''}</td>
+                          <td key={ci}>{row[ci] != null && !isNaN(Number(row[ci])) && String(row[ci]).trim() !== '' ? parseFloat(Number(row[ci]).toFixed(2)) : (row[ci] ?? '')}</td>
                         ))}
                       </tr>
                     ))}
