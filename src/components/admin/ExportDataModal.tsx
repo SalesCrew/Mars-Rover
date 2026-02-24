@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, DownloadSimple, CaretRight, CaretDown, DotsSixVertical, CheckCircle } from '@phosphor-icons/react';
+import { X, DownloadSimple, CaretRight, CaretDown, DotsSixVertical, CheckCircle, MagnifyingGlass } from '@phosphor-icons/react';
 import { ClipLoader } from 'react-spinners';
-import { exportService, type ExportConfig } from '../../services/exportService';
+import { exportService, type ExportConfig, type WelleSummary } from '../../services/exportService';
 import { CustomDatePicker } from './CustomDatePicker';
 import styles from './ExportDataModal.module.css';
 
@@ -33,6 +33,12 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   const [selectedGLs, setSelectedGLs] = useState<string[]>([]);
   const [glSearchTerm, setGlSearchTerm] = useState('');
 
+  // Single wave export
+  const [singleWaveMode, setSingleWaveMode] = useState(false);
+  const [selectedWelleId, setSelectedWelleId] = useState<string | null>(null);
+  const [availableWellen, setAvailableWellen] = useState<WelleSummary[]>([]);
+  const [welleSearchTerm, setWelleSearchTerm] = useState('');
+
   // UI states
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
@@ -40,15 +46,20 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 
   const datasets = exportService.getDatasets();
 
-  // Load dataset stats
+  // Load dataset stats + wellen list
   useEffect(() => {
     if (isOpen) {
       loadStats();
-      // Set default filename
+      loadWellen();
       const today = new Date().toISOString().split('T')[0];
       setFileName(`export_${today}.xlsx`);
     }
   }, [isOpen]);
+
+  const loadWellen = async () => {
+    const wellen = await exportService.getWellen();
+    setAvailableWellen(wellen.filter(w => !w.foto_only));
+  };
 
   const loadStats = async () => {
     const stats = await exportService.getDatasetStats();
@@ -144,13 +155,25 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 
   // Handle export
   const handleExport = async () => {
-    // Validate
     if (selectedDatasets.length === 0) {
       setError('Bitte wähle mindestens einen Datensatz aus');
       return;
     }
 
-    const hasNoColumns = selectedDatasets.some(dsId => {
+    // In single wave mode, we only need a selected wave
+    const isSingleWave = singleWaveMode && selectedDatasets.includes('wellen_submissions');
+
+    if (isSingleWave && !selectedWelleId) {
+      setError('Bitte wähle eine Welle aus');
+      return;
+    }
+
+    // For non-single-wave datasets, validate columns
+    const datasetsToValidate = isSingleWave
+      ? selectedDatasets.filter(id => id !== 'wellen_submissions')
+      : selectedDatasets;
+
+    const hasNoColumns = datasetsToValidate.some(dsId => {
       return !selectedColumns[dsId] || selectedColumns[dsId].length === 0;
     });
 
@@ -172,7 +195,8 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
         },
         options: {
           expandPaletteProducts,
-          fileName
+          fileName,
+          ...(isSingleWave ? { singleWaveExport: true, singleWaveId: selectedWelleId! } : {})
         }
       };
 
@@ -181,7 +205,6 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
       setExportSuccess(true);
       setTimeout(() => {
         onClose();
-        // Reset state
         setTimeout(() => {
           setExportSuccess(false);
           setSelectedDatasets([]);
@@ -190,6 +213,9 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
           setDateRange({ start: '', end: '' });
           setSelectedGLs([]);
           setExpandPaletteProducts(false);
+          setSingleWaveMode(false);
+          setSelectedWelleId(null);
+          setWelleSearchTerm('');
         }, 300);
       }, 1500);
 
@@ -253,12 +279,76 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             </div>
           </div>
 
-          {/* Step 2: Column Configuration */}
+          {/* Single Wave Toggle */}
+          {selectedDatasets.includes('wellen_submissions') && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>Export Modus</h3>
+              <div className={styles.modeToggle}>
+                <button
+                  className={`${styles.modeButton} ${!singleWaveMode ? styles.modeButtonActive : ''}`}
+                  onClick={() => { setSingleWaveMode(false); setSelectedWelleId(null); }}
+                >
+                  Standard Export
+                </button>
+                <button
+                  className={`${styles.modeButton} ${singleWaveMode ? styles.modeButtonActive : ''}`}
+                  onClick={() => setSingleWaveMode(true)}
+                >
+                  Nur eine Welle
+                </button>
+              </div>
+
+              {singleWaveMode && (
+                <div className={styles.welleSelector}>
+                  <div className={styles.welleSearchWrapper}>
+                    <MagnifyingGlass size={14} weight="bold" className={styles.welleSearchIcon} />
+                    <input
+                      type="text"
+                      placeholder="Welle suchen..."
+                      value={welleSearchTerm}
+                      onChange={(e) => setWelleSearchTerm(e.target.value)}
+                      className={styles.welleSearchInput}
+                    />
+                  </div>
+                  <div className={styles.welleList}>
+                    {['active', 'past', 'upcoming'].map(status => {
+                      const label = status === 'active' ? 'Aktiv' : status === 'past' ? 'Abgeschlossen' : 'Geplant';
+                      const filtered = availableWellen
+                        .filter(w => w.status === status)
+                        .filter(w => w.name.toLowerCase().includes(welleSearchTerm.toLowerCase()));
+                      if (filtered.length === 0) return null;
+                      return (
+                        <div key={status}>
+                          <div className={styles.welleGroupLabel}>{label}</div>
+                          {filtered.map(w => (
+                            <div
+                              key={w.id}
+                              className={`${styles.welleOption} ${selectedWelleId === w.id ? styles.welleOptionSelected : ''}`}
+                              onClick={() => setSelectedWelleId(w.id)}
+                            >
+                              <span className={styles.welleName}>{w.name}</span>
+                              <span className={styles.welleTypeBadge}>
+                                {w.goal_type === 'value' ? 'Wert' : 'Menge'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 2: Column Configuration (hidden for wellen_submissions in single wave mode) */}
           {selectedDatasets.length > 0 && (
             <div className={styles.section}>
               <h3 className={styles.sectionTitle}>Spalten konfigurieren</h3>
               <div className={styles.datasetConfigs}>
                 {selectedDatasets.map(datasetId => {
+                  if (singleWaveMode && datasetId === 'wellen_submissions') return null;
+
                   const dataset = datasets.find(d => d.id === datasetId);
                   if (!dataset) return null;
 
@@ -423,8 +513,8 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 </div>
               )}
 
-              {/* Palette/Schuette expand option */}
-              {selectedDatasets.includes('wellen_submissions') && (
+              {/* Palette/Schuette expand option (hidden in single wave mode) */}
+              {selectedDatasets.includes('wellen_submissions') && !singleWaveMode && (
                 <div className={styles.optionGroup}>
                   <label className={styles.checkboxOption}>
                     <input

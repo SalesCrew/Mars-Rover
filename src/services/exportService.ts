@@ -14,6 +14,14 @@ export interface DatasetDef {
   columns: ColumnDef[];
 }
 
+export interface WelleSummary {
+  id: string;
+  name: string;
+  goal_type: string;
+  foto_only: boolean;
+  status: string;
+}
+
 export interface ExportConfig {
   datasets: string[];
   columns: Record<string, string[]>;
@@ -25,6 +33,8 @@ export interface ExportConfig {
   options?: {
     expandPaletteProducts?: boolean;
     fileName?: string;
+    singleWaveExport?: boolean;
+    singleWaveId?: string;
   };
 }
 
@@ -165,6 +175,26 @@ class ExportService {
     const dataset = this.datasets[datasetId];
     if (!dataset) return [];
     return dataset.columns.filter(col => col.default).map(col => col.id);
+  }
+
+  /**
+   * Fetch all waves for the single-wave export dropdown
+   */
+  async getWellen(): Promise<WelleSummary[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/wellen`);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return (data || []).map((w: any) => ({
+        id: w.id,
+        name: w.name,
+        goal_type: w.goal_type,
+        foto_only: w.foto_only || false,
+        status: w.status
+      }));
+    } catch {
+      return [];
+    }
   }
 
   /**

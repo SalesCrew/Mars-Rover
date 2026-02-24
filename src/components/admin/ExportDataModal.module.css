@@ -397,6 +397,163 @@
   50% { opacity: 1; }
 }
 
+/* Mode Toggle */
+.modeToggle {
+  display: flex;
+  gap: 0;
+  background: rgba(241, 245, 249, 0.8);
+  border-radius: 10px;
+  padding: 3px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.modeButton {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modeButton:hover:not(.modeButtonActive) {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.modeButtonActive {
+  background: white !important;
+  color: #3B82F6 !important;
+  -webkit-text-fill-color: #3B82F6 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Wave Selector */
+.welleSelector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(249, 250, 251, 0.8);
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.welleSearchWrapper {
+  position: relative;
+}
+
+.welleSearchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94A3B8;
+  pointer-events: none;
+}
+
+.welleSearchInput {
+  width: 100%;
+  padding: 8px 12px 8px 30px;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1E293B !important;
+  -webkit-text-fill-color: #1E293B !important;
+  background: white;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.welleSearchInput:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.welleSearchInput::placeholder {
+  color: #9CA3AF;
+  -webkit-text-fill-color: #9CA3AF;
+}
+
+.welleList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.welleList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.welleList::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.2);
+  border-radius: 2px;
+}
+
+.welleGroupLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 10px 4px;
+}
+
+.welleOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.welleOption:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.welleOptionSelected {
+  background: rgba(59, 130, 246, 0.08) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.welleName {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1E293B;
+}
+
+.welleOptionSelected .welleName {
+  font-weight: 600;
+  color: #2563EB;
+}
+
+.welleTypeBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748B;
+}
+
+.welleOptionSelected .welleTypeBadge {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3B82F6;
+}
+
 /* Export Options */
 .optionGroup {
   display: flex;
