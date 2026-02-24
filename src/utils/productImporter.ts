@@ -261,7 +261,7 @@ export interface ColumnMapping {
   name: string;       // required - column letter for Produktname
   weight: string;     // required - column letter for Gewicht/Größe
   price: string;      // required - column letter for Preis
-  palletSize?: string; // optional - column letter for Palette
+  content?: string;    // optional - column letter for Inhalt (VE)
   artikelNr?: string;  // optional - column letter for Artikel Nr.
   skipHeaderRow: boolean;
 }
@@ -325,7 +325,7 @@ export const parseProductFileWithMapping = async (
         const nameIndices = parseMultiColumnLetters(mapping.name);
         const weightIdx = columnLetterToIndex(mapping.weight);
         const priceIdx = columnLetterToIndex(mapping.price);
-        const palletIdx = mapping.palletSize ? columnLetterToIndex(mapping.palletSize) : -1;
+        const contentIdx = mapping.content ? columnLetterToIndex(mapping.content) : -1;
         const artikelIdx = mapping.artikelNr ? columnLetterToIndex(mapping.artikelNr) : -1;
 
         const startRow = mapping.skipHeaderRow ? 1 : 0;
@@ -345,8 +345,8 @@ export const parseProductFileWithMapping = async (
           if (seenNames.has(name)) continue;
           seenNames.add(name);
 
-          const palletSize = palletIdx >= 0 && row[palletIdx]
-            ? parseFloat(String(row[palletIdx]).replace(',', '.'))
+          const contentVal = contentIdx >= 0 && row[contentIdx]
+            ? String(row[contentIdx]).trim()
             : undefined;
           const artikelNr = artikelIdx >= 0 && row[artikelIdx]
             ? String(row[artikelIdx]).trim()
@@ -358,7 +358,7 @@ export const parseProductFileWithMapping = async (
             department,
             productType: 'standard',
             weight,
-            palletSize: palletSize && !isNaN(palletSize) ? Math.round(palletSize) : undefined,
+            content: contentVal || undefined,
             price,
             artikelNr: artikelNr || undefined,
             sku: generateSKU(name, weight),

@@ -1018,8 +1018,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                   </div>
                                 </div>
                                 <div className={styles.productPriceInfo}>
-                                  {product.palletSize && (
-                                    <span className={styles.palletSize}>{product.palletSize} Stk</span>
+                                  {product.content && (
+                                    <span className={styles.palletSize}>VE: {product.content}</span>
                                   )}
                                   <span className={styles.productPrice}>{formatPrice(product.price)}</span>
                                 </div>
@@ -1041,7 +1041,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                           <div className={styles.productCardName}>{p.product.name}</div>
                           <div className={styles.productCardMeta}>
                             {p.product.weight || p.product.content || '-'}
-                            {p.product.palletSize && ` · ${p.product.palletSize} Stk`}
+                            {p.product.content && ` · VE: ${p.product.content}`}
                           </div>
                         </div>
                         <div className={styles.quantityControls}>
@@ -1145,8 +1145,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                   </div>
                                 </div>
                                 <div className={styles.productPriceInfo}>
-                                  {product.palletSize && (
-                                    <span className={styles.palletSize}>{product.palletSize} Stk</span>
+                                  {product.content && (
+                                    <span className={styles.palletSize}>VE: {product.content}</span>
                                   )}
                                   <span className={styles.productPrice}>{formatPrice(product.price)}</span>
                                 </div>
@@ -1168,7 +1168,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                           <div className={styles.productCardName}>{p.product.name}</div>
                           <div className={styles.productCardMeta}>
                             {p.product.weight || p.product.content || '-'}
-                            {p.product.palletSize && ` · ${p.product.palletSize} Stk`}
+                            {p.product.content && ` · VE: ${p.product.content}`}
                           </div>
                         </div>
                         <div className={styles.quantityControls}>
@@ -1308,8 +1308,8 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                           <div className={styles.productInfo}>
                                             <div className={styles.productName}>{product.name}</div>
                                             <div className={styles.productDetails}>
-                                              {product.weight || product.content || '-'}
-                                              {product.palletSize && ` · ${product.palletSize} Stk`}
+                                              {product.weight || '-'}
+                                              {product.content && ` · VE: ${product.content}`}
                                             </div>
                                           </div>
                                           <div className={styles.productPriceInfo}>
@@ -1412,7 +1412,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                 </div>
                                 <div className={styles.suggestionProductMeta}>
                                   {p.product.weight || p.product.content || '-'}
-                                  {p.product.palletSize && ` · ${p.product.palletSize} Stk`}
+                                  {p.product.content && ` · VE: ${p.product.content}`}
                                 </div>
                               </div>
                               <div className={styles.suggestionProductPrice}>
@@ -1476,7 +1476,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                 </div>
                                 <div className={styles.suggestionProductMeta}>
                                   {p.product.weight || p.product.content || '-'}
-                                  {p.product.palletSize && ` · ${p.product.palletSize} Stk`}
+                                  {p.product.content && ` · VE: ${p.product.content}`}
                                 </div>
                               </div>
                               <div className={styles.suggestionProductPrice}>

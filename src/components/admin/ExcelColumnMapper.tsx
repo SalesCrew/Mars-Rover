@@ -34,7 +34,7 @@ export const ExcelColumnMapper: React.FC<ExcelColumnMapperProps> = ({
     name: '',
     weight: '',
     price: '',
-    palletSize: '',
+    content: '',
     artikelNr: '',
     skipHeaderRow: true,
   });
@@ -74,7 +74,7 @@ export const ExcelColumnMapper: React.FC<ExcelColumnMapperProps> = ({
     { key: 'name', label: 'Produktname', required: true },
     { key: 'weight', label: 'Gewicht / Größe', required: true },
     { key: 'price', label: 'Preis', required: true },
-    { key: 'palletSize', label: 'Palette', required: false },
+    { key: 'content', label: 'Inhalt (VE)', required: false },
     { key: 'artikelNr', label: 'Artikel Nr.', required: false },
   ];
 

@@ -680,9 +680,9 @@ export const ProductsPage: React.FC = () => {
             )}
           </div>
 
-          {/* Pallet Size */}
+          {/* Inhalt */}
           <div className={styles.headerCell}>
-            <span>Palette</span>
+            <span>Inhalt</span>
           </div>
         </div>
 
@@ -744,9 +744,9 @@ export const ProductsPage: React.FC = () => {
                   <span className={styles.price}>{formatPrice(product.price)}</span>
                 </div>
 
-                {/* Pallet Size */}
+                {/* Inhalt */}
                 <div className={styles.productCell}>
-                  <span className={styles.palletSize}>{product.palletSize || '-'}</span>
+                  <span className={styles.palletSize}>{product.content ? `VE: ${product.content}` : '-'}</span>
                 </div>
               </div>
             ))
