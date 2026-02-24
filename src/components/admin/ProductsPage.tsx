@@ -746,7 +746,7 @@ export const ProductsPage: React.FC = () => {
 
                 {/* Inhalt */}
                 <div className={styles.productCell}>
-                  <span className={styles.palletSize}>{product.content ? `VE: ${product.content}` : '-'}</span>
+                  <span className={styles.palletSize}>{product.productType === 'standard' && product.content ? `VE: ${product.content}` : '-'}</span>
                 </div>
               </div>
             ))
