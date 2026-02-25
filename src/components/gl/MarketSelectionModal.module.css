@@ -85,10 +85,10 @@
   padding: var(--space-sm) var(--space-2xl) var(--space-2xl);
   overflow: visible;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-xl);
-  overscroll-behavior: contain;
 }
 
 .modeToggle {
@@ -389,94 +389,83 @@
   margin-top: 2px;
 }
 
+.routeError {
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+  color: #dc2626;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: center;
+}
+
 /* Tour Planning */
 .tourSummary {
-  background: linear-gradient(135deg, rgba(96, 165, 250, 0.08), rgba(59, 130, 246, 0.05));
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-lg);
   padding: var(--space-lg);
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  overflow: hidden;
 }
 
 .tourHeader {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-}
-
-.tourStats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-lg);
-  padding: var(--space-md) 0;
-}
-
-.tourStat {
-  display: flex;
-  flex-direction: column;
   gap: var(--space-xs);
-  align-items: center;
-  padding: var(--space-md);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(59, 130, 246, 0.15);
-  position: relative;
-  overflow: hidden;
-}
-
-.tourStat::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--color-teal-light), var(--color-teal-mid), var(--color-teal-dark));
-  opacity: 0.6;
-}
-
-.tourStatLabel {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
   font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
-.tourStatValue {
-  font-size: var(--font-size-2xl);
+.tourStatsRow {
+  display: flex;
+  flex-direction: row !important;
+  gap: var(--space-xs);
+}
+
+.tourStatPill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: white;
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-md);
+}
+
+.tourStatPillLabel {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.tourStatPillValue {
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
-  background: linear-gradient(135deg, var(--color-teal-mid) 0%, var(--color-teal-dark) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  line-height: 1;
+  color: var(--color-text-primary);
 }
 
 .selectedMarkets {
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin-top: var(--space-sm);
+  margin-top: var(--space-xs);
   max-height: 360px;
   overflow-y: auto;
-  overflow-x: visible;
+  overflow-x: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  /* Expand container for card scale animation */
-  width: calc(100% + 24px);
-  margin-left: -12px;
-  margin-right: -12px;
-  padding-left: 12px;
-  padding-right: 12px;
 }
 
 .selectedMarkets::-webkit-scrollbar {
@@ -487,8 +476,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) 0;
+  gap: 4px;
+  padding: 2px 0;
   position: relative;
 }
 
@@ -498,8 +487,8 @@
   left: 50%;
   top: 0;
   bottom: 0;
-  width: 2px;
-  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
+  width: 1px;
+  background: rgba(59, 130, 246, 0.12);
   transform: translateX(-50%);
   z-index: 0;
 }
@@ -507,14 +496,13 @@
 .driveTime {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: var(--font-size-xs);
-  color: var(--color-teal-mid);
-  font-weight: var(--font-weight-semibold);
-  background: white;
-  padding: 2px var(--space-sm);
+  gap: 3px;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-bg-secondary);
+  padding: 1px var(--space-xs);
   border-radius: var(--radius-full);
-  border: 1px solid rgba(59, 130, 246, 0.15);
   position: relative;
   z-index: 1;
 }
@@ -523,16 +511,16 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+  padding: var(--space-sm) var(--space-md);
+  background: white;
   border: 1px solid var(--color-stroke);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
-  min-height: 64px;
-  margin: var(--space-xs) 0;
+  min-height: 52px;
+  margin: 3px 0;
   cursor: grab;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -541,53 +529,65 @@
 
 .selectedMarket:active {
   cursor: grabbing;
-  transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .selectedMarket:hover {
-  background: white;
   border-color: rgba(59, 130, 246, 0.2);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.06);
 }
 
 .selectedMarketOrder {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, var(--color-teal-light), var(--color-teal-mid));
+  width: 28px;
+  height: 28px;
+  background: var(--color-teal-mid);
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+}
+
+.selectedMarketInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .selectedMarketName {
-  flex: 1;
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
+}
+
+.selectedMarketAddress {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .selectedMarketTime {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
   font-weight: var(--font-weight-medium);
-  background: rgba(59, 130, 246, 0.06);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Footer Actions */
 .footer {
-  padding: var(--space-xl) var(--space-2xl);
+  padding: var(--space-lg) var(--space-2xl);
   border-top: 1px solid var(--color-stroke);
   display: flex;
   gap: var(--space-md);
+  flex-shrink: 0;
 }
 
 .button {
@@ -929,9 +929,8 @@
     flex-direction: column;
   }
 
-  .tourStats {
-    grid-template-columns: 1fr;
-    gap: var(--space-sm);
+  .tourStatsRow {
+    gap: var(--space-xs);
   }
 }
 

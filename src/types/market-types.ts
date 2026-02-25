@@ -28,12 +28,19 @@ export interface Market {
   isActive?: boolean; // Row N - status
 }
 
+export interface RouteLeg {
+  durationSeconds: number;
+  durationText: string;
+  distanceText: string;
+}
+
 export interface TourRoute {
   markets: Market[];
   totalDrivingTime: number; // minutes
   totalWorkTime: number; // 45 min per market
   totalTime: number; // driving + work
   optimizedOrder: string[]; // market IDs in optimal order
+  legs: RouteLeg[]; // legs[0] = home→first, legs[1..n-1] = market→market, legs[n] = last→home
 }
 
 export interface AdminMarket extends Market {

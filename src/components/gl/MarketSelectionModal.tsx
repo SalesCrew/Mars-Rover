@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { X, CaretDown, Check, MapPin, Path, MagnifyingGlass, ArrowDown, Car, Train } from '@phosphor-icons/react';
-import type { Market, TourRoute } from '../../types/market-types';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { X, CaretDown, Check, MapPin, Path, MagnifyingGlass, ArrowDown, Car, Train, House } from '@phosphor-icons/react';
+import type { Market, TourRoute, RouteLeg } from '../../types/market-types';
 import { AnimatedListWrapper } from './AnimatedListWrapper';
 import { RingLoader } from 'react-spinners';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_ENDPOINTS } from '../../config/database';
 import {
   DndContext,
   closestCenter,
@@ -35,7 +36,9 @@ interface SortableMarketItemProps {
   market: Market;
   transportMode: TransportMode;
   isLast: boolean;
-  formatTime: (minutes: number) => string;
+  isFirst: boolean;
+  legAfter?: RouteLeg;
+  legBefore?: RouteLeg;
 }
 
 const SortableMarketItem: React.FC<SortableMarketItemProps> = ({
@@ -44,7 +47,9 @@ const SortableMarketItem: React.FC<SortableMarketItemProps> = ({
   market,
   transportMode,
   isLast,
-  formatTime,
+  isFirst,
+  legAfter,
+  legBefore,
 }) => {
   const {
     attributes,
@@ -61,12 +66,19 @@ const SortableMarketItem: React.FC<SortableMarketItemProps> = ({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const workTime = 45;
-  const drivingTime = index > 0 ? 15 : 0;
-  const totalStopTime = workTime + drivingTime;
+  const TransportIcon = transportMode === 'car' ? Car : Train;
 
   return (
     <>
+      {isFirst && legBefore && (
+        <div className={styles.routeArrow}>
+          <div className={styles.driveTime}>
+            <House size={14} weight="fill" />
+            <span>Anfahrt {legBefore.durationText}</span>
+          </div>
+          <ArrowDown size={16} weight="bold" color="var(--color-teal-mid)" />
+        </div>
+      )}
       <div
         ref={setNodeRef}
         style={style}
@@ -75,21 +87,26 @@ const SortableMarketItem: React.FC<SortableMarketItemProps> = ({
         className={styles.selectedMarket}
       >
         <span className={styles.selectedMarketOrder}>{index + 1}</span>
-        <span className={styles.selectedMarketName}>{market.chain}</span>
-        <span className={styles.selectedMarketTime}>
-          {formatTime(totalStopTime)}
-        </span>
+        <div className={styles.selectedMarketInfo}>
+          <span className={styles.selectedMarketName}>{market.chain}</span>
+          <span className={styles.selectedMarketAddress}>{market.address}, {market.postalCode} {market.city}</span>
+        </div>
       </div>
-      {!isLast && (
+      {!isLast && legAfter && (
         <div className={styles.routeArrow}>
-          <ArrowDown size={20} weight="bold" color="var(--color-teal-mid)" />
+          <ArrowDown size={16} weight="bold" color="var(--color-teal-mid)" />
           <div className={styles.driveTime}>
-            {transportMode === 'car' ? (
-              <Car size={16} weight="fill" />
-            ) : (
-              <Train size={16} weight="fill" />
-            )}
-            <span>15min</span>
+            <TransportIcon size={14} weight="fill" />
+            <span>{legAfter.durationText}</span>
+          </div>
+        </div>
+      )}
+      {isLast && legAfter && (
+        <div className={styles.routeArrow}>
+          <ArrowDown size={16} weight="bold" color="var(--color-teal-mid)" />
+          <div className={styles.driveTime}>
+            <House size={14} weight="fill" />
+            <span>Heimfahrt {legAfter.durationText}</span>
           </div>
         </div>
       )}
@@ -103,6 +120,7 @@ interface MarketSelectionModalProps {
   markets: Market[];
   onStartVisit: (marketId: string) => void;
   onStartTour: (route: TourRoute) => void;
+  glHomeAddress?: string;
 }
 
 type Mode = 'single' | 'tour';
@@ -114,6 +132,7 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
   markets,
   onStartVisit,
   onStartTour,
+  glHomeAddress = '',
 }) => {
   const { user } = useAuth();
   const [mode, setMode] = useState<Mode>('single');
@@ -127,6 +146,8 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
   const [showTransportModal, setShowTransportModal] = useState(false);
   const [sortedMarketIds, setSortedMarketIds] = useState<string[]>([]);
   const [routeModified, setRouteModified] = useState(false);
+  const [routeLegs, setRouteLegs] = useState<RouteLeg[]>([]);
+  const [routeError, setRouteError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -192,10 +213,10 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
   const uncompletedMarkets = sortedMarkets.filter(m => !m.isCompleted);
   const completedMarkets = sortedMarkets.filter(m => m.isCompleted);
 
-  // Update sorted market IDs when optimized route changes
   useEffect(() => {
     if (optimizedRoute) {
       setSortedMarketIds(optimizedRoute.optimizedOrder);
+      setRouteLegs(optimizedRoute.legs || []);
       setRouteModified(false);
     }
   }, [optimizedRoute]);
@@ -231,29 +252,48 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
     };
   }, [isDropdownOpen]);
 
-  // Calculate tour route (simplified - in real app would use Google Maps API)
-  const calculateTourRoute = (): TourRoute | null => {
-    if (selectedMarkets.length === 0) return null;
+  const fetchOptimizedRoute = useCallback(async (marketIds: string[], optimize: boolean, modeOverride?: 'car' | 'train') => {
+    if (marketIds.length === 0 || !glHomeAddress) return null;
 
-    const tourMarkets = markets.filter(m => selectedMarkets.includes(m.id));
-    
-    // Simplified calculation - in reality would use Google Maps Distance Matrix API
-    const avgDrivingTimeBetweenStops = 15; // minutes
-    const totalDrivingTime = selectedMarkets.length > 1 
-      ? (selectedMarkets.length - 1) * avgDrivingTimeBetweenStops 
-      : 0;
-    
-    const totalWorkTime = selectedMarkets.length * 45; // 45 min per market
-    const totalTime = totalDrivingTime + totalWorkTime;
+    const stops = marketIds.map(id => {
+      const m = markets.find(mk => mk.id === id);
+      return m ? { id: m.id, address: `${m.address}, ${m.postalCode} ${m.city}` } : null;
+    }).filter((s): s is { id: string; address: string } => s !== null);
+
+    const effectiveMode = modeOverride || transportMode;
+    const modeParam = effectiveMode === 'train' ? 'transit' : 'driving';
+
+    const resp = await fetch(API_ENDPOINTS.maps.optimizeRoute, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ homeAddress: glHomeAddress, stops, mode: modeParam, optimize }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || 'Route konnte nicht berechnet werden');
+    }
+
+    const data = await resp.json();
+    const { optimizedOrder, legs, totalDrivingSeconds } = data as {
+      optimizedOrder: string[];
+      legs: RouteLeg[];
+      totalDrivingSeconds: number;
+    };
+
+    const tourMarkets = optimizedOrder.map(id => markets.find(m => m.id === id)!).filter(Boolean);
+    const totalDrivingTime = Math.round(totalDrivingSeconds / 60);
+    const totalWorkTime = tourMarkets.length * 45;
 
     return {
       markets: tourMarkets,
       totalDrivingTime,
       totalWorkTime,
-      totalTime,
-      optimizedOrder: selectedMarkets, // Would be optimized by routing algorithm
-    };
-  };
+      totalTime: totalDrivingTime + totalWorkTime,
+      optimizedOrder,
+      legs,
+    } as TourRoute;
+  }, [markets, glHomeAddress, transportMode]);
 
   const handleMarketSelect = (marketId: string) => {
     if (mode === 'single') {
@@ -269,6 +309,28 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
     }
   };
 
+  const runRouteCalculation = useCallback(async (marketIds: string[], optimize: boolean, modeOverride?: 'car' | 'train') => {
+    setTourStep('optimizing');
+    setRouteError(null);
+    try {
+      const route = await fetchOptimizedRoute(marketIds, optimize, modeOverride);
+      if (route) {
+        setRouteLegs(route.legs);
+        setTourStep('completed');
+        setTimeout(() => {
+          setOptimizedRoute(route);
+          setTourStep('result');
+        }, 800);
+      } else {
+        setRouteError('Route konnte nicht berechnet werden');
+        setTourStep('selection');
+      }
+    } catch (err: any) {
+      setRouteError(err.message || 'Fehler bei der Routenberechnung');
+      setTourStep('selection');
+    }
+  }, [fetchOptimizedRoute]);
+
   const handleStartClick = () => {
     if (mode === 'single' && selectedMarket) {
       onStartVisit(selectedMarket);
@@ -276,46 +338,14 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
     } else if (mode === 'tour') {
       if (tourStep === 'selection' && selectedMarkets.length > 0) {
         if (!transportMode) {
-          // Show transport selection modal
           setShowTransportModal(true);
         } else {
-          // Start optimization with selected transport mode
-          setTourStep('optimizing');
-          
-          // Simulate API call delay with transport mode
-          setTimeout(() => {
-            const route = calculateTourRoute();
-            setTourStep('completed');
-            
-            // Show completed state for 1 second, then go to result
-            setTimeout(() => {
-              setOptimizedRoute(route);
-              setTourStep('result');
-            }, 1000);
-          }, 2000);
+          runRouteCalculation(selectedMarkets, true);
         }
       } else if (tourStep === 'result' && optimizedRoute) {
         if (routeModified) {
-          // Recalculate route
-          setTourStep('optimizing');
-          
-          // Simulate API call delay with new order
-          setTimeout(() => {
-            const route = calculateTourRoute();
-            if (route) {
-              route.optimizedOrder = [...sortedMarketIds];
-            }
-            setTourStep('completed');
-            
-            // Show completed state for 1 second, then go to result
-            setTimeout(() => {
-              setOptimizedRoute(route);
-              setTourStep('result');
-              setRouteModified(false);
-            }, 1000);
-          }, 2000);
+          runRouteCalculation(sortedMarketIds, false);
         } else {
-          // Start tour with current route
           onStartTour(optimizedRoute);
           onClose();
         }
@@ -323,24 +353,10 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
     }
   };
 
-  const handleTransportSelect = (mode: 'car' | 'train') => {
-    setTransportMode(mode);
+  const handleTransportSelect = (selectedMode: 'car' | 'train') => {
+    setTransportMode(selectedMode);
     setShowTransportModal(false);
-    
-    // Automatically start route calculation
-    setTourStep('optimizing');
-    
-    // Simulate API call delay with transport mode
-    setTimeout(() => {
-      const route = calculateTourRoute();
-      setTourStep('completed');
-      
-      // Show completed state for 1 second, then go to result
-      setTimeout(() => {
-        setOptimizedRoute(route);
-        setTourStep('result');
-      }, 1000);
-    }, 2000);
+    runRouteCalculation(selectedMarkets, true, selectedMode);
   };
 
   const formatTime = (minutes: number): string => {
@@ -772,13 +788,20 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
             </div>
           )}
 
+          {/* Route Error */}
+          {routeError && tourStep === 'selection' && (
+            <div className={styles.routeError}>
+              {routeError}
+            </div>
+          )}
+
           {/* Tour Optimizing Step */}
           {mode === 'tour' && tourStep === 'optimizing' && (
             <div className={styles.optimizingContainer}>
               <RingLoader color="#3B82F6" size={80} />
-              <h3 className={styles.optimizingTitle}>Perfekte Route wird berechnet</h3>
+              <h3 className={styles.optimizingTitle}>Route wird berechnet</h3>
               <p className={styles.optimizingText}>
-                Berechnung der perfekten Route...
+                Google Maps berechnet die optimale Route...
               </p>
             </div>
           )}
@@ -803,22 +826,22 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
           {mode === 'tour' && tourStep === 'result' && optimizedRoute && (
             <div className={styles.tourSummary}>
               <div className={styles.tourHeader}>
-                <Path size={20} weight="bold" />
-                Perfekte Route
+                <Path size={16} weight="bold" />
+                <span>Optimierte Route</span>
               </div>
               
-              <div className={styles.tourStats}>
-                <div className={styles.tourStat}>
-                  <span className={styles.tourStatLabel}>Märkte</span>
-                  <span className={styles.tourStatValue}>{optimizedRoute.markets.length}</span>
+              <div className={styles.tourStatsRow}>
+                <div className={styles.tourStatPill}>
+                  <span className={styles.tourStatPillLabel}>Märkte</span>
+                  <span className={styles.tourStatPillValue}>{optimizedRoute.markets.length}</span>
                 </div>
-                <div className={styles.tourStat}>
-                  <span className={styles.tourStatLabel}>Fahrzeit</span>
-                  <span className={styles.tourStatValue}>{formatTime(optimizedRoute.totalDrivingTime)}</span>
+                <div className={styles.tourStatPill}>
+                  <span className={styles.tourStatPillLabel}>Fahrzeit</span>
+                  <span className={styles.tourStatPillValue}>{formatTime(optimizedRoute.totalDrivingTime)}</span>
                 </div>
-                <div className={styles.tourStat}>
-                  <span className={styles.tourStatLabel}>Gesamtzeit</span>
-                  <span className={styles.tourStatValue}>{formatTime(optimizedRoute.totalTime)}</span>
+                <div className={styles.tourStatPill}>
+                  <span className={styles.tourStatPillLabel}>Gesamt</span>
+                  <span className={styles.tourStatPillValue}>{formatTime(optimizedRoute.totalTime)}</span>
                 </div>
               </div>
 
@@ -837,6 +860,10 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                       const market = markets.find(m => m.id === marketId);
                       if (!market) return null;
 
+                      const legBefore = index === 0 ? routeLegs[0] : undefined;
+                      const legAfterIndex = index + 1;
+                      const legAfter = routeLegs[legAfterIndex];
+
                       return (
                         <SortableMarketItem
                           key={marketId}
@@ -844,8 +871,10 @@ export const MarketSelectionModal: React.FC<MarketSelectionModalProps> = ({
                           index={index}
                           market={market}
                           transportMode={transportMode}
+                          isFirst={index === 0}
                           isLast={index === sortedMarketIds.length - 1}
-                          formatTime={formatTime}
+                          legBefore={legBefore}
+                          legAfter={legAfter}
                         />
                       );
                     })}

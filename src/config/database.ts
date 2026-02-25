@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
   },
   maps: {
     drivingTimes: `${API_BASE_URL}/maps/driving-times`,
+    optimizeRoute: `${API_BASE_URL}/maps/optimize-route`,
   },
 };
 

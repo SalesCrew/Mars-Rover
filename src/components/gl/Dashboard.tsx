@@ -871,6 +871,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         markets={realMarkets.length > 0 ? realMarkets : mockMarkets}
         onStartVisit={handleStartSingleVisit}
         onStartTour={handleStartTour}
+        glHomeAddress={glProfileData ? `${glProfileData.address}, ${glProfileData.postal_code} ${glProfileData.city}` : ''}
       />
 
       {/* Market Detail Modal */}
