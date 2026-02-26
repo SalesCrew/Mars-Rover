@@ -93,6 +93,7 @@ export function calculateOptimalRoute(markets: Market[]): TourRoute {
       totalWorkTime: 0,
       totalTime: 0,
       optimizedOrder: [],
+      legs: [],
     };
   }
   
@@ -129,6 +130,7 @@ export function calculateOptimalRoute(markets: Market[]): TourRoute {
     totalWorkTime,
     totalTime,
     optimizedOrder: optimizedRoute.map(m => m.id),
+    legs: [],
   };
 }
 
