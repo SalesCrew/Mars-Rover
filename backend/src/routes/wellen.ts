@@ -1603,9 +1603,9 @@ router.get('/photos', async (req: Request, res: Response) => {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    // Collect unique GL IDs and market IDs to enrich data
-    const glIds = [...new Set((data || []).map(p => p.gebietsleiter_id))];
-    const marketIds = [...new Set((data || []).map(p => p.market_id))];
+    // Collect unique GL IDs and market IDs to enrich data (filter nulls to avoid breaking .in() queries)
+    const glIds = [...new Set((data || []).map(p => p.gebietsleiter_id).filter(Boolean))];
+    const marketIds = [...new Set((data || []).map(p => p.market_id).filter(Boolean))];
 
     // Fetch GL names
     const glMap = new Map<string, string>();
@@ -1617,7 +1617,10 @@ router.get('/photos', async (req: Request, res: Response) => {
     // Fetch market info
     const marketMap = new Map<string, { name: string; chain: string; address: string; city: string; postalCode: string }>();
     if (marketIds.length > 0) {
-      const { data: marketData } = await freshClient.from('markets').select('id, name, chain, address, city, postal_code').in('id', marketIds);
+      const { data: marketData, error: marketError } = await freshClient.from('markets').select('id, name, chain, address, city, postal_code').in('id', marketIds);
+      if (marketError) {
+        console.error('⚠️ Error fetching market data for photos:', marketError.message);
+      }
       (marketData || []).forEach(m => marketMap.set(m.id, { name: m.name, chain: m.chain, address: m.address || '', city: m.city || '', postalCode: m.postal_code || '' }));
     }
 
