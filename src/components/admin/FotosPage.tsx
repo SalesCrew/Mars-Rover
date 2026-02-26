@@ -191,14 +191,11 @@ export const FotosPage: React.FC = () => {
         const photo = photos[i];
         setExportProgress(Math.round(((i + 1) / photos.length) * 100));
 
-        const wellePart = (photo.welleName || 'Welle').replace(/[^a-zA-Z0-9äöüÄÖÜß\-_ ]/g, '_');
-        const marketPart = (photo.marketName || '').replace(/[^a-zA-Z0-9äöüÄÖÜß\-_. ]/g, '_');
-        const tagPart = (photo.tags && photo.tags.length > 0)
-          ? photo.tags.join(' + ').replace(/[^a-zA-Z0-9äöüÄÖÜß\-_+ ]/g, '_')
-          : 'foto';
-        let baseName = marketPart
-          ? `${wellePart} + ${marketPart} + ${tagPart}`
-          : `${wellePart} + ${tagPart}`;
+        const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9äöüÄÖÜß\-_. ]/g, '_');
+        const chainPart = sanitize(photo.marketChain || '');
+        const namePart = sanitize(photo.marketName || '');
+        const addressPart = sanitize(photo.marketAddress || '');
+        let baseName = [chainPart, namePart, addressPart].filter(Boolean).join(' + ') || 'foto';
 
         // Handle duplicate names
         if (nameCount[baseName] !== undefined) {
