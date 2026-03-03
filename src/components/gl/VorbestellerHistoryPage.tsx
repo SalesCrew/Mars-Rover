@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   CaretDown,
   CaretRight,
@@ -11,12 +11,14 @@ import {
   CircleNotch,
   CalendarBlank,
   CheckCircle,
-  Camera
+  Camera,
+  ArrowsClockwise
 } from '@phosphor-icons/react';
 import Aurora from './Aurora';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../config/database';
 import { wellenService, type Welle } from '../../services/wellenService';
+import { produktersatzService, type ProduktErsatzEntry } from '../../services/produktersatzService';
 import { VorbestellerModal } from './VorbestellerModal';
 import styles from './VorbestellerHistoryPage.module.css';
 
@@ -182,6 +184,15 @@ export const VorbestellerHistoryPage: React.FC = () => {
   // Foto modal
   const [fotoModalWaveId, setFotoModalWaveId] = useState<string | null>(null);
 
+  // Section toggles
+  const [vorbestellerOpen, setVorbestellerOpen] = useState(true);
+  const [produkttauschOpen, setProdukttauschOpen] = useState(true);
+
+  // Produkttausch
+  const [ptEntries, setPtEntries] = useState<ProduktErsatzEntry[]>([]);
+  const [loadingPt, setLoadingPt] = useState(true);
+  const [expandedPtEntries, setExpandedPtEntries] = useState<Set<string>>(new Set());
+
   // ---- FETCH WAVES ----
   useEffect(() => {
     if (!user?.id) return;
@@ -195,6 +206,41 @@ export const VorbestellerHistoryPage: React.FC = () => {
       finally { setLoading(false); }
     })();
   }, [user?.id]);
+
+  // ---- FETCH PRODUKTTAUSCH ----
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      setLoadingPt(true);
+      try {
+        const all = await produktersatzService.getAllEntries(user.id);
+        setPtEntries(all.filter(e => e.reason === 'Produkttausch'));
+      } catch (e) { console.error(e); }
+      finally { setLoadingPt(false); }
+    })();
+  }, [user?.id]);
+
+  const togglePtEntry = useCallback((id: string) => {
+    setExpandedPtEntries(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const ptDayGroups = useMemo(() => {
+    const grouped: Record<string, ProduktErsatzEntry[]> = {};
+    ptEntries.forEach(e => {
+      const date = e.createdAt?.split('T')[0] || 'unknown';
+      if (!grouped[date]) grouped[date] = [];
+      grouped[date].push(e);
+    });
+    return Object.keys(grouped).sort((a, b) => b.localeCompare(a)).map(date => ({
+      date,
+      dateLabel: formatDate(date),
+      entries: grouped[date],
+    }));
+  }, [ptEntries]);
 
   // ---- FETCH WAVE DEFINITIONS (for add flow) ----
   const fetchWaveDefinition = useCallback(async (waveId: string) => {
@@ -703,6 +749,8 @@ export const VorbestellerHistoryPage: React.FC = () => {
   };
 
   // ---- MAIN RENDER ----
+  const activeWaveCount = waves.filter(w => w.status !== 'finished').length;
+
   return (
     <>
       <div className={styles.auroraWrap}>
@@ -710,160 +758,291 @@ export const VorbestellerHistoryPage: React.FC = () => {
       </div>
 
       <div className={styles.page}>
-        <h1 className={styles.pageTitle}>Vorbesteller</h1>
-        <p className={styles.pageSubtitle}>Deine Einträge pro Welle</p>
+        <h1 className={styles.pageTitle}>Historie</h1>
+        <p className={styles.pageSubtitle}>Deine Vorbesteller und Produkttausch Einträge</p>
 
-        {loading ? (
-          <div className={styles.loadingContainer}>
-            <CircleNotch size={32} weight="bold" className={styles.spinner} />
-            <span>Lade Wellen...</span>
+        {/* ============ Vorbesteller Section ============ */}
+        <div className={styles.sectionCard}>
+          <div className={styles.sectionHeader} onClick={() => setVorbestellerOpen(!vorbestellerOpen)}>
+            <div className={`${styles.sectionIcon} ${styles.sectionIconBlue}`}>
+              <CalendarBlank size={20} weight="duotone" />
+            </div>
+            <div className={styles.sectionInfo}>
+              <h3 className={styles.sectionTitle}>Vorbesteller Historie</h3>
+              <span className={styles.sectionCount}>
+                {loading ? 'Laden...' : `${waves.length} Wellen · ${activeWaveCount} aktiv`}
+              </span>
+            </div>
+            <CaretDown size={16} className={`${styles.chevron} ${vorbestellerOpen ? styles.open : ''}`} />
           </div>
-        ) : waves.length === 0 ? (
-          <div className={styles.emptyState}>
-            <Package size={48} weight="regular" />
-            <span>Keine Wellen gefunden</span>
-          </div>
-        ) : (
-          waves.map(wave => {
-            const isExpanded = expandedWaves.has(wave.id);
-            const subs = submissionsByWave[wave.id];
-            const dayGroups = subs ? getDayGroups(subs) : [];
-            const isFinished = wave.status === 'finished';
 
-            return (
-              <div key={wave.id} className={`${styles.waveCard} ${isExpanded ? styles.expanded : ''}`}>
-                <div className={styles.waveHeader} onClick={() => toggleWave(wave.id)}>
-                  <div className={styles.waveIcon}>
-                    {wave.fotoOnly ? <Camera size={20} weight="duotone" /> : <CalendarBlank size={20} weight="duotone" />}
-                  </div>
-                  <div className={styles.waveInfo}>
-                    <h3 className={styles.waveName}>{wave.name}</h3>
-                    <div className={styles.waveMeta}>
-                      <span className={styles.waveDates}>{formatCompactDate(wave.startDate)} - {formatCompactDate(wave.endDate)}</span>
-                      <span className={`${styles.statusBadge} ${isFinished ? styles.statusFinished : styles.statusActive}`}>
-                        {isFinished && <CheckCircle size={10} weight="fill" />}
-                        {isFinished ? 'Fertig' : 'Aktiv'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className={styles.waveValue}>
-                    <div className={`${styles.waveValueAmount} ${wave.goalType === 'value' ? styles.waveValueCash : styles.waveValueCount}`}>{getWaveTotal(wave.id, wave)}</div>
-                    <div className={styles.waveValueLabel}>Dein Beitrag</div>
-                  </div>
-                  <CaretDown size={16} className={`${styles.chevron} ${isExpanded ? styles.open : ''}`} />
+          <div className={`${styles.sectionBody} ${vorbestellerOpen ? styles.open : ''}`}>
+            <div className={styles.sectionBodyInner}>
+              {loading ? (
+                <div className={styles.loadingContainer}>
+                  <CircleNotch size={32} weight="bold" className={styles.spinner} />
+                  <span>Lade Wellen...</span>
                 </div>
+              ) : waves.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <Package size={48} weight="regular" />
+                  <span>Keine Wellen gefunden</span>
+                </div>
+              ) : (
+                waves.map(wave => {
+                  const isExpanded = expandedWaves.has(wave.id);
+                  const subs = submissionsByWave[wave.id];
+                  const dayGroups = subs ? getDayGroups(subs) : [];
+                  const isFinished = wave.status === 'finished';
 
-                <div className={`${styles.waveBody} ${isExpanded ? styles.open : ''}`}>
-                  <div className={styles.waveBodyInner}>
-                    {loadingWave === wave.id ? (
-                      <div className={styles.loadingContainer}>
-                        <CircleNotch size={24} weight="bold" className={styles.spinner} />
-                        <span>Lade Einträge...</span>
-                      </div>
-                    ) : !subs || subs.length === 0 ? (
-                      <div className={styles.emptyState}>
-                        {wave.fotoOnly || (wave.fotoEnabled && !(waveDefinitions[wave.id]?.types?.length)) ? (
-                          <>
-                            <Camera size={36} weight="regular" />
-                            <span>Noch keine Fotos</span>
-                            <button className={styles.addBtn} onClick={() => setFotoModalWaveId(wave.id)} style={{ marginTop: '8px' }}>
-                              <Camera size={14} weight="bold" /> Foto hinzufügen
-                            </button>
-                          </>
-                        ) : addState && addState.waveId === wave.id ? (
-                          renderAddRow(wave.id, { date: addState.dayDate, dateLabel: new Date().toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), entries: [], markets: [], dayTotal: 0 })
-                        ) : (
-                          <>
-                            <Package size={36} weight="regular" />
-                            <span>Noch keine Einträge</span>
-                            <button className={styles.addBtn} onClick={() => startAdd(wave.id, new Date().toISOString().split('T')[0], '')} style={{ marginTop: '8px' }}>
-                              <Plus size={14} weight="bold" /> Eintrag hinzufügen
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      dayGroups.map(day => (
-                        <div key={day.date} className={styles.dayGroup}>
-                          <div className={styles.dayHeader}>
-                            <span className={styles.dayLabel}>{day.dateLabel}</span>
-                            <div className={styles.dayLine} />
-                            <span className={`${styles.dayValue} ${wave.goalType === 'value' ? styles.dayValueCash : styles.dayValueCount}`}>
-                              {wave.goalType === 'value' ? formatValue(day.dayTotal) : `${day.entries.reduce((s, e) => s + e.quantity, 0)} Stk`}
+                  return (
+                    <div key={wave.id} className={`${styles.waveCard} ${isExpanded ? styles.expanded : ''}`}>
+                      <div className={styles.waveHeader} onClick={() => toggleWave(wave.id)}>
+                        <div className={styles.waveIcon}>
+                          {wave.fotoOnly ? <Camera size={20} weight="duotone" /> : <CalendarBlank size={20} weight="duotone" />}
+                        </div>
+                        <div className={styles.waveInfo}>
+                          <h3 className={styles.waveName}>{wave.name}</h3>
+                          <div className={styles.waveMeta}>
+                            <span className={styles.waveDates}>{formatCompactDate(wave.startDate)} - {formatCompactDate(wave.endDate)}</span>
+                            <span className={`${styles.statusBadge} ${isFinished ? styles.statusFinished : styles.statusActive}`}>
+                              {isFinished && <CheckCircle size={10} weight="fill" />}
+                              {isFinished ? 'Fertig' : 'Aktiv'}
                             </span>
                           </div>
-
-                          {day.entries.map(entry => {
-                            const hasSubs = entry.products && entry.products.length > 0;
-                            const isItemExpanded = expandedItems.has(entry.id);
-                            const colors = getChainColor(entry.marketChain);
-
-                            return (
-                              <div
-                                key={entry.id}
-                                className={`${styles.itemCard} ${hasSubs ? styles.itemCardClickable : ''}`}
-                                onClick={hasSubs ? () => toggleItem(entry.id) : undefined}
-                              >
-                                <div className={styles.itemRow}>
-                                  <div className={`${styles.itemTypeIcon} ${styles[typeClass[entry.itemType]] || ''}`}>
-                                    {typeLabel[entry.itemType] || '?'}
-                                  </div>
-                                  <div className={styles.itemInfo}>
-                                    <div className={styles.itemName}>{entry.itemName}</div>
-                                    <div className={styles.itemMeta}>
-                                      <span className={styles.chainBadge} style={{ background: colors.bg, borderColor: colors.border, color: colors.text }}>
-                                        {entry.marketChain}
-                                      </span>
-                                      {hasSubs && <span className={styles.productCount}>{entry.products!.length} Produkte</span>}
-                                    </div>
-                                  </div>
-                                  {!hasSubs && renderQuantity(entry.id, entry.quantity, wave.id, day.date)}
-                                  <span className={`${styles.itemValue} ${entry.value > 0 ? styles.itemValueCash : styles.itemValueCount}`}>
-                                    {entry.value > 0 ? formatValue(entry.value) : `${entry.quantity} Stk`}
-                                  </span>
-                                  {hasSubs && (
-                                    <button className={`${styles.expandBtn} ${isItemExpanded ? styles.expandBtnOpen : ''}`} onClick={() => toggleItem(entry.id)}>
-                                      <CaretRight size={14} weight="bold" />
-                                    </button>
-                                  )}
-                                </div>
-                                {!hasSubs && renderDeleteConfirm(entry.id, wave.id)}
-                                {hasSubs && (
-                                  <div className={`${styles.subItems} ${isItemExpanded ? styles.subItemsOpen : ''}`} onClick={e => e.stopPropagation()}>
-                                    <div className={styles.subItemsInner}>
-                                      {entry.products!.map(product => (
-                                        <React.Fragment key={product.id}>
-                                          <div className={styles.subItem}>
-                                            <span className={styles.subItemName}>{product.name}</span>
-                                            {renderQuantity(product.id, product.quantity, wave.id, day.date, true)}
-                                            <span className={`${styles.subItemValue} ${product.value > 0 ? styles.subItemValueCash : styles.subItemValueCount}`}>
-                                              {product.value > 0 ? formatValue(product.value) : `${product.quantity} Stk`}
-                                            </span>
-                                          </div>
-                                          {renderDeleteConfirm(product.id, wave.id)}
-                                        </React.Fragment>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-
-                          {/* Add button / add flow */}
-                          {renderAddRow(wave.id, day)}
                         </div>
-                      ))
-                    )}
-                  </div>
+                        <div className={styles.waveValue}>
+                          <div className={`${styles.waveValueAmount} ${wave.goalType === 'value' ? styles.waveValueCash : styles.waveValueCount}`}>{getWaveTotal(wave.id, wave)}</div>
+                          <div className={styles.waveValueLabel}>Dein Beitrag</div>
+                        </div>
+                        <CaretDown size={16} className={`${styles.chevron} ${isExpanded ? styles.open : ''}`} />
+                      </div>
+
+                      <div className={`${styles.waveBody} ${isExpanded ? styles.open : ''}`}>
+                        <div className={styles.waveBodyInner}>
+                          {loadingWave === wave.id ? (
+                            <div className={styles.loadingContainer}>
+                              <CircleNotch size={24} weight="bold" className={styles.spinner} />
+                              <span>Lade Einträge...</span>
+                            </div>
+                          ) : !subs || subs.length === 0 ? (
+                            <div className={styles.emptyState}>
+                              {wave.fotoOnly || (wave.fotoEnabled && !(waveDefinitions[wave.id]?.types?.length)) ? (
+                                <>
+                                  <Camera size={36} weight="regular" />
+                                  <span>Noch keine Fotos</span>
+                                  <button className={styles.addBtn} onClick={() => setFotoModalWaveId(wave.id)} style={{ marginTop: '8px' }}>
+                                    <Camera size={14} weight="bold" /> Foto hinzufügen
+                                  </button>
+                                </>
+                              ) : addState && addState.waveId === wave.id ? (
+                                renderAddRow(wave.id, { date: addState.dayDate, dateLabel: new Date().toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), entries: [], markets: [], dayTotal: 0 })
+                              ) : (
+                                <>
+                                  <Package size={36} weight="regular" />
+                                  <span>Noch keine Einträge</span>
+                                  <button className={styles.addBtn} onClick={() => startAdd(wave.id, new Date().toISOString().split('T')[0], '')} style={{ marginTop: '8px' }}>
+                                    <Plus size={14} weight="bold" /> Eintrag hinzufügen
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            dayGroups.map(day => (
+                              <div key={day.date} className={styles.dayGroup}>
+                                <div className={styles.dayHeader}>
+                                  <span className={styles.dayLabel}>{day.dateLabel}</span>
+                                  <div className={styles.dayLine} />
+                                  <span className={`${styles.dayValue} ${wave.goalType === 'value' ? styles.dayValueCash : styles.dayValueCount}`}>
+                                    {wave.goalType === 'value' ? formatValue(day.dayTotal) : `${day.entries.reduce((s, e) => s + e.quantity, 0)} Stk`}
+                                  </span>
+                                </div>
+
+                                {day.entries.map(entry => {
+                                  const hasSubs = entry.products && entry.products.length > 0;
+                                  const isItemExpanded = expandedItems.has(entry.id);
+                                  const colors = getChainColor(entry.marketChain);
+
+                                  return (
+                                    <div
+                                      key={entry.id}
+                                      className={`${styles.itemCard} ${hasSubs ? styles.itemCardClickable : ''}`}
+                                      onClick={hasSubs ? () => toggleItem(entry.id) : undefined}
+                                    >
+                                      <div className={styles.itemRow}>
+                                        <div className={`${styles.itemTypeIcon} ${styles[typeClass[entry.itemType]] || ''}`}>
+                                          {typeLabel[entry.itemType] || '?'}
+                                        </div>
+                                        <div className={styles.itemInfo}>
+                                          <div className={styles.itemName}>{entry.itemName}</div>
+                                          <div className={styles.itemMeta}>
+                                            <span className={styles.chainBadge} style={{ background: colors.bg, borderColor: colors.border, color: colors.text }}>
+                                              {entry.marketChain}
+                                            </span>
+                                            {hasSubs && <span className={styles.productCount}>{entry.products!.length} Produkte</span>}
+                                          </div>
+                                        </div>
+                                        {!hasSubs && renderQuantity(entry.id, entry.quantity, wave.id, day.date)}
+                                        <span className={`${styles.itemValue} ${entry.value > 0 ? styles.itemValueCash : styles.itemValueCount}`}>
+                                          {entry.value > 0 ? formatValue(entry.value) : `${entry.quantity} Stk`}
+                                        </span>
+                                        {hasSubs && (
+                                          <button className={`${styles.expandBtn} ${isItemExpanded ? styles.expandBtnOpen : ''}`} onClick={() => toggleItem(entry.id)}>
+                                            <CaretRight size={14} weight="bold" />
+                                          </button>
+                                        )}
+                                      </div>
+                                      {!hasSubs && renderDeleteConfirm(entry.id, wave.id)}
+                                      {hasSubs && (
+                                        <div className={`${styles.subItems} ${isItemExpanded ? styles.subItemsOpen : ''}`} onClick={e => e.stopPropagation()}>
+                                          <div className={styles.subItemsInner}>
+                                            {entry.products!.map(product => (
+                                              <React.Fragment key={product.id}>
+                                                <div className={styles.subItem}>
+                                                  <span className={styles.subItemName}>{product.name}</span>
+                                                  {renderQuantity(product.id, product.quantity, wave.id, day.date, true)}
+                                                  <span className={`${styles.subItemValue} ${product.value > 0 ? styles.subItemValueCash : styles.subItemValueCount}`}>
+                                                    {product.value > 0 ? formatValue(product.value) : `${product.quantity} Stk`}
+                                                  </span>
+                                                </div>
+                                                {renderDeleteConfirm(product.id, wave.id)}
+                                              </React.Fragment>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+
+                                {renderAddRow(wave.id, day)}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ============ Produkttausch Section ============ */}
+        <div className={styles.sectionCard}>
+          <div className={styles.sectionHeader} onClick={() => setProdukttauschOpen(!produkttauschOpen)}>
+            <div className={`${styles.sectionIcon} ${styles.sectionIconAmber}`}>
+              <ArrowsClockwise size={20} weight="duotone" />
+            </div>
+            <div className={styles.sectionInfo}>
+              <h3 className={styles.sectionTitle}>Produkttausch Historie</h3>
+              <span className={styles.sectionCount}>
+                {loadingPt ? 'Laden...' : `${ptEntries.length} Einträge`}
+              </span>
+            </div>
+            <CaretDown size={16} className={`${styles.chevron} ${produkttauschOpen ? styles.open : ''}`} />
+          </div>
+
+          <div className={`${styles.sectionBody} ${produkttauschOpen ? styles.open : ''}`}>
+            <div className={styles.sectionBodyInner}>
+              {loadingPt ? (
+                <div className={styles.loadingContainer}>
+                  <CircleNotch size={32} weight="bold" className={styles.spinner} />
+                  <span>Lade Produkttausch...</span>
                 </div>
-              </div>
-            );
-          })
-        )}
+              ) : ptEntries.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <ArrowsClockwise size={48} weight="regular" />
+                  <span>Keine Produkttausch-Einträge</span>
+                </div>
+              ) : (
+                ptDayGroups.map(day => (
+                  <div key={day.date} className={styles.dayGroup}>
+                    <div className={styles.dayHeader}>
+                      <span className={styles.dayLabel}>{day.dateLabel}</span>
+                      <div className={styles.dayLine} />
+                      <span className={styles.dayValue}>{day.entries.length} {day.entries.length === 1 ? 'Eintrag' : 'Einträge'}</span>
+                    </div>
+
+                    {day.entries.map(entry => {
+                      const isEntryOpen = expandedPtEntries.has(entry.id);
+                      const takeOut = entry.items.filter(i => i.itemType === 'take_out');
+                      const replace = entry.items.filter(i => i.itemType === 'replace');
+                      const colors = getChainColor(entry.marketChain);
+
+                      return (
+                        <div key={entry.id} className={styles.ptCard} onClick={() => togglePtEntry(entry.id)}>
+                          <div className={styles.ptCardHeader}>
+                            <span className={styles.chainBadge} style={{ background: colors.bg, borderColor: colors.border, color: colors.text }}>
+                              {entry.marketChain}
+                            </span>
+                            <div className={styles.ptMarketInfo}>
+                              <span className={styles.ptMarketName}>{entry.marketName}</span>
+                              <span className={styles.ptMarketAddress}>
+                                {[entry.marketAddress, entry.marketCity].filter(Boolean).join(', ')}
+                              </span>
+                            </div>
+                            <span className={styles.ptItemCount}>{entry.totalItems} Artikel</span>
+                            <CaretDown size={14} className={`${styles.ptChevron} ${isEntryOpen ? styles.open : ''}`} />
+                          </div>
+
+                          <div className={`${styles.ptCardBody} ${isEntryOpen ? styles.open : ''}`} onClick={e => e.stopPropagation()}>
+                            <div className={styles.ptCardBodyInner}>
+                              {takeOut.length > 0 && (
+                                <div className={styles.ptSection}>
+                                  <div className={`${styles.ptSectionLabel} ${styles.ptSectionLabelBlue}`}>Entnommen ({takeOut.length})</div>
+                                  {takeOut.map(item => (
+                                    <div key={item.id} className={styles.ptItemRow}>
+                                      <div className={styles.ptItemInfo}>
+                                        <span className={styles.ptItemName}>{item.productName}</span>
+                                        {(item.productBrand || item.productSize) && (
+                                          <span className={styles.ptItemDetail}>
+                                            {[item.productBrand, item.productSize].filter(Boolean).join(' · ')}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className={`${styles.ptItemQty} ${styles.ptItemQtyBlue}`}>{item.quantity}x</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {replace.length > 0 && (
+                                <div className={styles.ptSection}>
+                                  <div className={`${styles.ptSectionLabel} ${styles.ptSectionLabelGreen}`}>Ersetzt durch ({replace.length})</div>
+                                  {replace.map(item => (
+                                    <div key={item.id} className={styles.ptItemRow}>
+                                      <div className={styles.ptItemInfo}>
+                                        <span className={styles.ptItemName}>{item.productName}</span>
+                                        {(item.productBrand || item.productSize) && (
+                                          <span className={styles.ptItemDetail}>
+                                            {[item.productBrand, item.productSize].filter(Boolean).join(' · ')}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className={`${styles.ptItemQty} ${styles.ptItemQtyGreen}`}>{item.quantity}x</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {entry.notes && (
+                                <div className={styles.ptNotes}>{entry.notes}</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Foto Modal - reuses existing VorbestellerModal in foto mode */}
       {fotoModalWaveId && (
         <VorbestellerModal
           isOpen={true}

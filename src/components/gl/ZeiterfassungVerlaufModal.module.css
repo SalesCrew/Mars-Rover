@@ -427,6 +427,16 @@
   font-weight: 600;
   color: #1E293B;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marketNameAddress {
+  font-weight: 400;
+  color: #94A3B8;
+  font-size: 12px;
 }
 
 .editButton {

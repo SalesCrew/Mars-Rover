@@ -610,6 +610,152 @@
   color: #2563EB;
 }
 
+/* ========== Section Toggle ========== */
+.sectionCard {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.sectionHeader:hover { background: rgba(248, 250, 252, 0.5); }
+
+.sectionIcon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sectionIconBlue {
+  background: linear-gradient(135deg, #EFF6FF, #DBEAFE);
+  color: #3B82F6;
+}
+.sectionIconAmber {
+  background: linear-gradient(135deg, #FFFBEB, #FEF3C7);
+  color: #D97706;
+}
+
+.sectionInfo { flex: 1; min-width: 0; }
+.sectionTitle {
+  font-size: 15px; font-weight: 600; color: #0F172A; margin: 0;
+}
+.sectionCount {
+  font-size: 12px; color: #94A3B8; font-weight: 400; margin-top: 1px;
+}
+
+.sectionBody {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sectionBody.open { max-height: 50000px; }
+.sectionBodyInner { padding: 0 16px 16px; }
+
+/* ========== Produkttausch Cards ========== */
+.ptCard {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.ptCard:last-child { margin-bottom: 0; }
+.ptCard:hover { background: rgba(248, 250, 252, 0.95); }
+
+.ptCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.ptMarketInfo { flex: 1; min-width: 0; }
+.ptMarketName {
+  font-size: 13px; font-weight: 600; color: #1E293B;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block;
+}
+.ptMarketAddress {
+  font-size: 11px; color: #94A3B8; margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block;
+}
+
+.ptItemCount {
+  font-size: 12px; font-weight: 600; color: #64748B;
+  background: #F1F5F9; padding: 2px 8px; border-radius: 6px;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+.ptChevron {
+  color: #94A3B8; flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ptChevron.open { transform: rotate(180deg); }
+
+.ptCardBody {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.ptCardBody.open { max-height: 5000px; }
+.ptCardBodyInner {
+  padding: 0 14px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.ptSection { display: flex; flex-direction: column; gap: 4px; }
+.ptSectionLabel {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; padding: 4px 0 2px;
+}
+.ptSectionLabelBlue { color: #3B82F6; }
+.ptSectionLabelGreen { color: #16A34A; }
+
+.ptItemRow {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; background: #F8FAFC; border-radius: 8px;
+}
+
+.ptItemInfo { flex: 1; min-width: 0; }
+.ptItemName {
+  font-size: 13px; font-weight: 500; color: #1E293B;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block;
+}
+.ptItemDetail {
+  font-size: 11px; color: #94A3B8; margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block;
+}
+
+.ptItemQty {
+  font-size: 13px; font-weight: 700; color: #0F172A;
+  flex-shrink: 0; min-width: 28px; text-align: center;
+}
+.ptItemQtyBlue { color: #3B82F6; }
+.ptItemQtyGreen { color: #16A34A; }
+
+.ptNotes {
+  font-size: 12px; color: #64748B; font-style: italic;
+  padding: 6px 10px; background: rgba(241, 245, 249, 0.6);
+  border-radius: 8px; border-left: 3px solid #E2E8F0;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 640px) {
   .page { padding: 16px 12px 120px; }
@@ -619,4 +765,8 @@
   .subItemsInner { padding-left: 32px; }
   .typeSelector { gap: 4px; }
   .typeOption { padding: 6px 10px; font-size: 11px; }
+  .sectionHeader { padding: 14px 12px; }
+  .sectionBodyInner { padding: 0 12px 12px; }
+  .ptCardHeader { padding: 10px 12px; }
+  .ptCardBodyInner { padding: 0 12px 10px; }
 }

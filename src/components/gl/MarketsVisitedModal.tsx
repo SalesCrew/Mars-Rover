@@ -248,7 +248,7 @@ export const MarketsVisitedModal: React.FC<MarketsVisitedModalProps> = ({
                     <div className={styles.marketInfo}>
                       <span className={styles.marketName}>{market.name}</span>
                       <span className={styles.marketMeta}>
-                        {market.chain} • {market.city}
+                        {market.chain} • {market.address ? `${market.address}, ` : ''}{market.city}
                       </span>
                     </div>
                     <div className={styles.marketStatusArea}>

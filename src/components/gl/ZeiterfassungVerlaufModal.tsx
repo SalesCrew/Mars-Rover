@@ -547,7 +547,9 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
         if (entry.type === 'market') {
           return entry.market.name.toLowerCase().includes(query) ||
                  entry.market.chain.toLowerCase().includes(query) ||
-                 entry.market.address.toLowerCase().includes(query);
+                 entry.market.address.toLowerCase().includes(query) ||
+                 entry.market.city.toLowerCase().includes(query) ||
+                 entry.market.postalCode.toLowerCase().includes(query);
         } else {
           return entry.reasonLabel.toLowerCase().includes(query) ||
                  (entry.kommentar?.toLowerCase().includes(query) ?? false);
@@ -1034,7 +1036,10 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                                 >
                                   {entry.market.chain}
                                 </div>
-                                <span className={styles.marketName}>{entry.market.name}</span>
+                                <span className={styles.marketName}>
+                                  {entry.market.name}
+                                  {entry.market.address && <span className={styles.marketNameAddress}> — {entry.market.address}{entry.market.city ? `, ${entry.market.city}` : ''}</span>}
+                                </span>
                                 {!isEditing && isWithinEditWindow(group.date) && (
                                   <button 
                                     className={styles.editButton}
@@ -1128,10 +1133,12 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                                     </span>
                                     <span className={styles.visitDuration}>({entry.besuchszeit.duration})</span>
                                   </div>
-                                  <div className={styles.marketAddress}>
-                                    <MapPin size={14} weight="regular" />
-                                    <span>{entry.market.address}, {entry.market.postalCode} {entry.market.city}</span>
-                                  </div>
+                                  {(entry.market.address || entry.market.city || entry.market.postalCode) && (
+                                    <div className={styles.marketAddress}>
+                                      <MapPin size={14} weight="regular" />
+                                      <span>{[entry.market.address, `${entry.market.postalCode} ${entry.market.city}`.trim()].filter(Boolean).join(', ')}</span>
+                                    </div>
+                                  )}
                                   {(entry.submissions.vorbesteller > 0 || entry.submissions.vorverkauf > 0 || entry.submissions.produkttausch > 0) && (
                                     <div className={styles.submissionBadges}>
                                       {entry.submissions.vorbesteller > 0 && (

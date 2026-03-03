@@ -573,15 +573,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       return;
     }
     
-    // Record visit to update market frequency
-    if (user?.id) {
-      try {
-        await marketService.recordVisit(marketId, user.id);
-      } catch (visitError) {
-        console.warn('Could not record market visit:', visitError);
-      }
-    }
-    
     // Fetch active fragebogen for this market
     try {
       const allFragebogen = await fragebogenService.fragebogen.getAll({ status: 'active' });
@@ -728,6 +719,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
               }
             }
             
+            // Record visit on completion (deduped by last_visit_date === today on backend)
+            if (user?.id) {
+              try {
+                await marketService.recordVisit(activeVisit.market.id, user.id);
+              } catch (visitError) {
+                console.warn('Could not record market visit:', visitError);
+              }
+            }
+
             clearActiveVisit();
             setActiveVisit(null);
           }}
