@@ -23,7 +23,7 @@ interface HistoryEntry {
   details: any;
 }
 
-type DropdownType = 'banner' | 'chain' | 'branch' | 'gl' | 'status' | 'frequency';
+type DropdownType = 'banner' | 'chain' | 'branch' | 'gl' | 'status';
 type TabType = 'details' | 'verlauf';
 
 export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({ 
@@ -166,8 +166,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
     chain: null,
     branch: null,
     gl: null,
-    status: null,
-    frequency: null
+    status: null
   });
 
   // Get unique values
@@ -175,7 +174,6 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   const uniqueChains = Array.from(new Set(allMarkets.map(m => m.chain).filter((c): c is string => Boolean(c)))).sort();
   const uniqueBranches = Array.from(new Set(allMarkets.map(m => m.branch).filter((b): b is string => Boolean(b)))).sort();
   const statusOptions = ['Aktiv', 'Inaktiv'];
-  const frequencyOptions = ['Täglich', 'Wöchentlich', '2x Woche', 'Monatlich'];
 
   // Fetch history when tab changes
   useEffect(() => {
@@ -236,7 +234,11 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'frequency') {
+      setFormData(prev => ({ ...prev, [field]: value === '' ? 0 : parseInt(value, 10) || 0 }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleSave = async () => {
@@ -529,7 +531,17 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
               {/* Row 7: Status & Frequenz */}
               <div className={styles.row}>
                 {renderDropdown('status', 'Status', statusOptions, formData.isActive ? 'Aktiv' : 'Inaktiv', 'status')}
-                {renderDropdown('frequency', 'Frequenz', frequencyOptions, formData.frequency?.toString(), 'frequency')}
+                <div className={styles.field}>
+                  <label className={styles.label}>Frequenz</label>
+                  <input
+                    type="number"
+                    className={styles.input}
+                    value={formData.frequency ?? ''}
+                    onChange={(e) => handleInputChange('frequency', e.target.value)}
+                    min="0"
+                    placeholder="z.B. 12"
+                  />
+                </div>
               </div>
             </>
           ) : (
