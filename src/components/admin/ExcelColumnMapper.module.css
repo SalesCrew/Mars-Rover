@@ -176,6 +176,7 @@
   border-radius: 10px;
   overflow-x: auto;
   overflow-y: hidden;
+  max-height: 180px;
 }
 
 .previewTable {

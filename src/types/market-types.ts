@@ -53,6 +53,7 @@ export interface AdminMarket extends Market {
   banner?: string; // Row E: Banner/Brand group
   marketTel?: string; // Row U: Market telephone number (NEW)
   marketEmail?: string; // Row V: Market contact email (NEW)
+  marsFil?: string; // Mars internal Filiale number
   // Legacy fields - kept for backwards compatibility but no longer imported
   branch?: string; // Filiale - no longer in Excel
   visitDay?: string; // Besuchstag (not from Excel)

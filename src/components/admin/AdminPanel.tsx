@@ -19,6 +19,7 @@ import { CreateStandardProductModal } from './CreateStandardProductModal';
 import { MarketImportPreviewModal } from './MarketImportPreviewModal';
 import { AdminAccountsModal } from './AdminAccountsModal';
 import { ExcelColumnMapper } from './ExcelColumnMapper';
+import { MarketExcelColumnMapper } from './MarketExcelColumnMapper';
 import { ExportDataModal } from './ExportDataModal';
 import { parseMarketFile, validateImportFile } from '../../utils/marketImporter';
 import { actionHistoryService, type ActionHistoryEntry } from '../../services/actionHistoryService';
@@ -87,6 +88,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [waveIdToEdit, setWaveIdToEdit] = useState<string | null>(null);
   const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
   const [pendingImportMarkets, setPendingImportMarkets] = useState<AdminMarket[]>([]);
+  const [marketColumnMapperFile, setMarketColumnMapperFile] = useState<File | null>(null);
   const [availableGLs, setAvailableGLs] = useState<Array<{ id: string; name: string }>>([]);
   const [zeiterfassungViewMode, setZeiterfassungViewMode] = useState<'date' | 'profile'>('date');
   const { logout } = useAuth();
@@ -215,56 +217,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
       return;
     }
 
-    setIsProcessing(true);
-    setImportResult(null);
+    // Show column mapper so user can assign columns before parsing
+    setMarketColumnMapperFile(file);
+  };
 
-    try {
-      const markets = await parseMarketFile(file);
-      
-      if (markets.length === 0) {
-        setImportResult({
-          success: false,
-          message: 'Keine gültigen Märkte in der Datei gefunden',
-        });
-        setIsProcessing(false);
-        setTimeout(() => setImportResult(null), 5000);
-        return;
-      }
+  const handleMarketColumnMapperImport = (markets: AdminMarket[]) => {
+    setMarketColumnMapperFile(null);
+    if (markets.length === 0) return;
 
-      // If there are existing markets, show preview modal for comparison
-      if (allMarkets.length > 0) {
-        setPendingImportMarkets(markets);
-        setIsImportModalOpen(false);
-        setIsProcessing(false);
-        setIsImportPreviewOpen(true);
-        return;
-      }
-
-      // No existing markets - import directly
-      setImportedMarkets(markets);
-      
-      setImportResult({
-        success: true,
-        message: `${markets.length} Märkte erfolgreich importiert`,
-        count: markets.length,
-      });
-
-      // Close modal after short delay
-      setTimeout(() => {
-        setIsImportModalOpen(false);
-        setImportResult(null);
-        setIsProcessing(false);
-      }, 2000);
-
-    } catch (error) {
-      console.error('Import error:', error);
-      setImportResult({
-        success: false,
-        message: error instanceof Error ? error.message : 'Fehler beim Importieren der Datei',
-      });
-      setIsProcessing(false);
-      setTimeout(() => setImportResult(null), 5000);
+    if (allMarkets.length > 0) {
+      setPendingImportMarkets(markets);
+      setIsImportModalOpen(false);
+      setIsImportPreviewOpen(true);
+      return;
     }
+
+    // No existing markets – import directly
+    setImportedMarkets(markets);
+    setImportResult({
+      success: true,
+      message: `${markets.length} Märkte erfolgreich importiert`,
+      count: markets.length,
+    });
+    setTimeout(() => {
+      setIsImportModalOpen(false);
+      setImportResult(null);
+    }, 2000);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -1163,6 +1141,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
         }}
         department={standardProductDepartment}
       />
+
+      {/* Market Column Mapper */}
+      {marketColumnMapperFile && (
+        <MarketExcelColumnMapper
+          file={marketColumnMapperFile}
+          onImport={handleMarketColumnMapperImport}
+          onCancel={() => setMarketColumnMapperFile(null)}
+        />
+      )}
 
       {/* Market Import Preview Modal */}
       {isImportPreviewOpen && (

@@ -25,8 +25,8 @@ interface ChangedMarketInfo {
 
 // Fields to compare (ignoring GL-related fields that won't match on import)
 const FIELDS_TO_COMPARE: (keyof AdminMarket)[] = [
-  'name', 'address', 'city', 'postalCode', 'chain', 
-  'frequency', 'banner', 'isActive', 'marketTel', 'marketEmail', 'channel'
+  'name', 'address', 'city', 'postalCode', 'chain',
+  'frequency', 'banner', 'isActive', 'marketTel', 'marketEmail', 'channel', 'marsFil'
 ];
 
 const FIELD_LABELS: Record<string, string> = {
@@ -40,7 +40,8 @@ const FIELD_LABELS: Record<string, string> = {
   isActive: 'Status',
   marketTel: 'Tel.',
   marketEmail: 'Email',
-  channel: 'Kanal'
+  channel: 'Kanal',
+  marsFil: 'Mars Fil Nr'
 };
 
 // Limit visible items per section for performance
@@ -147,10 +148,10 @@ export const MarketImportPreviewModal: React.FC<MarketImportPreviewModalProps> =
     };
   }, [importedMarkets, existingMarketsMap, removedIds, editedMarkets]);
   
-  // Markets to actually import (new + changed)
+  // Markets to actually import (new + changed + unchanged, excluding removed)
   const marketsToActuallyImport = useMemo(() => {
-    return [...newMarkets, ...changedMarkets.map(c => c.market)];
-  }, [newMarkets, changedMarkets]);
+    return [...newMarkets, ...changedMarkets.map(c => c.market), ...unchangedMarkets];
+  }, [newMarkets, changedMarkets, unchangedMarkets]);
   
   const handleRemoveMarket = useCallback((marketId: string) => {
     setRemovedIds(prev => new Set(prev).add(marketId));

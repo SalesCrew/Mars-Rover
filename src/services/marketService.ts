@@ -178,6 +178,7 @@ class MarketService {
       banner: dbMarket.banner, // Row E
       marketTel: dbMarket.market_tel, // Row U (NEW)
       marketEmail: dbMarket.market_email, // Row V (NEW)
+      marsFil: dbMarket.mars_fil,
       // Legacy fields (kept for backwards compatibility)
       email: dbMarket.email,
       branch: dbMarket.branch,
@@ -229,6 +230,7 @@ class MarketService {
       banner: market.banner, // Row E
       market_tel: market.marketTel, // Row U (NEW)
       market_email: market.marketEmail, // Row V (NEW)
+      mars_fil: market.marsFil,
       // Legacy fields (kept for backwards compatibility)
       email: market.email,
       branch: market.branch,
