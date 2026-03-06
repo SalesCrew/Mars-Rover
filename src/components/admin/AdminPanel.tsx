@@ -21,7 +21,7 @@ import { AdminAccountsModal } from './AdminAccountsModal';
 import { ExcelColumnMapper } from './ExcelColumnMapper';
 import { MarketExcelColumnMapper } from './MarketExcelColumnMapper';
 import { ExportDataModal } from './ExportDataModal';
-import { parseMarketFile, validateImportFile } from '../../utils/marketImporter';
+import { validateImportFile } from '../../utils/marketImporter';
 import { actionHistoryService, type ActionHistoryEntry } from '../../services/actionHistoryService';
 import { marketService } from '../../services/marketService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -74,7 +74,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [historySearchTerm, setHistorySearchTerm] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessing] = useState(false);
   const [importResult, setImportResult] = useState<{ success: boolean; message: string; count?: number } | null>(null);
   const [importedMarkets, setImportedMarkets] = useState<AdminMarket[]>([]);
   const [allMarkets, setAllMarkets] = useState<AdminMarket[]>([]);
