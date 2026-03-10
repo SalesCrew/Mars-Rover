@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   CaretDown,
   X,
+  Airplane,
 } from '@phosphor-icons/react';
 import { useAuth } from '../../contexts/AuthContext';
 import fragebogenService from '../../services/fragebogenService';
@@ -226,6 +227,7 @@ const reasonIcons: Record<string, React.ElementType> = {
   hotel: Bed,
   unterbrechung: Pause,
   sonderaufgabe: Star,
+  dienstreise: Airplane,
 };
 
 const chainColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -657,6 +659,9 @@ export const WochenCheckModal: React.FC<WochenCheckModalProps> = ({ isOpen, onCl
               {unrealisticCount} auffällig
             </div>
           )}
+          <button className={styles.closeButton} onClick={onClose} aria-label="Schließen">
+            <X size={22} weight="bold" />
+          </button>
         </div>
 
         {/* Warning Banner */}

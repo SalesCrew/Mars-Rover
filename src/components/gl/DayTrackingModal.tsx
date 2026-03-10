@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Play, House, Car, Clock, MapPin, Timer, Check, Warning, ArrowRight, Gauge } from '@phosphor-icons/react';
 import styles from './DayTrackingModal.module.css';
 
-type ModalMode = 'start' | 'end' | 'force_close';
+type ModalMode = 'start' | 'end' | 'force_close' | 'km_pending';
 
 interface DayTrackingModalProps {
   isOpen: boolean;
@@ -10,6 +10,7 @@ interface DayTrackingModalProps {
   mode: ModalMode;
   onStartDay: (skipFahrzeit: boolean, kmStandStart?: string) => void;
   onEndDay: (endTime: string, kmStandEnd?: string) => void;
+  onSubmitKmStand?: (km: string) => void;
   summary?: {
     totalFahrzeit: string;
     totalBesuchszeit: string;
@@ -129,6 +130,7 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
   mode,
   onStartDay,
   onEndDay,
+  onSubmitKmStand,
   summary,
 }) => {
   const [endTime, setEndTime] = useState('');
@@ -228,6 +230,7 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
             {mode === 'start' && 'Tag starten'}
             {mode === 'end' && 'Tag beenden'}
             {mode === 'force_close' && 'Zeiterfassung beenden'}
+            {mode === 'km_pending' && 'KM-Stand nachtragen'}
           </h2>
           {canClose && (
             <button className={styles.closeButton} onClick={onClose} aria-label="Schließen">
@@ -294,6 +297,12 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
                   <button className={styles.kmStandConfirm} onClick={handleStartConfirmKm} disabled={!kmStand}>
                     <Check size={18} weight="bold" />
                     Bestätigen
+                  </button>
+                  <button
+                    className={styles.kmStandSkip}
+                    onClick={() => onStartDay(pendingSkipFahrzeit, undefined)}
+                  >
+                    Noch nicht beim Auto
                   </button>
                 </div>
               )}
@@ -502,6 +511,36 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
                 </>
               )}
             </>
+          )}
+          {/* KM Pending Mode - reminder to enter missed KM stand */}
+          {mode === 'km_pending' && (
+            <div className={styles.kmStandSection}>
+              <div className={styles.kmStandIcon}>
+                <Gauge size={40} weight="duotone" />
+              </div>
+              <span className={styles.kmStandTitle}>KM-Stand nachtragen</span>
+              <span className={styles.kmStandDesc}>Du hast den KM-Stand heute noch nicht eingetragen. Bitte hole das jetzt nach.</span>
+              <input
+                ref={kmInputRef}
+                type="text"
+                inputMode="decimal"
+                className={styles.kmStandInput}
+                value={kmStand}
+                onChange={handleKmInputChange}
+                placeholder="z.B. 45320"
+              />
+              <button
+                className={styles.kmStandConfirm}
+                onClick={() => onSubmitKmStand && onSubmitKmStand(kmStand)}
+                disabled={!kmStand}
+              >
+                <Check size={18} weight="bold" />
+                Bestätigen
+              </button>
+              <button className={styles.kmStandSkip} onClick={onClose}>
+                Noch nicht beim Auto
+              </button>
+            </div>
           )}
         </div>
       </div>

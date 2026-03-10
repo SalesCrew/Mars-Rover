@@ -281,6 +281,32 @@ class DayTrackingService {
   }
 
   /**
+   * Update km_stand_start on today's active day tracking record
+   */
+  async updateKmStandStart(glId: string, kmStandStart: string): Promise<void> {
+    try {
+      const response = await fetch(`${DAY_TRACKING_API}/update-km-start`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          gebietsleiter_id: glId,
+          km_stand_start: kmStandStart,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update km_stand_start');
+      }
+    } catch (error) {
+      console.error('Error updating km_stand_start:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Helper: Format interval string (HH:MM:SS) to readable format (Xh Ym)
    */
   formatInterval(interval: string | null): string {

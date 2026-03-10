@@ -17,7 +17,8 @@ import {
   Warning,
   Star,
   MagnifyingGlass,
-  MapPin
+  MapPin,
+  Airplane
 } from '@phosphor-icons/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../config/database';
@@ -177,6 +178,7 @@ const reasons = [
   { id: 'lager', label: 'Lager', icon: Warehouse, isDeduction: false, requiresComment: false, requiresMarket: false },
   { id: 'heimfahrt', label: 'Heimfahrt', icon: Path, isDeduction: false, requiresComment: false, requiresMarket: false },
   { id: 'hotel', label: 'Hotelübernachtung', icon: Bed, isDeduction: false, requiresComment: false, requiresMarket: false },
+  { id: 'dienstreise', label: 'Dienstreise', icon: Airplane, isDeduction: false, requiresComment: false, requiresMarket: false },
 ];
 
 const calculateDuration = (von: string, bis: string): string => {

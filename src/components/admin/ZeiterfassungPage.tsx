@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { CaretDown, CaretRight, CaretLeft, Storefront, Car, CalendarCheck, TrendUp, Receipt, User, MagnifyingGlass, Pause, Star, FirstAidKit, House, GraduationCap, Warehouse, Path, Bed, Check, X, Trash, Warning, NavigationArrow } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, CaretLeft, Storefront, Car, CalendarCheck, TrendUp, Receipt, User, MagnifyingGlass, Pause, Star, FirstAidKit, House, GraduationCap, Warehouse, Path, Bed, Check, X, Trash, Warning, NavigationArrow, Airplane } from '@phosphor-icons/react';
 import XLSX from 'xlsx-js-style';
 import fragebogenService from '../../services/fragebogenService';
 import styles from './ZeiterfassungPage.module.css';
@@ -123,6 +123,7 @@ const zusatzReasonIcons: Record<string, React.ElementType> = {
   hotel: Bed,
   unterbrechung: Pause,
   sonderaufgabe: Star,
+  dienstreise: Airplane,
 };
 
 interface ZeiterfassungPageProps {

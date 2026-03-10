@@ -76,6 +76,27 @@
   gap: 2px;
 }
 
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #94A3B8;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.closeButton:hover {
+  background: #F1F5F9;
+  color: #475569;
+}
+
 .title {
   font-size: 17px;
   font-weight: 600;

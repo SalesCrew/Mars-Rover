@@ -76,7 +76,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   // Day tracking state
   const [isDayTrackingModalOpen, setIsDayTrackingModalOpen] = useState(false);
   const [dayTrackingStatus, setDayTrackingStatus] = useState<DayTrackingStatus>('not_started');
-  const [dayTrackingModalMode, setDayTrackingModalMode] = useState<'start' | 'end' | 'force_close'>('start');
+  const [dayTrackingModalMode, setDayTrackingModalMode] = useState<'start' | 'end' | 'force_close' | 'km_pending'>('start');
   const [daySummary, setDaySummary] = useState<{
     totalFahrzeit: string;
     totalBesuchszeit: string;
@@ -302,6 +302,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
               totalBesuchszeit: dayTrackingService.formatInterval(summary.totalBesuchszeit),
               marketsVisited: summary.marketsVisited
             });
+            // If km_stand_start is missing, open the KM pending reminder
+            if (status.km_stand_start === null) {
+              setDayTrackingModalMode('km_pending');
+              setIsDayTrackingModalOpen(true);
+            }
           }
         } else {
           setDayTrackingStatus('not_started');
@@ -369,9 +374,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       await dayTrackingService.startDay(user.id, { skipFahrzeit, startTime, kmStandStart });
       setDayTrackingStatus('active');
       setIsDayTrackingModalOpen(false);
+      // If KM was skipped, the km_pending reminder will show on next reload automatically
+      // (km_stand_start will be null in DB, so init check will catch it)
     } catch (error: any) {
       console.error('❌ Error starting day:', error);
       alert('Fehler beim Starten des Tages: ' + (error?.message || 'Unknown error'));
+    }
+  };
+
+  const handleSubmitPendingKm = async (km: string) => {
+    if (!user?.id) return;
+    try {
+      await dayTrackingService.updateKmStandStart(user.id, km);
+      setIsDayTrackingModalOpen(false);
+    } catch (error) {
+      console.error('Error submitting pending KM stand:', error);
+      alert('Fehler beim Speichern des KM-Stands');
     }
   };
 
@@ -984,6 +1002,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         mode={dayTrackingModalMode}
         onStartDay={handleStartDay}
         onEndDay={handleEndDay}
+        onSubmitKmStand={handleSubmitPendingKm}
         summary={daySummary}
       />
 
