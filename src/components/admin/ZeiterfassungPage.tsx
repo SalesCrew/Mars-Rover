@@ -790,12 +790,35 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         // Group entries by date + GL
         const dateGLMap = new Map<string, Map<string, { glName: string; entries: ZeiterfassungEntry[] }>>();
         entries.forEach(entry => {
-          const date = entry.created_at.split('T')[0];
+          const date = toViennaDate(entry.created_at);
           if (!dateGLMap.has(date)) dateGLMap.set(date, new Map());
           const glMap = dateGLMap.get(date)!;
           const glId = entry.gebietsleiter_id;
           if (!glMap.has(glId)) glMap.set(glId, { glName: `${entry.gebietsleiter.first_name} ${entry.gebietsleiter.last_name}`, entries: [] });
           glMap.get(glId)!.entries.push(entry);
+        });
+
+        // Also include GL-days that only have zusatz entries (no market visits)
+        // Build GL name lookup from market entries first
+        const glNameLookupExport: Record<string, string> = {};
+        entries.forEach(e => {
+          if (e.gebietsleiter_id && e.gebietsleiter && !glNameLookupExport[e.gebietsleiter_id]) {
+            glNameLookupExport[e.gebietsleiter_id] = `${e.gebietsleiter.first_name} ${e.gebietsleiter.last_name}`;
+          }
+        });
+        zusatzEntries.forEach(z => {
+          if (!z.entry_date || !z.gebietsleiter_id) return;
+          const date = z.entry_date;
+          if (!dateGLMap.has(date)) dateGLMap.set(date, new Map());
+          const glMap = dateGLMap.get(date)!;
+          if (!glMap.has(z.gebietsleiter_id)) {
+            // Resolve GL name from lookup or from zusatz entry itself
+            if (z.gebietsleiter && !glNameLookupExport[z.gebietsleiter_id]) {
+              glNameLookupExport[z.gebietsleiter_id] = `${z.gebietsleiter.first_name} ${z.gebietsleiter.last_name}`;
+            }
+            const glName = glNameLookupExport[z.gebietsleiter_id] || 'Unbekannt';
+            glMap.set(z.gebietsleiter_id, { glName, entries: [] });
+          }
         });
 
         // Fetch day tracking for each GL-date combo
@@ -841,7 +864,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         // Group by date
         const dateMap = new Map<string, ZeiterfassungEntry[]>();
         glEntries.forEach(e => {
-          const d = e.created_at.split('T')[0];
+          const d = toViennaDate(e.created_at);
           if (!dateMap.has(d)) dateMap.set(d, []);
           dateMap.get(d)!.push(e);
         });
@@ -933,6 +956,15 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
     }
   };
 
+  const toViennaDate = (isoString: string): string => {
+    // Convert UTC ISO timestamp to Vienna local date (Europe/Vienna = UTC+1/+2)
+    try {
+      return new Date(isoString).toLocaleDateString('sv', { timeZone: 'Europe/Vienna' });
+    } catch {
+      return isoString.split('T')[0];
+    }
+  };
+
   const parseTime = (timeStr: string | null): Date | null => {
     if (!timeStr) return null;
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -963,7 +995,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
     const groups: { [date: string]: { [glId: string]: ZeiterfassungEntry[] } } = {};
 
     entries.forEach(entry => {
-      const date = entry.created_at.split('T')[0]; // Get YYYY-MM-DD
+      const date = toViennaDate(entry.created_at); // Get YYYY-MM-DD in Vienna local time
       if (!groups[date]) groups[date] = {};
       if (!groups[date][entry.gebietsleiter_id]) {
         groups[date][entry.gebietsleiter_id] = [];
@@ -1128,7 +1160,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       // Group entries by date (market visits + zusatz-only days)
       const dateGroups: { [date: string]: ZeiterfassungEntry[] } = {};
       glEntries.forEach(entry => {
-        const date = entry.created_at.split('T')[0];
+        const date = toViennaDate(entry.created_at);
         if (!dateGroups[date]) dateGroups[date] = [];
         dateGroups[date].push(entry);
       });
