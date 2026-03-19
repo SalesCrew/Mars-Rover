@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
+import XLSX from 'xlsx-js-style';
 import { MagnifyingGlass, User, Storefront, CaretDown, CaretUp, X, Calendar, Package, Gift, Trash, Warning } from '@phosphor-icons/react';
 import { naraIncentiveService, type NaraIncentiveSubmission, type NaraIncentiveItem } from '../../services/naraIncentiveService';
 import { gebietsleiterService } from '../../services/gebietsleiterService';
@@ -19,6 +20,7 @@ interface GroupedEntry {
   marketName: string;
   marketChain: string;
   marketAddress: string;
+  marketPostalCode: string;
   marketCity: string;
   date: string;
   totalValue: number;
@@ -143,6 +145,7 @@ export const NaraIncentivePage: React.FC = () => {
           marketName: sub.marketName,
           marketChain: sub.marketChain,
           marketAddress: sub.marketAddress,
+          marketPostalCode: sub.marketPostalCode,
           marketCity: sub.marketCity,
           date: sub.createdAt,
           totalValue: sub.totalValue,
@@ -169,6 +172,78 @@ export const NaraIncentivePage: React.FC = () => {
   const totalValueAll = useMemo(() => filteredEntries.reduce((sum, e) => sum + e.totalValue, 0), [filteredEntries]);
   const uniqueGLs = useMemo(() => new Set(filteredEntries.map(e => e.glId)).size, [filteredEntries]);
   const uniqueMarkets = useMemo(() => new Set(filteredEntries.map(e => e.marketId)).size, [filteredEntries]);
+
+  // Export handler — one row per product item
+  const handleExport = useCallback(() => {
+    const headers = ['Datum', 'Gebietsleiter', 'Handelskette', 'Markt', 'Adresse', 'PLZ', 'Stadt', 'Produkt', 'Gewicht', 'Menge', 'Wert/Einheit (€)', 'Gesamtwert (€)'];
+    const rows: (string | number)[][] = [];
+    const sortedEntries = [...groupedEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    for (const entry of sortedEntries) {
+      const dateStr = new Intl.DateTimeFormat('de-AT', {
+        day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Vienna'
+      }).format(new Date(entry.date));
+      for (const item of entry.items) {
+        rows.push([
+          dateStr,
+          entry.glName,
+          entry.marketChain,
+          entry.marketName,
+          entry.marketAddress || '',
+          entry.marketPostalCode || '',
+          entry.marketCity || '',
+          item.productName,
+          item.productWeight || '',
+          item.quantity,
+          Number(item.productPrice.toFixed(2)),
+          Number(item.lineTotal.toFixed(2)),
+        ]);
+      }
+    }
+
+    const data = [headers, ...rows];
+    const worksheet: XLSX.WorkSheet = {};
+    data.forEach((row, rowIdx) => {
+      (row as (string | number)[]).forEach((cell, colIdx) => {
+        const cellAddress = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
+        if (rowIdx === 0) {
+          worksheet[cellAddress] = {
+            v: cell, t: 's',
+            s: {
+              fill: { fgColor: { rgb: '3B82F6' } },
+              font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+              alignment: { horizontal: 'center', vertical: 'center' },
+            }
+          };
+        } else {
+          const isNum = typeof cell === 'number';
+          worksheet[cellAddress] = {
+            v: cell, t: isNum ? 'n' : 's',
+            s: {
+              font: { sz: 10 },
+              alignment: { vertical: 'center' },
+              border: { bottom: { style: 'thin', color: { rgb: 'E2E8F0' } } },
+            }
+          };
+        }
+      });
+    });
+    worksheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: data.length - 1, c: headers.length - 1 } });
+    worksheet['!rows'] = data.map((_, idx) => ({ hpt: idx === 0 ? 22 : 18 }));
+    worksheet['!cols'] = [
+      { wch: 12 }, { wch: 22 }, { wch: 16 }, { wch: 28 }, { wch: 30 }, { wch: 8 }, { wch: 18 },
+      { wch: 30 }, { wch: 10 }, { wch: 8 }, { wch: 16 }, { wch: 16 }
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'NaRa Incentive');
+    const today = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `NaRa_Incentive_${today}.xlsx`);
+  }, [groupedEntries]);
+
+  useEffect(() => {
+    window.addEventListener('nara-incentive:export', handleExport);
+    return () => window.removeEventListener('nara-incentive:export', handleExport);
+  }, [handleExport]);
 
   const selectedGL = availableGLs.find(gl => gl.id === selectedGLId);
 

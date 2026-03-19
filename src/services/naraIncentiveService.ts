@@ -27,6 +27,7 @@ export interface NaraIncentiveSubmission {
   marketName: string;
   marketChain: string;
   marketAddress: string;
+  marketPostalCode: string;
   marketCity: string;
   totalValue: number;
   createdAt: string;

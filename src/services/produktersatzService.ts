@@ -18,6 +18,7 @@ export interface ProduktErsatzEntry {
   marketName: string;
   marketChain: string;
   marketAddress: string;
+  marketPostalCode: string;
   marketCity: string;
   reason: 'Produkttausch';
   notes: string | null;

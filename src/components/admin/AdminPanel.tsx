@@ -582,6 +582,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
               </button>
             </div>
           )}
+          {selectedPage === 'nara-incentive' && (
+            <div className={styles.headerButtons}>
+              <button
+                className={styles.exportButton}
+                onClick={() => window.dispatchEvent(new CustomEvent('nara-incentive:export'))}
+              >
+                <DownloadSimple size={18} weight="bold" />
+                <span>Export</span>
+              </button>
+            </div>
+          )}
+          {selectedPage === 'produktersatz' && (
+            <div className={styles.headerButtons}>
+              <button
+                className={styles.exportButton}
+                onClick={() => window.dispatchEvent(new CustomEvent('produktersatz:export'))}
+              >
+                <DownloadSimple size={18} weight="bold" />
+                <span>Export</span>
+              </button>
+            </div>
+          )}
         </header>
         
         <div className={styles.pageContent}>
