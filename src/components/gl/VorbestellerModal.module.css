@@ -2019,6 +2019,36 @@
   }
 }
 
+@media (max-width: 480px) {
+  .modalOverlay {
+    padding: 8px;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  .header,
+  .content {
+    padding: var(--space-md);
+  }
+
+  .cardContainer {
+    width: 240px;
+  }
+
+  .card {
+    width: 240px;
+  }
+
+  .cardImageContainer {
+    height: 130px;
+  }
+}
+
 
 /* Card Image Placeholder */
 .cardImagePlaceholder {
