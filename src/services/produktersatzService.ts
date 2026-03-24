@@ -6,6 +6,7 @@ export interface ProduktErsatzItem {
   productName: string;
   productBrand: string;
   productSize: string;
+  productPrice: number;
   quantity: number;
   itemType: 'take_out' | 'replace';
 }

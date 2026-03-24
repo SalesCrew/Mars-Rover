@@ -89,24 +89,22 @@ export const ProduktErsatzPage: React.FC = () => {
 
   const selectedGL = availableGLs.find(gl => gl.id === selectedGLId);
 
-  // Export handler — one row per submission, entnommen and ersetzt each summarised in one cell
+  // Export handler — two sheets: Entnommen and Ausgegeben, one row per product
   const handleExport = useCallback(() => {
     const ptEntries = entries.filter(e => e.reason === 'Produkttausch');
     const sorted = [...ptEntries].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    const headers = ['Datum', 'Gebietsleiter', 'Handelskette', 'Markt', 'Adresse', 'PLZ', 'Stadt', 'Notiz', 'Entnommen', 'Ersetzt durch'];
+    const headers = ['Datum', 'Gebietsleiter', 'Handelskette', 'Markt', 'Adresse', 'PLZ', 'Stadt', 'Produkt', 'Größe', 'Wert/Einheit (€)', 'Menge', 'Gesamtwert (€)'];
 
-    const rows: (string | number)[][] = [];
+    const entnommenRows: (string | number)[][] = [];
+    const ausgegebenRows: (string | number)[][] = [];
 
     for (const entry of sorted) {
       const dateStr = new Intl.DateTimeFormat('de-AT', {
         day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Vienna'
       }).format(new Date(entry.createdAt));
 
-      const summarise = (items: typeof entry.items) =>
-        items.map(i => '- ' + [i.productName, i.productBrand, i.productSize].filter(Boolean).join(' ') + ` ×${i.quantity}`).join('\n');
-
-      rows.push([
+      const base = [
         dateStr,
         entry.glName,
         entry.marketChain,
@@ -114,50 +112,73 @@ export const ProduktErsatzPage: React.FC = () => {
         entry.marketAddress || '',
         entry.marketPostalCode || '',
         entry.marketCity || '',
-        entry.notes || '',
-        summarise(entry.items.filter(i => i.itemType === 'take_out')),
-        summarise(entry.items.filter(i => i.itemType === 'replace')),
-      ]);
+      ];
+
+      for (const item of entry.items.filter(i => i.itemType === 'take_out')) {
+        entnommenRows.push([
+          ...base,
+          item.productName,
+          item.productSize || '',
+          Number(item.productPrice.toFixed(2)),
+          item.quantity,
+          Number((item.productPrice * item.quantity).toFixed(2)),
+        ]);
+      }
+
+      for (const item of entry.items.filter(i => i.itemType === 'replace')) {
+        ausgegebenRows.push([
+          ...base,
+          item.productName,
+          item.productSize || '',
+          Number(item.productPrice.toFixed(2)),
+          item.quantity,
+          Number((item.productPrice * item.quantity).toFixed(2)),
+        ]);
+      }
     }
 
-    const data = [headers, ...rows];
-    const worksheet: XLSX.WorkSheet = {};
+    const buildSheet = (rows: (string | number)[][]): XLSX.WorkSheet => {
+      const data = [headers, ...rows];
+      const worksheet: XLSX.WorkSheet = {};
 
-    data.forEach((row, rowIdx) => {
-      (row as (string | number)[]).forEach((cell, colIdx) => {
-        const cellAddress = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
-        if (rowIdx === 0) {
-          worksheet[cellAddress] = {
-            v: cell, t: 's',
-            s: {
-              fill: { fgColor: { rgb: '059669' } },
-              font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
-              alignment: { horizontal: 'center', vertical: 'center' },
-            }
-          };
-        } else {
-          const isNum = typeof cell === 'number';
-          worksheet[cellAddress] = {
-            v: cell, t: isNum ? 'n' : 's',
-            s: {
-              font: { sz: 10 },
-              alignment: { vertical: 'center', wrapText: colIdx >= 8 },
-              border: { bottom: { style: 'thin', color: { rgb: 'E2E8F0' } } },
-            }
-          };
-        }
+      data.forEach((row, rowIdx) => {
+        (row as (string | number)[]).forEach((cell, colIdx) => {
+          const cellAddress = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
+          if (rowIdx === 0) {
+            worksheet[cellAddress] = {
+              v: cell, t: 's',
+              s: {
+                fill: { fgColor: { rgb: '059669' } },
+                font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+                alignment: { horizontal: 'center', vertical: 'center' },
+              }
+            };
+          } else {
+            const isNum = typeof cell === 'number';
+            worksheet[cellAddress] = {
+              v: cell, t: isNum ? 'n' : 's',
+              s: {
+                font: { sz: 10 },
+                alignment: { vertical: 'center' },
+                border: { bottom: { style: 'thin', color: { rgb: 'E2E8F0' } } },
+              }
+            };
+          }
+        });
       });
-    });
 
-    worksheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: data.length - 1, c: headers.length - 1 } });
-    worksheet['!rows'] = data.map((_, idx) => ({ hpt: idx === 0 ? 22 : 18 }));
-    worksheet['!cols'] = [
-      { wch: 12 }, { wch: 22 }, { wch: 16 }, { wch: 28 }, { wch: 30 }, { wch: 8 }, { wch: 18 },
-      { wch: 20 }, { wch: 40 }, { wch: 40 }
-    ];
+      worksheet['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: data.length - 1, c: headers.length - 1 } });
+      worksheet['!rows'] = data.map((_, idx) => ({ hpt: idx === 0 ? 22 : 18 }));
+      worksheet['!cols'] = [
+        { wch: 12 }, { wch: 22 }, { wch: 16 }, { wch: 28 }, { wch: 30 }, { wch: 8 }, { wch: 18 },
+        { wch: 30 }, { wch: 10 }, { wch: 16 }, { wch: 8 }, { wch: 16 }
+      ];
+      return worksheet;
+    };
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Produkttausch');
+    XLSX.utils.book_append_sheet(workbook, buildSheet(entnommenRows), 'Entnommen');
+    XLSX.utils.book_append_sheet(workbook, buildSheet(ausgegebenRows), 'Ausgegeben');
     const today = new Date().toISOString().split('T')[0];
     XLSX.writeFile(workbook, `Produkttausch_${today}.xlsx`);
   }, [entries]);
