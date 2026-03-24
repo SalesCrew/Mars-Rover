@@ -230,8 +230,8 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         if (start != null && end != null) {
           totalKm += Math.max(0, end - start);
         }
-        // Privatnutzung: gap between this day's end and next day's start
-        if (i < sorted.length - 1 && end != null) {
+        // Privatnutzung: gap between this day's end and next day's start (only from 2026-03-20 onwards)
+        if (i < sorted.length - 1 && end != null && sorted[i].date >= '2026-03-20') {
           const nextStart = sorted[i + 1].start;
           if (nextStart != null && nextStart > end) {
             totalPrivatnutzung += nextStart - end;
