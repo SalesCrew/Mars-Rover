@@ -221,7 +221,6 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   }, []);
 
   const [selectedWelle, setSelectedWelle] = useState<Welle | null>(null);
-
   const [editingWelle, setEditingWelle] = useState<Welle | null>(null);
   const [isPastItemsModalOpen, setIsPastItemsModalOpen] = useState<boolean>(false);
   const [pastItemType, setPastItemType] = useState<'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt' | null>(null);
@@ -270,9 +269,77 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   const [newFixedTag, setNewFixedTag] = useState('');
   const [newOptionalTag, setNewOptionalTag] = useState('');
   const [isFotoOnly, setIsFotoOnly] = useState(false);
+  const [noLimitWelle, setNoLimitWelle] = useState(false);
   
   // Saving state
   const [isSaving, setIsSaving] = useState(false);
+
+  // Auto-populate all products when noLimitWelle is ON and user steps into a product step
+  useEffect(() => {
+    if (!noLimitWelle || !isCreateWelleModalOpen) return;
+    const typeForStep = getTypeForStep(currentStep);
+    if (typeForStep === 'display' && displays.length === 0 && productDisplays.length > 0) {
+      setDisplays(productDisplays.map((p, i) => ({
+        id: `auto-${Date.now()}-${i}`,
+        name: p.name,
+        targetNumber: '1',
+        picture: null,
+        itemValue: p.price?.toString() || ''
+      })));
+    }
+    if (typeForStep === 'palette' && paletteItems.length === 0 && productPalettes.length > 0) {
+      setPaletteItems(productPalettes.map((p, i) => ({
+        id: `auto-palette-${Date.now()}-${i}`,
+        name: p.name,
+        size: p.weight || '',
+        picture: null,
+        products: p.paletteProducts?.map((pp, j) => ({
+          id: `auto-pp-${Date.now()}-${i}-${j}`,
+          name: pp.name,
+          value: pp.value?.toString() || '',
+          ve: pp.ve?.toString() || '',
+          ean: pp.ean || ''
+        })) || [{ id: `auto-pp-empty-${Date.now()}-${i}`, name: '', value: '', ve: '', ean: '' }]
+      })));
+    }
+    if (typeForStep === 'schuette' && schutteItems.length === 0 && productSchuetten.length > 0) {
+      setSchutteItems(productSchuetten.map((p, i) => ({
+        id: `auto-schutte-${Date.now()}-${i}`,
+        name: p.name,
+        size: p.weight || '',
+        picture: null,
+        products: p.paletteProducts?.map((pp, j) => ({
+          id: `auto-sp-${Date.now()}-${i}-${j}`,
+          name: pp.name,
+          value: pp.value?.toString() || '',
+          ve: pp.ve?.toString() || '',
+          ean: pp.ean || ''
+        })) || [{ id: `auto-sp-empty-${Date.now()}-${i}`, name: '', value: '', ve: '', ean: '' }]
+      })));
+    }
+    if (typeForStep === 'einzelprodukt' && einzelprodukte.length === 0 && productStandard.length > 0) {
+      setEinzelprodukte(productStandard.map((p, i) => ({
+        id: `auto-ep-${Date.now()}-${i}`,
+        name: p.name,
+        targetNumber: '1',
+        picture: null,
+        itemValue: p.price?.toString() || ''
+      })));
+    }
+    if (typeForStep === 'kartonware' && kartonwareItems.length === 0) {
+      const allKartonware = getAllPastKartonware();
+      if (allKartonware.length > 0) {
+        setKartonwareItems(allKartonware.map((k, i) => ({
+          id: `auto-kw-${Date.now()}-${i}`,
+          name: k.name,
+          targetNumber: '1',
+          picture: null,
+          itemValue: k.itemValue?.toString() || ''
+        })));
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, noLimitWelle, isCreateWelleModalOpen]);
 
   const handleToggleType = (type: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt') => {
     // Deselect foto-only when a product type is selected
@@ -302,7 +369,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   };
 
   const handleNext = () => {
-    if (currentStep === 1 && selectedTypes.length === 0 && !isFotoOnly) return;
+    if (currentStep === 1 && selectedTypes.length === 0 && !isFotoOnly && !noLimitWelle) return;
+    // For noLimitWelle, auto-select all product types when advancing from step 1
+    if (noLimitWelle && currentStep === 1 && selectedTypes.length === 0) {
+      setSelectedTypes(['display', 'kartonware', 'palette', 'schuette', 'einzelprodukt']);
+    }
     setCurrentStep(prev => prev + 1);
   };
 
@@ -659,9 +730,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         startDate,
         endDate,
         types: isFotoOnly ? [] : selectedTypes,
-        goalType: isFotoOnly ? 'percentage' as const : goalType,
-        goalPercentage: isFotoOnly ? 100 : (goalType === 'percentage' ? parseFloat(goalPercentage) : null),
-        goalValue: isFotoOnly ? null : (goalType === 'value' ? parseFloat(goalValue) : null),
+        goalType: isFotoOnly ? 'percentage' as const : (noLimitWelle ? 'percentage' as const : goalType),
+        goalPercentage: isFotoOnly ? 100 : (noLimitWelle ? null : (goalType === 'percentage' ? parseFloat(goalPercentage) : null)),
+        goalValue: isFotoOnly ? null : (noLimitWelle ? null : (goalType === 'value' ? parseFloat(goalValue) : null)),
         displays: isFotoOnly ? [] : processedDisplays,
         kartonwareItems: isFotoOnly ? [] : processedKartonware,
         paletteItems: isFotoOnly ? [] : processedPalettes,
@@ -676,7 +747,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         fotoHeader: (isFotoOnly || fotoEnabled) ? fotoHeader : null,
         fotoDescription: (isFotoOnly || fotoEnabled) ? fotoDescription : null,
         fotoTags: (isFotoOnly || fotoEnabled) ? fotoTags : [],
-        fotoOnly: isFotoOnly
+        fotoOnly: isFotoOnly,
+        noLimitWelle: noLimitWelle
       };
 
       if (editingWelle) {
@@ -789,6 +861,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     setFotoDescription(welle.fotoDescription || '');
     setFotoTags((welle.fotoTags || []).map(t => ({ name: t.name, type: t.type })));
     setIsFotoOnly(welle.fotoOnly || false);
+    setNoLimitWelle(welle.noLimitWelle || false);
     
     // Open the modal
     onOpenCreateWelleModal();
@@ -974,6 +1047,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     setNewFixedTag('');
     setNewOptionalTag('');
     setIsFotoOnly(false);
+    setNoLimitWelle(false);
     setEditingWelle(null);
     setSelectedWelle(null);
     onCloseCreateWelleModal();
@@ -1063,6 +1137,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                       {statusConfig.icon}
                       <span>{statusConfig.label}</span>
                     </div>
+                    {welle.noLimitWelle && (
+                      <div className={styles.noLimitBadge}>
+                        <span>Gesamtliste</span>
+                      </div>
+                    )}
                     <button 
                       className={styles.welleEditButton}
                       onClick={(e) => {
@@ -1151,6 +1230,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                       {statusConfig.icon}
                       <span>{statusConfig.label}</span>
                     </div>
+                    {welle.noLimitWelle && (
+                      <div className={styles.noLimitBadge}>
+                        <span>Gesamtliste</span>
+                      </div>
+                    )}
                     <button 
                       className={styles.welleEditButton}
                       onClick={(e) => {
@@ -1239,6 +1323,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                       {statusConfig.icon}
                       <span>{statusConfig.label}</span>
                     </div>
+                    {welle.noLimitWelle && (
+                      <div className={styles.noLimitBadge}>
+                        <span>Gesamtliste</span>
+                      </div>
+                    )}
                     <button 
                       className={styles.welleEditButton}
                       onClick={(e) => {
@@ -1589,8 +1678,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                     </div>
                   </div>
 
-                  {/* Goal Type Selection - hidden for foto-only waves */}
-                  {!isFotoOnly && (
+                  {/* Goal Type Selection - hidden for foto-only waves and no-limit waves */}
+                  {!isFotoOnly && !noLimitWelle && (
                     <>
                       <div className={styles.formSection}>
                         <label className={styles.label}>Zieltyp für diese Welle</label>
@@ -2498,6 +2587,20 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                 </button>
               )}
               
+              {/* No-Limit toggle - shown only on step 1 */}
+              {currentStep === 1 && (
+                <button
+                  type="button"
+                  className={`${styles.noLimitToggle} ${noLimitWelle ? styles.noLimitToggleActive : ''}`}
+                  onClick={() => setNoLimitWelle(prev => !prev)}
+                >
+                  <div className={`${styles.noLimitToggleSwitch} ${noLimitWelle ? styles.noLimitToggleSwitchOn : ''}`}>
+                    <div className={styles.noLimitToggleKnob} />
+                  </div>
+                  <span>Gesamtliste</span>
+                </button>
+              )}
+
               <div className={styles.footerSpacer} />
 
               <button 
@@ -2510,9 +2613,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
               {currentStep < getTotalSteps() ? (
                 <button 
                   className={`${styles.nextButton} ${
-                    (currentStep === 1 && selectedTypes.length === 0 && !isFotoOnly) ||
+                    (currentStep === 1 && selectedTypes.length === 0 && !isFotoOnly && !noLimitWelle) ||
                     (currentStep === 2 && (!waveName || !startDate || !endDate || 
-                      (!isFotoOnly && ((goalType === 'percentage' && !goalPercentage) || 
+                      (!isFotoOnly && !noLimitWelle && ((goalType === 'percentage' && !goalPercentage) || 
                       (goalType === 'value' && !goalValue))))) ||
                     (getTypeForStep(currentStep) === 'display' && displays.length === 0) ||
                     (getTypeForStep(currentStep) === 'kartonware' && kartonwareItems.length === 0) ||
@@ -2522,9 +2625,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                   }`}
                   onClick={handleNext}
                   disabled={
-                    (currentStep === 1 && selectedTypes.length === 0 && !isFotoOnly) ||
+                    (currentStep === 1 && selectedTypes.length === 0 && !isFotoOnly && !noLimitWelle) ||
                     (currentStep === 2 && (!waveName || !startDate || !endDate || 
-                      (!isFotoOnly && ((goalType === 'percentage' && !goalPercentage) || 
+                      (!isFotoOnly && !noLimitWelle && ((goalType === 'percentage' && !goalPercentage) || 
                       (goalType === 'value' && !goalValue))))) ||
                     (getTypeForStep(currentStep) === 'display' && displays.length === 0) ||
                     (getTypeForStep(currentStep) === 'kartonware' && kartonwareItems.length === 0) ||

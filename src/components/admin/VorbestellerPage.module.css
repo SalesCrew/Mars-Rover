@@ -1343,3 +1343,77 @@
     max-width: none;
   }
 }
+
+/* ========== No-Limit Welle styles ========== */
+
+.noLimitToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: white;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748B;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.noLimitToggle:hover {
+  border-color: #F59E0B;
+  color: #92400E;
+}
+
+.noLimitToggleActive {
+  border-color: #F59E0B;
+  background: rgba(245, 158, 11, 0.06);
+  color: #92400E;
+}
+
+.noLimitToggleSwitch {
+  width: 34px;
+  height: 20px;
+  border-radius: 10px;
+  background: #CBD5E1;
+  position: relative;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.noLimitToggleSwitchOn {
+  background: #F59E0B;
+}
+
+.noLimitToggleKnob {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.noLimitToggleSwitchOn .noLimitToggleKnob {
+  transform: translateX(14px);
+}
+
+.noLimitBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #B45309;
+  letter-spacing: 0.02em;
+  margin-right: auto;
+}

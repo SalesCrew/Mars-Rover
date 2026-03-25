@@ -85,6 +85,7 @@ interface Welle {
   goalPercentage?: number | null;
   goalValue?: number | null;
   assignedMarketIds?: string[];
+  noLimitWelle?: boolean;
 }
 
 interface WelleDetailModalProps {
@@ -250,12 +251,16 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
                 <Target size={20} weight="duotone" />
               </div>
               <div className={styles.quickStatInfo}>
-                <span className={styles.quickStatValue}>
-                  {welle.goalType === 'value' 
-                    ? `€${(welle.goalValue || 0).toLocaleString('de-DE')}`
-                    : `${welle.goalPercentage || 80}%`
-                  }
-                </span>
+                {welle.noLimitWelle ? (
+                  <span className={styles.noLimitQuickBadge}>Gesamtliste</span>
+                ) : (
+                  <span className={styles.quickStatValue}>
+                    {welle.goalType === 'value' 
+                      ? `€${(welle.goalValue || 0).toLocaleString('de-DE')}`
+                      : `${welle.goalPercentage || 80}%`
+                    }
+                  </span>
+                )}
                 <span className={styles.quickStatLabel}>Ziel</span>
               </div>
             </div>
@@ -288,7 +293,8 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
             </div>
           </div>
 
-          {/* Overall Progress Card */}
+          {/* Overall Progress Card - hidden for no-limit wellen */}
+          {!welle.noLimitWelle && (
           <div className={styles.progressCard}>
             <div className={styles.progressCardHeader}>
               <h3 className={styles.progressCardTitle}>Gesamtfortschritt</h3>
@@ -326,6 +332,7 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
               <span>{totalCurrent} von {totalTarget} Artikeln verkauft</span>
             </div>
           </div>
+          )}
 
           {/* Items Grid */}
           <div className={styles.itemsSection}>
