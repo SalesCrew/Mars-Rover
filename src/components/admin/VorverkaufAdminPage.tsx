@@ -23,7 +23,7 @@ export const VorverkaufAdminPage: React.FC<VorverkaufAdminPageProps> = () => {
     try {
       setIsLoading(true);
       const allEntries = await vorverkaufService.getAllEntries();
-      setEntries(allEntries);
+      setEntries(allEntries.filter(e => e.reason !== 'Produkttausch'));
     } catch (error) {
       console.error('Error loading vorverkauf entries:', error);
     } finally {

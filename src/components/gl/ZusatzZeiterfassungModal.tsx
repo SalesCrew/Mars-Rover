@@ -20,7 +20,8 @@ import {
   MagnifyingGlass,
   MapPin,
   Airplane,
-  CalendarBlank
+  CalendarBlank,
+  Buildings
 } from '@phosphor-icons/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../config/database';
@@ -288,6 +289,7 @@ interface ZusatzEntry {
   market_id?: string;
   marketName?: string;
   entryDate?: string;
+  schulungOrt?: string;
 }
 
 interface MarketVisitTime {
@@ -315,6 +317,12 @@ const reasons = [
   { id: 'heimfahrt', label: 'Heimfahrt', icon: Path, isDeduction: false, requiresComment: false, requiresMarket: false },
   { id: 'hotel', label: 'Hotelübernachtung', icon: Bed, isDeduction: false, requiresComment: false, requiresMarket: false },
   { id: 'dienstreise', label: 'Dienstreise', icon: Airplane, isDeduction: false, requiresComment: false, requiresMarket: false },
+];
+
+const SCHULUNG_ORT_OPTIONS = [
+  { id: 'auto', label: 'Auto', icon: Car },
+  { id: 'buero', label: 'Büro', icon: Buildings },
+  { id: 'homeoffice', label: 'Homeoffice', icon: House },
 ];
 
 const calculateDuration = (von: string, bis: string): string => {
@@ -399,6 +407,7 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
   const [kommentar, setKommentar] = useState('');
   const [entryDate, setEntryDate] = useState('');
   const [activeTimePicker, setActiveTimePicker] = useState<'von' | 'bis' | null>(null);
+  const [schulungOrt, setSchulungOrt] = useState<string | null>(null);
 
   // Market selection state (for sonderaufgabe)
   const [markets, setMarkets] = useState<MarketItem[]>([]);
@@ -467,6 +476,7 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
       setSelectedMarketName('');
       setMarketSearch('');
       setEntryDate(todayStr);
+      setSchulungOrt(null);
     }
   }, [isOpen, todayStr]);
 
@@ -479,6 +489,7 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
     setSelectedMarketId(null);
     setSelectedMarketName('');
     setMarketSearch('');
+    setSchulungOrt(null);
     const reason = reasons.find(r => r.id === reasonId);
     if (reason?.requiresMarket) {
       setStep('market');
@@ -504,6 +515,7 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
       market_id: selectedMarketId || undefined,
       marketName: selectedMarketName || undefined,
       entryDate: entryDate || todayStr,
+      schulungOrt: schulungOrt || undefined,
     };
 
     setEntries(prev => [...prev, newEntry]);
@@ -516,6 +528,7 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
     setSelectedMarketId(null);
     setSelectedMarketName('');
     setMarketSearch('');
+    setSchulungOrt(null);
   };
 
   const handleRemoveEntry = (id: string) => {
@@ -763,10 +776,36 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
                 </div>
               </div>
 
-              <div className={styles.durationDisplay}>
-                <span className={styles.durationLabel}>DAUER:</span>
-                <span className={styles.durationValue}>{duration}</span>
-              </div>
+              {selectedReason !== 'schulung' && (
+                <div className={styles.durationDisplay}>
+                  <span className={styles.durationLabel}>DAUER:</span>
+                  <span className={styles.durationValue}>{duration}</span>
+                </div>
+              )}
+
+              {/* Schulung location picker */}
+              {selectedReason === 'schulung' && (
+                <div className={styles.schulungOrtField}>
+                  <label className={styles.schulungOrtLabel}>ORT</label>
+                  <div className={styles.schulungOrtPills}>
+                    {SCHULUNG_ORT_OPTIONS.map(opt => {
+                      const IconComp = opt.icon;
+                      const isSelected = schulungOrt === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          className={`${styles.schulungOrtPill} ${isSelected ? styles.schulungOrtPillSelected : ''}`}
+                          onClick={() => setSchulungOrt(opt.id)}
+                        >
+                          <IconComp size={20} weight={isSelected ? 'fill' : 'regular'} />
+                          <span>{opt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Overlap Warning */}
               {hasOverlap && overlappingVisit && (
@@ -807,7 +846,7 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
               <button 
                 className={styles.addButton}
                 onClick={handleAddEntry}
-                disabled={!von || !bis || duration === '--:--' || hasOverlap || (selectedReasonData?.requiresComment && !kommentar.trim())}
+                disabled={!von || !bis || duration === '--:--' || hasOverlap || (selectedReasonData?.requiresComment && !kommentar.trim()) || (selectedReason === 'schulung' && !schulungOrt)}
               >
                 <Plus size={20} weight="bold" />
                 <span>Zeiteintrag hinzufügen</span>
@@ -832,6 +871,11 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
                         <span className={styles.entryReason}>
                           {entry.reasonLabel}
                           {entry.marketName && <span className={styles.entryMarketName}> - {entry.marketName}</span>}
+                          {entry.schulungOrt && (
+                            <span className={styles.schulungOrtEntryBadge}>
+                              {entry.schulungOrt === 'auto' ? 'Auto' : entry.schulungOrt === 'buero' ? 'Büro' : 'Homeoffice'}
+                            </span>
+                          )}
                         </span>
                         <span className={styles.entryTime}>
                           {entry.entryDate && entry.entryDate !== todayStr && (
