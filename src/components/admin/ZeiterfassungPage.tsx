@@ -1784,6 +1784,9 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                       <div className={styles.fahrzeitInfo}>
                                         <Car size={16} weight="fill" />
                                         <span className={styles.fahrzeitLabel}>Anfahrt</span>
+                                        {dayTracking.km_stand_start != null && (
+                                          <span className={styles.kmBadge}>{dayTracking.km_stand_start} km</span>
+                                        )}
                                         {editingTimeId === anfahrtEditKey ? renderAnfahrtTimeEdit(anfahrtEditKey, dayTracking.day_start_time) : (
                                           <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(anfahrtEditKey, dayTracking.day_start_time!, '')}>
                                             <span className={styles.fahrzeitTime}>
@@ -1793,9 +1796,6 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                               {formatGap(anfahrtMinutes)}
                                             </span>
                                           </div>
-                                        )}
-                                        {dayTracking.km_stand_start != null && (
-                                          <span className={styles.kmBadge}>{dayTracking.km_stand_start} km</span>
                                         )}
                                       </div>
                                     </div>
@@ -1943,6 +1943,9 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                       <div className={styles.fahrzeitInfo}>
                                         <Car size={16} weight="fill" />
                                         <span className={styles.fahrzeitLabel}>Heimfahrt</span>
+                                        {dayTracking.km_stand_end != null && (
+                                          <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
+                                        )}
                                         {editingTimeId === heimfahrtEditKey ? renderHeimfahrtTimeEdit(heimfahrtEditKey) : (
                                           <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
                                             <span className={styles.fahrzeitTime}>
@@ -1952,9 +1955,6 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                               {formatGap(heimfahrtMinutes)}
                                             </span>
                                           </div>
-                                        )}
-                                        {dayTracking.km_stand_end != null && (
-                                          <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
                                         )}
                                       </div>
                                     </div>
@@ -2342,6 +2342,9 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                     <div className={styles.fahrzeitInfo}>
                                       <Car size={16} weight="fill" />
                                       <span className={styles.fahrzeitLabel}>Anfahrt</span>
+                                      {dayTracking.km_stand_start != null && (
+                                        <span className={styles.kmBadge}>{dayTracking.km_stand_start} km</span>
+                                      )}
                                       {editingTimeId === anfahrtEditKey ? renderAnfahrtTimeEdit(anfahrtEditKey, dayTracking.day_start_time) : (
                                         <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(anfahrtEditKey, dayTracking.day_start_time!, '')}>
                                           <span className={styles.fahrzeitTime}>
@@ -2351,9 +2354,6 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                             {formatGap(anfahrtMinutes)}
                                           </span>
                                         </div>
-                                      )}
-                                      {dayTracking.km_stand_start != null && (
-                                        <span className={styles.kmBadge}>{dayTracking.km_stand_start} km</span>
                                       )}
                                     </div>
                                   </div>
@@ -2498,6 +2498,9 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                     <div className={styles.fahrzeitInfo}>
                                       <Car size={16} weight="fill" />
                                       <span className={styles.fahrzeitLabel}>Heimfahrt</span>
+                                      {dayTracking.km_stand_end != null && (
+                                        <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
+                                      )}
                                       {editingTimeId === heimfahrtEditKey ? renderHeimfahrtTimeEdit(heimfahrtEditKey) : (
                                         <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
                                           <span className={styles.fahrzeitTime}>
@@ -2507,9 +2510,6 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                             {formatGap(heimfahrtMinutes)}
                                           </span>
                                         </div>
-                                      )}
-                                      {dayTracking.km_stand_end != null && (
-                                        <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
                                       )}
                                     </div>
                                   </div>

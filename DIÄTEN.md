@@ -56,23 +56,33 @@ Sondertarife für Hin-/Rückreisetag:
 
 ---
 
-## Ausgeschlossene Kategorien
+## Kategorien-Übersicht (ZE-Tool)
 
-Folgende ZusatzZeiterfassung-Typen zählen **nicht** für Diäten:
+Alle Zeiterfassungs-Kategorien und ob sie Diäten auslösen:
 
-| Kategorie     | Grund                                      |
-|---------------|--------------------------------------------|
-| Arztbesuche   | Kein Dienstreise-Mehraufwand               |
-| Home Office   | Kein Aufenthalt außerhalb des Dienstortes  |
-| Büro          | Kein Aufenthalt außerhalb des Dienstortes  |
+| Kategorie             | Diäten: ja | Diäten: nein | Anmerkung                                              |
+|-----------------------|:----------:|:------------:|--------------------------------------------------------|
+| Marktbesuch           | ✓          |              |                                                        |
+| Sonderaufgabe         | ✓          |              |                                                        |
+| Arztbesuch            |            | ✓            |                                                        |
+| Werkstatt/Autoreinigung | ✓        |              |                                                        |
+| Homeoffice            |            | ✓            |                                                        |
+| Schulung/Meeting      | (bedingt)  | (bedingt)    | Nur wenn Ort = **Auto** → zählt; Büro/Homeoffice → nein |
+| Lager                 | ✓          |              |                                                        |
+| Hotel-Übernachtung    | ✓          |              |                                                        |
+| Dienstreise           | ✓          |              |                                                        |
+| Unterbrechung         |            | ✓            |                                                        |
+| Heimfahrt             | ✓          |              |                                                        |
 
-> **Schulung:** Noch offen — muss noch geklärt werden ob und wie Schulungstage für Diäten zählen.
+### Schulung — Sonderregel
 
----
+Beim Einreichen einer Schulung muss der GL einen Ort auswählen (`Auto`, `Büro`, `Homeoffice`):
 
-## Zukünftige Erweiterungen (geplant)
+- **Auto** (unterwegs/auswärts) → zählt **für Diäten**
+- **Büro** → zählt **nicht** für Diäten (kein Aufenthalt außerhalb des Dienstortes)
+- **Homeoffice** → zählt **nicht** für Diäten (kein Aufenthalt außerhalb des Dienstortes)
 
-- [ ] **Ort-Angabe bei ZusatzZeiterfassung:** GL soll beim Eintrag auswählen können: `Home Office`, `Auto` (unterwegs), `Büro` — für korrekte Diäten-Zuordnung und Auswertung
+Das Ort-Feld (`schulung_ort`) ist in `fb_zusatz_zeiterfassung` gespeichert und muss bei der Diäten-Berechnung ausgewertet werden.
 
 ---
 

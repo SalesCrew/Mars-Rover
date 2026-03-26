@@ -20,6 +20,7 @@ import { MarketImportPreviewModal } from './MarketImportPreviewModal';
 import { AdminAccountsModal } from './AdminAccountsModal';
 import { ExcelColumnMapper } from './ExcelColumnMapper';
 import { MarketExcelColumnMapper } from './MarketExcelColumnMapper';
+import { ZeiterfassungExportModal } from './ZeiterfassungExportModal';
 import { ExportDataModal } from './ExportDataModal';
 import { validateImportFile } from '../../utils/marketImporter';
 import { actionHistoryService, type ActionHistoryEntry } from '../../services/actionHistoryService';
@@ -91,6 +92,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [marketColumnMapperFile, setMarketColumnMapperFile] = useState<File | null>(null);
   const [availableGLs, setAvailableGLs] = useState<Array<{ id: string; name: string }>>([]);
   const [zeiterfassungViewMode, setZeiterfassungViewMode] = useState<'date' | 'profile'>('date');
+  const [showZeiterfassungExportModal, setShowZeiterfassungExportModal] = useState(false);
   const { logout } = useAuth();
 
   // Save selected page to localStorage whenever it changes
@@ -575,7 +577,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
               <div className={styles.headerDivider} />
               <button 
                 className={styles.exportButton}
-                onClick={() => window.dispatchEvent(new CustomEvent('zeiterfassung:export'))}
+                onClick={() => setShowZeiterfassungExportModal(true)}
               >
                 <DownloadSimple size={18} weight="bold" />
                 <span>Export</span>
@@ -1198,6 +1200,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
 
       {/* Dev Panel - Shift+G then H to toggle */}
       <DevPanel onCompleteNextMarket={() => console.log('Admin dev action')} />
+
+      {/* Zeiterfassung Export Picker Modal */}
+      <ZeiterfassungExportModal
+        isOpen={showZeiterfassungExportModal}
+        onClose={() => setShowZeiterfassungExportModal(false)}
+        onExportZeiterfassung={() => {
+          setShowZeiterfassungExportModal(false);
+          window.dispatchEvent(new CustomEvent('zeiterfassung:export'));
+        }}
+        onExportDiaeten={() => {
+          setShowZeiterfassungExportModal(false);
+          // Diäten export — logic to be implemented
+        }}
+      />
     </div>
   );
 };
