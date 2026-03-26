@@ -1209,9 +1209,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
           setShowZeiterfassungExportModal(false);
           window.dispatchEvent(new CustomEvent('zeiterfassung:export'));
         }}
-        onExportDiaeten={() => {
+        onExportDiaeten={(month: number, year: number) => {
           setShowZeiterfassungExportModal(false);
-          // Diäten export — logic to be implemented
+          window.dispatchEvent(new CustomEvent('zeiterfassung:export-diaeten', { detail: { month, year } }));
         }}
       />
     </div>

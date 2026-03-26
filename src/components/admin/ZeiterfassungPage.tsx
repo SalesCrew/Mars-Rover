@@ -103,6 +103,7 @@ interface ZusatzZeiterfassungEntry {
   is_work_time_deduction: boolean;
   market_id?: string;
   market?: { id: string; name: string; chain: string } | null;
+  schulung_ort?: string | null;
   created_at: string;
   gebietsleiter?: {
     id: string;
@@ -941,6 +942,399 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
     window.addEventListener('zeiterfassung:export', handleExport);
     return () => window.removeEventListener('zeiterfassung:export', handleExport);
   }, [viewMode, entries, zusatzEntries, selectedGLId]);
+
+  // Diäten export handler
+  useEffect(() => {
+    const handleDiaetenExport = async (e: Event) => {
+      const { month, year } = (e as CustomEvent).detail as { month: number; year: number };
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const monthStr = String(month + 1).padStart(2, '0');
+
+      const DIAETEN_VALID_ZUSATZ: Set<string> = new Set([
+        'marktbesuch', 'sonderaufgabe', 'werkstatt', 'lager', 'hotel', 'dienstreise', 'heimfahrt'
+      ]);
+
+      const hmToFraction = (hm: string): number => {
+        if (!hm) return 0;
+        const parts = hm.split(':').map(Number);
+        return ((parts[0] || 0) + (parts[1] || 0) / 60) / 24;
+      };
+
+      const berechneDiaet = (stunden: number): number => {
+        if (stunden < 6) return 0;
+        const volleUeber6 = Math.floor(stunden - 6);
+        return Math.min(9.77 + volleUeber6 * 4.03, 31.77);
+      };
+
+      const jsDateToSerial = (d: Date): number => Math.round(d.getTime() / 86400000 + 25569);
+
+      const glMap: Record<string, { firstName: string; lastName: string }> = {};
+      entries.forEach(en => {
+        if (!glMap[en.gebietsleiter_id]) {
+          glMap[en.gebietsleiter_id] = { firstName: en.gebietsleiter.first_name, lastName: en.gebietsleiter.last_name };
+        }
+      });
+      zusatzEntries.forEach(z => {
+        if (z.gebietsleiter && !glMap[z.gebietsleiter_id]) {
+          glMap[z.gebietsleiter_id] = { firstName: z.gebietsleiter.first_name, lastName: z.gebietsleiter.last_name };
+        }
+      });
+
+      const glIds = Object.keys(glMap);
+      if (glIds.length === 0) return;
+
+      // ── Shared constants ──
+      type DayData = { startFrac: number; endFrac: number; locations: Set<string>; reasons: Set<string>; kmStart: number | null; kmEnd: number | null };
+      const PAUSE_FRAC = 30 / (24 * 60);
+      const DATE_FMT = 'DD.MM.YYYY';
+      const TIME_FMT = 'HH:MM';
+      const EURO_FMT = '#,##0.00" €"';
+      const NUM2_FMT = '0.00';
+
+      // ── Colors (matching reference Excel) ──
+      const CLR_PURPLE = 'F2CFEE';
+      const CLR_HDR_GREY = 'D9D9D9';
+      const CLR_SUB_GREY = 'E8E8E8';
+      const CLR_DATA_GREY = 'BFBFBF';
+      const CLR_TOTAL_BG = 'D9D9D9';
+
+      // ── Borders ──
+      const allBorder = {
+        top:    { style: 'thin' as const, color: { rgb: 'B0B0B0' } },
+        bottom: { style: 'thin' as const, color: { rgb: 'B0B0B0' } },
+        left:   { style: 'thin' as const, color: { rgb: 'B0B0B0' } },
+        right:  { style: 'thin' as const, color: { rgb: 'B0B0B0' } },
+      };
+      const noBorder = {};
+
+      const buildWorkbook = (glId: string, glFullName: string) => {
+        const dayData: Record<number, DayData> = {};
+        const ensureDay = (d: number): DayData => {
+          if (!dayData[d]) dayData[d] = { startFrac: 1, endFrac: 0, locations: new Set(), reasons: new Set(), kmStart: null, kmEnd: null };
+          return dayData[d];
+        };
+
+        // 1) Market visits (fb_zeiterfassung_submissions)
+        entries.filter(en => en.gebietsleiter_id === glId).forEach(en => {
+          const entryDate = toViennaDate(en.created_at);
+          if (!entryDate.startsWith(`${year}-${monthStr}`)) return;
+          const dayNum = parseInt(entryDate.split('-')[2], 10);
+          const dd = ensureDay(dayNum);
+          const s = en.fahrzeit_von || en.besuchszeit_von;
+          const eEnd = en.besuchszeit_bis || en.fahrzeit_bis;
+          if (s) dd.startFrac = Math.min(dd.startFrac, hmToFraction(s));
+          if (eEnd) dd.endFrac = Math.max(dd.endFrac, hmToFraction(eEnd));
+          if (en.market?.name) {
+            const parts = [en.market.name, en.market.address, en.market.city].filter(Boolean);
+            if (en.market.postal_code) parts.push(en.market.postal_code);
+            dd.locations.add(parts.join(', '));
+          }
+          dd.reasons.add('Marktbesuch');
+        });
+
+        // 2) Zusatz entries
+        zusatzEntries.filter(z => z.gebietsleiter_id === glId).forEach(z => {
+          if (!z.entry_date?.startsWith(`${year}-${monthStr}`)) return;
+          const reason = (z.reason || '').toLowerCase();
+          if (reason === 'schulung') {
+            const ort = (z.schulung_ort || '').toLowerCase();
+            if (ort !== 'auto') return;
+          } else if (!DIAETEN_VALID_ZUSATZ.has(reason)) {
+            return;
+          }
+          const dayNum = parseInt(z.entry_date.split('-')[2], 10);
+          const dd = ensureDay(dayNum);
+          if (z.zeit_von) dd.startFrac = Math.min(dd.startFrac, hmToFraction(z.zeit_von));
+          if (z.zeit_bis) dd.endFrac = Math.max(dd.endFrac, hmToFraction(z.zeit_bis));
+          if (z.market?.name) dd.locations.add(z.market.name);
+          const labels: Record<string, string> = {
+            marktbesuch: 'Marktbesuch', sonderaufgabe: 'Sonderaufgabe', werkstatt: 'Werkstatt',
+            lager: 'Lager', hotel: 'Hotel', dienstreise: 'Dienstreise', heimfahrt: 'Heimfahrt', schulung: 'Schulung (Auto)'
+          };
+          dd.reasons.add(labels[reason] || z.reason_label || reason);
+        });
+
+        // 3) Day tracking
+        Object.entries(dayTrackingData).forEach(([key, dt]) => {
+          const dateMatch = key.match(/^(\d{4}-\d{2}-\d{2})-(.+)$/);
+          if (!dateMatch || dateMatch[2] !== glId) return;
+          const dateStr = dateMatch[1];
+          if (!dateStr.startsWith(`${year}-${monthStr}`)) return;
+          const dayNum = parseInt(dateStr.split('-')[2], 10);
+          const dd = ensureDay(dayNum);
+          if (dt.day_start_time) dd.startFrac = Math.min(dd.startFrac, hmToFraction(dt.day_start_time));
+          if (dt.day_end_time) dd.endFrac = Math.max(dd.endFrac, hmToFraction(dt.day_end_time));
+          if (dt.km_stand_start != null) dd.kmStart = dt.km_stand_start;
+          if (dt.km_stand_end != null) dd.kmEnd = dt.km_stand_end;
+        });
+
+        // ── Build worksheet ──
+        const ws: XLSX.WorkSheet = {};
+
+        const mkStyle = (overrides: Record<string, unknown> = {}) => ({
+          font: { sz: 10, color: { rgb: '000000' } },
+          border: allBorder,
+          alignment: { vertical: 'center' as const },
+          ...overrides,
+        });
+
+        const cell = (r: number, c: number, v: string | number | null | undefined, opts?: { t?: string; z?: string; s?: Record<string, unknown> }) => {
+          const addr = XLSX.utils.encode_cell({ r, c });
+          const tp = opts?.t || (typeof v === 'number' ? 'n' : 's');
+          ws[addr] = {
+            v: v ?? '', t: tp,
+            s: mkStyle(opts?.s || {}),
+            ...(opts?.z ? { z: opts.z } : {}),
+          };
+        };
+
+        const hdr = (r: number, c: number, v: string, extra?: Record<string, unknown>) => {
+          const addr = XLSX.utils.encode_cell({ r, c });
+          ws[addr] = {
+            v, t: 's',
+            s: mkStyle({
+              font: { bold: true, sz: 10, color: { rgb: '000000' } },
+              alignment: { wrapText: true, vertical: 'center' as const },
+              ...extra,
+            }),
+          };
+        };
+
+        // ═══════════════════════════════════════════
+        // BLOCK 1 — HEADER (rows 0-9)
+        // ═══════════════════════════════════════════
+        hdr(0, 0, 'Diäten Dokumentation', {
+          font: { bold: true, sz: 16, color: { rgb: '000000' } },
+          border: noBorder,
+        });
+
+        hdr(2, 0, 'Name', { border: noBorder });
+        cell(2, 2, glFullName, {
+          s: { font: { bold: true, sz: 11, color: { rgb: '000000' } }, fill: { fgColor: { rgb: CLR_PURPLE } }, border: noBorder },
+        });
+        hdr(2, 6, 'Adresse', { border: noBorder });
+
+        hdr(4, 0, 'Abrechnungszeitraum', { border: noBorder });
+        cell(4, 2, jsDateToSerial(new Date(year, month, 1)), {
+          t: 'n', z: DATE_FMT,
+          s: { fill: { fgColor: { rgb: CLR_PURPLE } }, border: noBorder },
+        });
+        cell(4, 6, '← Bitte Monat auswählen!', { s: { font: { italic: true, sz: 9, color: { rgb: '999999' } }, border: noBorder } });
+
+        hdr(6, 0, 'Firma', { border: noBorder });
+        cell(6, 2, 'Merchandising - Institut für Verkaufsförderung', {
+          s: { fill: { fgColor: { rgb: CLR_PURPLE } }, border: noBorder },
+        });
+
+        cell(8, 6, 'Bitte Legende unterhalb der Abrechnung beachten!', {
+          s: { font: { italic: true, sz: 9, color: { rgb: '999999' } }, border: noBorder },
+        });
+        cell(8, 7, 'Bei Auslandsaufenthalt:\nRücksprache mit Projektleitung', {
+          s: { font: { italic: true, sz: 9, color: { rgb: '999999' } }, alignment: { wrapText: true }, border: noBorder },
+        });
+
+        hdr(9, 0, 'Diäten (kalendertagbasiert)', {
+          font: { bold: true, sz: 12, color: { rgb: '000000' } },
+          border: noBorder,
+        });
+
+        // ═══════════════════════════════════════════
+        // BLOCK 2 — COLUMN HEADERS (rows 11-12)
+        // ═══════════════════════════════════════════
+        const hdrFill = { fill: { fgColor: { rgb: CLR_HDR_GREY } } };
+        const colHeaders = [
+          'Datum ', 'Dienstreise:\nBeginn', 'Dienstreise:\nEnde', 'Pause',
+          'Dienstreise Dauer', 'Ort (genaue Adresse angeben)', 'Kunde und/oder Grund',
+          'bezahlte Nächtigung?', 'Taggeld Inland', 'Taggeld Inland steuerfrei',
+          'Taggeld Inland zu Versteuern', 'KM-Stand Beginn', 'KM-Stand Ende',
+          'erstattungs- fähige Nächtigung? (ohne Beleg)', 'pauschales Nächtigungs-geld Inland',
+          'Abwesenheit in h'
+        ];
+        colHeaders.forEach((h, c) => hdr(11, c, h, { ...hdrFill, alignment: { wrapText: true, vertical: 'center' as const, horizontal: 'center' as const } }));
+
+        const subFill = { fill: { fgColor: { rgb: CLR_SUB_GREY } } };
+        const subH = ['Datum ', 'Uhrzeit', 'Uhrzeit', 'Zeit', 'Zeit', '', '', ':H = Hinfahrt\nM = Mitteltag\nR = Rückfahrt', '', '', '', '', '', 'X', '', ''];
+        subH.forEach((h, c) => hdr(12, c, h, { ...subFill, font: { sz: 9, italic: true, color: { rgb: '555555' } }, alignment: { wrapText: true, vertical: 'center' as const, horizontal: 'center' as const } }));
+
+        // ═══════════════════════════════════════════
+        // BLOCK 3 — DATA ROWS (rows 13 to 13+daysInMonth-1)
+        // ═══════════════════════════════════════════
+        let sumTaggeld = 0, sumFrei = 0, sumPflichtig = 0;
+        const purpleFill = { fill: { fgColor: { rgb: CLR_PURPLE } } };
+        const greyFill = { fill: { fgColor: { rgb: CLR_DATA_GREY } } };
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const row = 12 + d;
+          cell(row, 0, jsDateToSerial(new Date(year, month, d)), { t: 'n', z: DATE_FMT });
+
+          const dd = dayData[d];
+          if (!dd || dd.startFrac >= dd.endFrac) {
+            for (let c = 1; c <= 7; c++) cell(row, c, '');
+            cell(row, 3, '', { s: {} }); cell(row, 4, '', { s: {} });
+            cell(row, 8, '', { s: greyFill }); cell(row, 9, '', { s: purpleFill }); cell(row, 10, ' ', { s: greyFill });
+            cell(row, 11, ''); cell(row, 12, '');
+            cell(row, 13, ''); cell(row, 14, '', { s: {} }); cell(row, 15, 0, { t: 'n', z: NUM2_FMT });
+            continue;
+          }
+
+          const rawH = (dd.endFrac - dd.startFrac) * 24;
+          const hasPause = rawH > 6;
+          const pFrac = hasPause ? PAUSE_FRAC : 0;
+          const durFrac = dd.endFrac - dd.startFrac - pFrac;
+          const abwH = durFrac * 24;
+
+          const tg = berechneDiaet(abwH);
+          const sf = Math.min(tg, 30);
+          const sp = Math.max(0, +(tg - 30).toFixed(2));
+          sumTaggeld += tg; sumFrei += sf; sumPflichtig += sp;
+
+          cell(row, 1, dd.startFrac, { t: 'n', z: TIME_FMT, s: purpleFill });
+          cell(row, 2, dd.endFrac, { t: 'n', z: TIME_FMT, s: purpleFill });
+          cell(row, 3, hasPause ? PAUSE_FRAC : '', { t: hasPause ? 'n' : 's', z: TIME_FMT, s: purpleFill });
+          cell(row, 4, durFrac, { t: 'n', z: TIME_FMT, s: purpleFill });
+          cell(row, 5, Array.from(dd.locations).join('\n'), { s: { alignment: { wrapText: true, vertical: 'top' as const } } });
+          cell(row, 6, Array.from(dd.reasons).join(', '));
+          cell(row, 7, '');
+          cell(row, 8, tg > 0 ? tg : '', { t: tg > 0 ? 'n' : 's', z: EURO_FMT, s: greyFill });
+          cell(row, 9, tg > 0 ? sf : '', { t: tg > 0 ? 'n' : 's', z: EURO_FMT, s: purpleFill });
+          cell(row, 10, sp > 0 ? sp : '-', { t: sp > 0 ? 'n' : 's', z: sp > 0 ? EURO_FMT : undefined, s: greyFill });
+          cell(row, 11, dd.kmStart != null ? dd.kmStart : '', { t: dd.kmStart != null ? 'n' : 's' });
+          cell(row, 12, dd.kmEnd != null ? dd.kmEnd : '', { t: dd.kmEnd != null ? 'n' : 's' });
+          cell(row, 13, '');
+          cell(row, 14, '');
+          cell(row, 15, +abwH.toFixed(2), { t: 'n', z: NUM2_FMT });
+        }
+
+        // ═══════════════════════════════════════════
+        // BLOCK 4 — TOTALS ROW
+        // ═══════════════════════════════════════════
+        const totRow = 13 + daysInMonth;
+        const totStyle = { font: { bold: true, sz: 10, color: { rgb: '000000' } }, fill: { fgColor: { rgb: CLR_TOTAL_BG } } };
+        hdr(totRow, 0, 'Gesamt', { ...totStyle });
+        for (let c = 1; c <= 7; c++) cell(totRow, c, '', { s: totStyle });
+        cell(totRow, 8, sumTaggeld, { t: 'n', z: EURO_FMT, s: totStyle });
+        cell(totRow, 9, sumFrei, { t: 'n', z: EURO_FMT, s: totStyle });
+        cell(totRow, 10, sumPflichtig, { t: 'n', z: EURO_FMT, s: totStyle });
+        for (let c = 11; c <= 13; c++) cell(totRow, c, '', { s: totStyle });
+        cell(totRow, 14, 0, { t: 'n', z: EURO_FMT, s: totStyle });
+        cell(totRow, 15, '', { s: totStyle });
+
+        // ═══════════════════════════════════════════
+        // BLOCK 5 — FOOTER SUMMARY
+        // ═══════════════════════════════════════════
+        const fRow = totRow + 2;
+        hdr(fRow, 0, 'Gesamtsumme Taggelder Inland:', { border: noBorder });
+        cell(fRow, 14, sumTaggeld, { t: 'n', z: EURO_FMT, s: { font: { bold: true, sz: 11 }, border: noBorder } });
+        hdr(fRow + 1, 0, 'Gesamtsumme der pauschalen Nächtigungsgelder:', { border: noBorder });
+        cell(fRow + 1, 14, 0, { t: 'n', z: EURO_FMT, s: { border: noBorder } });
+        hdr(fRow + 3, 0, 'Auszahlungsbetrag für Verpflegungsmehraufwendungen mit der nächsten Lohn- & Gehaltsabrechnung:', { border: noBorder });
+        cell(fRow + 3, 14, sumTaggeld, { t: 'n', z: EURO_FMT, s: { font: { bold: true, sz: 12, color: { rgb: '000000' } }, border: noBorder } });
+
+        // ═══════════════════════════════════════════
+        // BLOCK 6 — SIGNATURE
+        // ═══════════════════════════════════════════
+        const sRow = fRow + 5;
+        cell(sRow, 0, jsDateToSerial(new Date(year, month, daysInMonth)), { t: 'n', z: DATE_FMT, s: { border: noBorder } });
+        hdr(sRow + 1, 0, 'Datum', { border: noBorder });
+        hdr(sRow + 1, 1, 'Unterschrift\nMitarbeiter', { border: noBorder, alignment: { wrapText: true } });
+        hdr(sRow + 1, 13, 'Stempel/Unterschrift Zeichner', { border: noBorder });
+
+        // ═══════════════════════════════════════════
+        // BLOCK 7 — LEGEND
+        // ═══════════════════════════════════════════
+        const lRow = sRow + 4;
+        hdr(lRow, 0, 'Legende:', { font: { bold: true, sz: 11 }, border: noBorder });
+        hdr(lRow, 1, 'Taggeld', { fill: { fgColor: { rgb: CLR_DATA_GREY } }, border: noBorder });
+        cell(lRow, 4, 'Ab einer Dienstreise von 6 Stunden (inkl. Fahrtzeit, exkl. Mittagspause) außerhalb der Heimadresse', { s: { border: noBorder } });
+        cell(lRow + 1, 4, '€ 9,77 ab 6h + € 4,03 für jede zusätzliche volle Stunde | max. € 31,77 pro Tag', { s: { border: noBorder } });
+        hdr(lRow + 2, 1, 'Taggeld bei Nächtigung', { fill: { fgColor: { rgb: CLR_DATA_GREY } }, border: noBorder });
+        cell(lRow + 2, 4, 'Ab einer Abwesenheit von 11 Stunden (tagesübergreifend) und wenn eine Nächtigung nötig ist → Spalte "bezahlte Nächtigung"', { s: { border: noBorder } });
+        cell(lRow + 3, 4, '- Abfahrt bei Hinreise vor 12 Uhr: € 39,58/Tag  |  nach 12 Uhr: € 23,30/Tag', { s: { border: noBorder } });
+        cell(lRow + 4, 4, '- Mitteltag (=Übernachtungen vom Vortag & auf den nächsten Tag): € 39,58/Tag', { s: { border: noBorder } });
+        cell(lRow + 5, 4, '- Ankunft bei Rückreise vor 17 Uhr: € 23,30/Tag  |  nach 17 Uhr: € 39,58/Tag', { s: { border: noBorder } });
+        hdr(lRow + 6, 1, 'Nächtigungsgeld', { fill: { fgColor: { rgb: CLR_DATA_GREY } }, border: noBorder });
+        cell(lRow + 6, 4, 'Wenn Übernachtung nötig, aber nicht vom Dienstnehmer bereit gestellt: € 17,70/Nacht → Spalte "erstattungsfähige Nächtigung"', { s: { border: noBorder } });
+
+        // ═══════════════════════════════════════════
+        // FORMATTING
+        // ═══════════════════════════════════════════
+        const lastRow = lRow + 7;
+
+        ws['!cols'] = [
+          { wch: 40 }, { wch: 14 }, { wch: 13 }, { wch: 12 }, { wch: 21 },
+          { wch: 70 }, { wch: 30 }, { wch: 21 }, { wch: 17 }, { wch: 26 },
+          { wch: 30 }, { wch: 19 }, { wch: 17 }, { wch: 31 }, { wch: 32 }, { wch: 16 }
+        ];
+
+        ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: lastRow, c: 15 } });
+
+        const rowHeights: XLSX.RowInfo[] = [];
+        for (let r = 0; r <= lastRow; r++) {
+          if (r === 0) rowHeights.push({ hpt: 28 });
+          else if (r === 9) rowHeights.push({ hpt: 24 });
+          else if (r === 11) rowHeights.push({ hpt: 42 });
+          else if (r === 12) rowHeights.push({ hpt: 36 });
+          else if (r >= 13 && r < 13 + daysInMonth) {
+            const dd = dayData[r - 12];
+            const locCount = dd ? dd.locations.size : 0;
+            rowHeights.push({ hpt: Math.max(18, locCount * 14) });
+          } else rowHeights.push({ hpt: 18 });
+        }
+        ws['!rows'] = rowHeights;
+
+        ws['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 14 } },
+          { s: { r: 2, c: 2 }, e: { r: 2, c: 5 } },
+          { s: { r: 2, c: 7 }, e: { r: 2, c: 14 } },
+          { s: { r: 3, c: 7 }, e: { r: 3, c: 14 } },
+          { s: { r: 4, c: 2 }, e: { r: 4, c: 5 } },
+          { s: { r: 6, c: 2 }, e: { r: 6, c: 5 } },
+          { s: { r: 9, c: 0 }, e: { r: 10, c: 4 } },
+          { s: { r: sRow + 1, c: 13 }, e: { r: sRow + 1, c: 14 } },
+          { s: { r: lRow, c: 1 }, e: { r: lRow + 1, c: 2 } },
+          { s: { r: lRow, c: 4 }, e: { r: lRow, c: 14 } },
+          { s: { r: lRow + 1, c: 4 }, e: { r: lRow + 1, c: 14 } },
+          { s: { r: lRow + 2, c: 1 }, e: { r: lRow + 5, c: 2 } },
+          { s: { r: lRow + 2, c: 4 }, e: { r: lRow + 2, c: 14 } },
+          { s: { r: lRow + 3, c: 4 }, e: { r: lRow + 3, c: 14 } },
+          { s: { r: lRow + 4, c: 4 }, e: { r: lRow + 4, c: 14 } },
+          { s: { r: lRow + 5, c: 4 }, e: { r: lRow + 5, c: 14 } },
+          { s: { r: lRow + 6, c: 1 }, e: { r: lRow + 6, c: 2 } },
+          { s: { r: lRow + 6, c: 4 }, e: { r: lRow + 6, c: 14 } },
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Diätendokumentation');
+        return wb;
+      };
+
+      if (glIds.length === 1) {
+        const glId = glIds[0];
+        const gl = glMap[glId];
+        const wb = buildWorkbook(glId, `${gl.firstName} ${gl.lastName}`);
+        XLSX.writeFile(wb, `${monthStr}_${year}_Diäten_${gl.firstName} ${gl.lastName}.xlsx`);
+      } else {
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (const glId of glIds) {
+          const gl = glMap[glId];
+          const wb = buildWorkbook(glId, `${gl.firstName} ${gl.lastName}`);
+          const xlsxData = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+          zip.file(`${monthStr}_${year}_Diäten_${gl.firstName} ${gl.lastName}.xlsx`, xlsxData);
+        }
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Diäten_${monthStr}_${year}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    };
+
+    window.addEventListener('zeiterfassung:export-diaeten', handleDiaetenExport);
+    return () => window.removeEventListener('zeiterfassung:export-diaeten', handleDiaetenExport);
+  }, [entries, zusatzEntries, dayTrackingData]);
 
   const loadGLDayDetails = async (glId: string, date: string, key: string) => {
     if (detailedEntries[key]) return; // Already loaded
