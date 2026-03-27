@@ -390,6 +390,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* KM Stand text in Anfahrt / Heimfahrt cards */
+.kmBadge {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1E293B;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* Market Card */
 .marketCard {
   background: white;

@@ -281,6 +281,27 @@ class DayTrackingService {
   }
 
   /**
+   * Update km_stand_start or km_stand_end for a specific date
+   */
+  async updateDayKm(glId: string, date: string, data: { km_stand_start?: number; km_stand_end?: number }): Promise<DayTracking> {
+    try {
+      const response = await fetch(`${DAY_TRACKING_API}/update-km`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gebietsleiter_id: glId, date, ...data }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update KM Stand');
+      }
+      return response.json();
+    } catch (error) {
+      console.error('Error updating KM Stand:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Update km_stand_start on today's active day tracking record
    */
   async updateKmStandStart(glId: string, kmStandStart: string): Promise<void> {
