@@ -653,6 +653,8 @@ export const WochenCheckModal: React.FC<WochenCheckModalProps> = ({ isOpen, onCl
     setEditKmValue('');
   };
 
+  const getChainColor = (chain: string) => chainColors[chain] || chainColors['default'];
+
   if (!isOpen) return null;
 
   return (
