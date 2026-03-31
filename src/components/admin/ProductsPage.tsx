@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FunnelSimple, X, MagnifyingGlass, Package, CaretDown, SortAscending, SortDescending } from '@phosphor-icons/react';
 import { getAllProducts, deleteProduct, updateProduct } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
+import { ProduktUpdateModal } from './ProduktUpdateModal';
 import styles from './ProductsPage.module.css';
 
 type FilterType = 'department' | 'productType' | 'weight' | 'price';
@@ -15,9 +16,10 @@ export const ProductsPage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editedProduct, setEditedProduct] = useState<Product | null>(null);
   const [openModalDropdown, setOpenModalDropdown] = useState<ModalDropdownType | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0); // Force re-render when products change
-  const [products, setProducts] = useState<Product[]>([]); // State for products
-  const [isLoading, setIsLoading] = useState(true); // Loading state
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<{
     department: string[];
     productType: string[];
@@ -180,6 +182,34 @@ export const ProductsPage: React.FC = () => {
     
     window.addEventListener('productsUpdated', handleProductsUpdate);
     return () => window.removeEventListener('productsUpdated', handleProductsUpdate);
+  }, []);
+
+  // Shortcut: Shift+J+K simultaneously → open update modal
+  const shiftJHeldRef = useRef<boolean>(false);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.shiftKey && (e.key === 'J' || e.key === 'j')) {
+        shiftJHeldRef.current = true;
+      }
+      if (e.shiftKey && (e.key === 'K' || e.key === 'k') && shiftJHeldRef.current) {
+        e.preventDefault();
+        shiftJHeldRef.current = false;
+        setShowUpdateModal(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'J' || e.key === 'j' || !e.shiftKey) {
+        shiftJHeldRef.current = false;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, []);
 
   const handleFilterToggle = (filterType: FilterType, value: string) => {
@@ -1013,6 +1043,11 @@ export const ProductsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ProduktUpdateModal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+      />
     </div>
   );
 };

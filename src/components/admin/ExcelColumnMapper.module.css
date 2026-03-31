@@ -20,7 +20,7 @@
   background: white;
   border-radius: 16px;
   width: 95%;
-  max-width: 780px;
+  max-width: 960px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -146,37 +146,60 @@
   text-transform: none;
 }
 
-.skipRow {
+.startRowRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #F8FAFC;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+}
+
+.startRowLeft {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: rgba(248, 250, 252, 0.8);
+  gap: 10px;
+}
+
+.startRowLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.startRowInput {
+  width: 64px;
+  padding: 7px 10px;
+  border: 1.5px solid #CBD5E1;
   border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.5);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  color: #1E293B;
+  background: #fff;
+  transition: border-color 0.15s;
 }
 
-.skipCheckbox {
-  width: 16px;
-  height: 16px;
-  accent-color: #3B82F6;
-  cursor: pointer;
+.startRowInput:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.skipLabel {
-  font-size: 13px;
-  color: #475569;
-  cursor: pointer;
-  user-select: none;
+.startRowHint {
+  font-size: 12px;
+  color: #64748B;
+  line-height: 1.5;
 }
 
 .previewWrapper {
   border: 1px solid rgba(226, 232, 240, 0.6);
   border-radius: 10px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  max-height: 180px;
+  overflow: auto;
+  max-height: 280px;
 }
 
 .previewTable {
@@ -194,24 +217,147 @@
   text-align: left;
   border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.previewRowNumTh {
+  position: sticky !important;
+  left: 0;
+  z-index: 2 !important;
+  background: #F1F5F9 !important;
 }
 
 .previewTable td {
-  padding: 6px 10px;
+  padding: 5px 10px;
   color: #334155;
   border-bottom: 1px solid rgba(241, 245, 249, 0.8);
-  max-width: 120px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.previewTable tr:last-child td {
-  border-bottom: none;
+.previewRowNum {
+  position: sticky;
+  left: 0;
+  background: #F8FAFC;
+  color: #94A3B8;
+  font-weight: 600;
+  font-size: 11px;
+  min-width: 42px;
+  border-right: 1px solid #E2E8F0;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.previewTable tr {
+  cursor: pointer;
+  transition: background 0.1s;
 }
 
 .previewTable tr:hover td {
-  background: rgba(248, 250, 252, 0.6);
+  background: rgba(239, 246, 255, 0.6);
+}
+
+.previewRowStart td {
+  background: #EFF6FF !important;
+  border-top: 2px solid #3B82F6 !important;
+}
+
+.previewRowStart .previewRowNum {
+  background: #DBEAFE !important;
+  color: #1D4ED8 !important;
+}
+
+.previewRowSkipped td {
+  opacity: 0.4;
+}
+
+.previewRowSkipped .previewRowNum {
+  opacity: 0.5;
+}
+
+.startMarker {
+  color: #3B82F6;
+  font-size: 9px;
+}
+
+.endMarker {
+  color: #F59E0B;
+  font-size: 9px;
+}
+
+.previewRowEnd td {
+  background: #FFFBEB !important;
+  border-bottom: 2px solid #F59E0B !important;
+}
+
+.previewRowEnd .previewRowNum {
+  background: #FEF3C7 !important;
+  color: #B45309 !important;
+}
+
+.rowModeToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.rowModeLabel {
+  font-size: 12px;
+  color: #64748B;
+  white-space: nowrap;
+}
+
+.rowModeBtn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1.5px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #64748B;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rowModeBtn:hover {
+  border-color: #CBD5E1;
+  background: #F1F5F9;
+}
+
+.rowModeBtnActive {
+  background: #EFF6FF !important;
+  border-color: #3B82F6 !important;
+  color: #1D4ED8 !important;
+}
+
+.rowModeBtnActiveEnd {
+  background: #FFFBEB !important;
+  border-color: #F59E0B !important;
+  color: #B45309 !important;
+}
+
+.clearEndRowBtn {
+  background: none;
+  border: none;
+  color: #94A3B8;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.clearEndRowBtn:hover {
+  color: #EF4444;
 }
 
 .previewHint {

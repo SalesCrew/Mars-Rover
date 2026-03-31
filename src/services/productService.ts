@@ -53,14 +53,14 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
   return response.json();
 };
 
-// Delete product
+// Archive (soft-delete) a product — hard deletion is intentionally not supported
 export const deleteProduct = async (id: string): Promise<void> => {
-  const response = await fetch(API_ENDPOINTS.products.delete(id), {
-    method: 'DELETE',
+  const response = await fetch(API_ENDPOINTS.products.archive(id), {
+    method: 'PATCH',
   });
 
   if (!response.ok) {
-    throw new Error('Failed to delete product');
+    throw new Error('Failed to archive product');
   }
 };
 

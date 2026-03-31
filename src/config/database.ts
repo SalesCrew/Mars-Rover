@@ -19,7 +19,7 @@ export const API_ENDPOINTS = {
     getById: (id: string) => `${API_BASE_URL}/products/${id}`,
     create: `${API_BASE_URL}/products`,
     update: (id: string) => `${API_BASE_URL}/products/${id}`,
-    delete: (id: string) => `${API_BASE_URL}/products/${id}`,
+    archive: (id: string) => `${API_BASE_URL}/products/${id}/archive`,
   },
   maps: {
     drivingTimes: `${API_BASE_URL}/maps/driving-times`,

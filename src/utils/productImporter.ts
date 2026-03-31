@@ -258,12 +258,13 @@ const parseImportType = (importType: ProductImportType): ['pets' | 'food', 'stan
 // --- Column Mapping Import ---
 
 export interface ColumnMapping {
-  name: string;       // required - column letter for Produktname
-  weight: string;     // required - column letter for Gewicht/Größe
-  price: string;      // required - column letter for Preis
-  content?: string;    // optional - column letter for Inhalt (VE)
-  artikelNr?: string;  // optional - column letter for Artikel Nr.
-  skipHeaderRow: boolean;
+  name: string;
+  weight: string;
+  price: string;
+  content?: string;
+  artikelNr?: string;
+  startRow: number; // 1-indexed: first row where data begins (rows before this are skipped)
+  endRow?: number;  // 1-indexed: last row to import (rows after this are skipped); undefined = no limit
 }
 
 const columnLetterToIndex = (letter: string): number => {
@@ -286,16 +287,41 @@ const resolveMultiColumnValue = (row: any[], indices: number[]): string => {
     .join(' ');
 };
 
-export const readExcelPreview = async (file: File, maxRows = 5): Promise<string[][]> => {
+export const readExcelSheetNames = (file: File): Promise<string[]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const workbook = XLSX.read(e.target?.result, { type: 'binary' });
+        resolve(workbook.SheetNames);
+      } catch (err) {
+        reject(new Error(`Fehler beim Lesen der Tabellenblätter: ${err}`));
+      }
+    };
+    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
+    reader.readAsBinaryString(file);
+  });
+};
+
+export const readExcelPreview = async (file: File, maxRows = 50, sheetName?: string): Promise<string[][]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const sheet = workbook.Sheets[sheetName ?? workbook.SheetNames[0]];
         const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        const preview = raw.slice(0, maxRows).map(row =>
+
+        // If the sheet range starts past column A, prepend empty columns so
+        // preview column letters match the real Excel column letters exactly.
+        const ref = sheet['!ref'];
+        const startCol = ref ? XLSX.utils.decode_range(ref).s.c : 0;
+        const padded = startCol > 0
+          ? raw.map(row => [...Array(startCol).fill(''), ...row])
+          : raw;
+
+        const preview = padded.slice(0, maxRows).map(row =>
           row.map((cell: any) => (cell == null ? '' : String(cell)))
         );
         resolve(preview);
@@ -311,7 +337,8 @@ export const readExcelPreview = async (file: File, maxRows = 5): Promise<string[
 export const parseProductFileWithMapping = async (
   file: File,
   department: 'pets' | 'food',
-  mapping: ColumnMapping
+  mapping: ColumnMapping,
+  sheetName?: string
 ): Promise<Product[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -319,8 +346,15 @@ export const parseProductFileWithMapping = async (
       try {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const sheet = workbook.Sheets[sheetName ?? workbook.SheetNames[0]];
         const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+        // Align column indices with real Excel columns (same as preview fix)
+        const ref = sheet['!ref'];
+        const sheetStartCol = ref ? XLSX.utils.decode_range(ref).s.c : 0;
+        const rows: any[][] = sheetStartCol > 0
+          ? rawData.map(row => [...Array(sheetStartCol).fill(''), ...row])
+          : rawData;
 
         const nameIndices = parseMultiColumnLetters(mapping.name);
         const weightIdx = columnLetterToIndex(mapping.weight);
@@ -328,12 +362,13 @@ export const parseProductFileWithMapping = async (
         const contentIdx = mapping.content ? columnLetterToIndex(mapping.content) : -1;
         const artikelIdx = mapping.artikelNr ? columnLetterToIndex(mapping.artikelNr) : -1;
 
-        const startRow = mapping.skipHeaderRow ? 1 : 0;
+        const startIdx = Math.max(0, (mapping.startRow ?? 2) - 1);
+        const endIdx = mapping.endRow != null ? mapping.endRow - 1 : rows.length - 1;
         const products: Product[] = [];
         const seenNames = new Set<string>();
 
-        for (let i = startRow; i < rawData.length; i++) {
-          const row = rawData[i];
+        for (let i = startIdx; i <= Math.min(endIdx, rows.length - 1); i++) {
+          const row = rows[i];
           if (!row || row.length === 0) continue;
 
           const name = resolveMultiColumnValue(row, nameIndices);

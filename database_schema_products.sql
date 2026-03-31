@@ -47,7 +47,12 @@ CREATE TABLE IF NOT EXISTS products (
   
   -- Metadata
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- Soft-delete flag (products are NEVER hard-deleted to preserve historical submission data)
+  -- All active products have is_deleted=false. Archived products have is_deleted=true.
+  -- The API filters to is_deleted=false; historical queries (vorverkauf, nara_incentive etc.) see all rows.
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Create indexes for better query performance
@@ -56,6 +61,7 @@ CREATE INDEX idx_products_type ON products(product_type);
 CREATE INDEX idx_products_name ON products(name);
 CREATE INDEX idx_products_price ON products(price);
 CREATE INDEX idx_products_sku ON products(sku) WHERE sku IS NOT NULL;
+CREATE INDEX idx_products_is_deleted ON products(is_deleted);
 
 -- Create a function to automatically update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_products_updated_at()

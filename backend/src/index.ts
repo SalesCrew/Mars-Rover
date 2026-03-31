@@ -19,6 +19,8 @@ import fragebogenRouter from './routes/fragebogen';
 import naraIncentiveRouter from './routes/naraIncentive';
 import mapsRouter from './routes/maps';
 import wochenCheckRouter from './routes/wochenCheck';
+import chatRouter from './routes/chat';
+import productsUpdateRouter from './routes/productsUpdate';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -83,6 +85,10 @@ console.log('Registering maps routes...');
 app.use('/api/maps', mapsRouter);
 console.log('Registering wochen-check routes...');
 app.use('/api/wochen-check', wochenCheckRouter);
+console.log('Registering chat routes...');
+app.use('/api/chat', chatRouter);
+console.log('Registering products-update routes...');
+app.use('/api/products-update', productsUpdateRouter);
 
 // Start server
 const server = app.listen(PORT, '0.0.0.0', () => {
