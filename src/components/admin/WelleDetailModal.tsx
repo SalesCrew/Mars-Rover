@@ -147,6 +147,9 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
   };
 
   // Calculate overall progress
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/08dee0b8-b62d-4cf4-8508-81db7a759cf4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'005ae4'},body:JSON.stringify({sessionId:'005ae4',location:'WelleDetailModal.tsx:150',message:'welle raw data',data:{welleId:welle.id,welleName:welle.name,goalType:welle.goalType,goalValue:welle.goalValue,goalPercentage:welle.goalPercentage,displaysRaw:welle.displays?.map(d=>({id:d.id,name:d.name,targetNumber:d.targetNumber,currentNumber:d.currentNumber,itemValue:d.itemValue})),kartonwareRaw:welle.kartonwareItems?.map(k=>({id:k.id,name:k.name,targetNumber:k.targetNumber,currentNumber:k.currentNumber,itemValue:k.itemValue})),einzelproduktRaw:welle.einzelproduktItems?.map(e=>({id:e.id,name:e.name,targetNumber:e.targetNumber,currentNumber:e.currentNumber,itemValue:e.itemValue})),paletteCount:welle.paletteItems?.length,schutteCount:welle.schutteItems?.length},timestamp:Date.now(),hypothesisId:'A-B-C-D'})}).catch(()=>{});
+  // #endregion
   const totalDisplayTarget = welle.displays?.reduce((sum, d) => sum + (d.targetNumber || 0), 0) || 0;
   const totalDisplayCurrent = welle.displays?.reduce((sum, d) => sum + (d.currentNumber || 0), 0) || 0;
   const totalKartonwareTarget = welle.kartonwareItems?.reduce((sum, k) => sum + (k.targetNumber || 0), 0) || 0;
@@ -165,6 +168,9 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
   const totalValueCurrent = (welle.displays?.reduce((sum, d) => sum + ((d.currentNumber || 0) * (d.itemValue || 0)), 0) || 0) +
     (welle.kartonwareItems?.reduce((sum, k) => sum + ((k.currentNumber || 0) * (k.itemValue || 0)), 0) || 0) +
     (welle.einzelproduktItems?.reduce((sum, e) => sum + ((e.currentNumber || 0) * (e.itemValue || 0)), 0) || 0);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/08dee0b8-b62d-4cf4-8508-81db7a759cf4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'005ae4'},body:JSON.stringify({sessionId:'005ae4',location:'WelleDetailModal.tsx:after-value-calc',message:'calculated values',data:{totalTarget,totalCurrent,overallProgress,totalValueTarget,totalValueCurrent,displayContributions:welle.displays?.map(d=>({name:d.name,target:d.targetNumber,current:d.currentNumber,itemValue:d.itemValue,currentValue:(d.currentNumber||0)*(d.itemValue||0),targetValue:(d.targetNumber||0)*(d.itemValue||0)}))},timestamp:Date.now(),hypothesisId:'A-B-C'})}).catch(()=>{});
+  // #endregion
 
   // Days remaining
   const today = new Date();
@@ -298,7 +304,7 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
                   <span className={styles.quickStatValue}>
                     {welle.goalType === 'value' 
                       ? `€${(welle.goalValue || 0).toLocaleString('de-DE')}`
-                      : `${welle.goalPercentage || 80}%`
+                      : `${welle.goalPercentage || 100}%`
                     }
                   </span>
                 )}
@@ -356,7 +362,7 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
               <div className={styles.progressGoal}>
                 von {welle.goalType === 'value' 
                   ? `€${(welle.goalValue || totalValueTarget).toLocaleString('de-DE')}`
-                  : `${welle.goalPercentage || 80}%`
+                  : `${welle.goalPercentage || 100}%`
                 }
               </div>
             </div>
@@ -365,7 +371,7 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
                 className={`${styles.progressFillLarge} ${goalMet ? styles.progressFillSuccess : ''}`}
                 style={{ width: `${Math.min(welle.goalType === 'value' 
                   ? ((totalValueCurrent / (welle.goalValue || totalValueTarget || 1)) * 100) 
-                  : (overallProgress / (welle.goalPercentage || 80)) * 100, 100)}%` 
+                  : (overallProgress / (welle.goalPercentage || 100)) * 100, 100)}%` 
                 }}
               />
             </div>

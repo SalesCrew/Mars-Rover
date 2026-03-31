@@ -12,7 +12,7 @@ import styles from './CreateModuleModal.module.css';
 interface CreateModuleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (module: Module) => void;
+  onSave: (module: Module) => Promise<void> | void;
   editingModule?: Module; // Optional: If provided, we're editing
   originalModuleName?: string; // Optional: Original name when duplicating
   allModules?: Module[]; // All modules to import questions from
@@ -26,6 +26,7 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
   const [moduleDescription, setModuleDescription] = useState('');
   const [questions, setQuestions] = useState<QuestionInterface[]>([]);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [hoveredRuleBadge, setHoveredRuleBadge] = useState<string | null>(null);
   const [hoveredHeaderRules, setHoveredHeaderRules] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -163,7 +164,7 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
     setQuestions(prev => prev.map(q => q.id === id ? { ...q, ...updates } : q));
   };
 
-  const handleSaveAndClose = () => {
+  const handleSaveAndClose = async () => {
     if (!moduleName.trim()) {
       alert('Bitte geben Sie einen Modulnamen ein');
       return;
@@ -181,32 +182,38 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
       return;
     }
 
-    if (editingModule && editingModule.id) {
-      // Update existing module (has ID)
-      const updatedModule: Module = {
-        ...editingModule,
-        name: moduleName,
-        description: moduleDescription || undefined,
-        questionCount: questions.length,
-        questions: questions.map(q => ({ ...q, moduleId: editingModule.id })),
-      };
-      onSave(updatedModule);
-    } else {
-      // Create new module (no ID or empty ID = duplicate)
-      const newModuleId = `m-${Date.now()}`;
-      const newModule: Module = {
-        id: newModuleId,
-        name: moduleName,
-        description: moduleDescription || undefined,
-        questionCount: questions.length,
-        questions: questions.map(q => ({ ...q, moduleId: newModuleId })),
-        createdAt: new Date().toISOString(),
-      };
-      onSave(newModule);
+    setIsSaving(true);
+    try {
+      if (editingModule && editingModule.id) {
+        // Update existing module (has ID)
+        const updatedModule: Module = {
+          ...editingModule,
+          name: moduleName,
+          description: moduleDescription || undefined,
+          questionCount: questions.length,
+          questions: questions.map(q => ({ ...q, moduleId: editingModule.id })),
+        };
+        await onSave(updatedModule);
+      } else {
+        // Create new module (no ID or empty ID = duplicate)
+        const newModuleId = `m-${Date.now()}`;
+        const newModule: Module = {
+          id: newModuleId,
+          name: moduleName,
+          description: moduleDescription || undefined,
+          questionCount: questions.length,
+          questions: questions.map(q => ({ ...q, moduleId: newModuleId })),
+          createdAt: new Date().toISOString(),
+        };
+        await onSave(newModule);
+      }
+      resetForm();
+      onClose();
+    } catch {
+      // error is handled inside onSave (shows alert), just unblock the button
+    } finally {
+      setIsSaving(false);
     }
-    
-    resetForm();
-    onClose();
   };
 
   const handleGoToReview = () => {
@@ -653,11 +660,11 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
                 Zurück zur Bearbeitung
               </button>
               <div className={styles.footerActions}>
-                <button className={styles.primaryButton} onClick={handleSaveAndClose}>
+                <button className={styles.primaryButton} onClick={handleSaveAndClose} disabled={isSaving}>
                   <Check size={18} weight="bold" />
-                  Speichern & Schließen
+                  {isSaving ? 'Wird gespeichert…' : 'Speichern & Schließen'}
                 </button>
-                <button className={styles.secondaryButton} onClick={handleSaveAndCreateAnother}>
+                <button className={styles.secondaryButton} onClick={handleSaveAndCreateAnother} disabled={isSaving}>
                   Speichern & Weiteres Modul erstellen
                 </button>
               </div>
