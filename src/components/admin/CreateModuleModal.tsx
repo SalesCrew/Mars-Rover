@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ArrowLeft, Check, Plus, Trash, DotsSixVertical, GitBranch, Question, CheckCircle as CheckCircleFilled, CaretDown, Image } from '@phosphor-icons/react';
 import fragebogenService from '../../services/fragebogenService';
+// v2 — image attachment support
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
