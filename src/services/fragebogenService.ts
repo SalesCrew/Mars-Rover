@@ -58,6 +58,7 @@ export interface Question {
   matrix_config?: MatrixConfig;
   numeric_constraints?: NumericConstraints;
   slider_config?: SliderConfig;
+  images?: string[];
   created_at: string;
   updated_at: string;
   created_by?: string;
