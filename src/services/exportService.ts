@@ -61,6 +61,8 @@ class ExportService {
         { id: 'item_name', label: 'Artikel', type: 'string', default: true },
         { id: 'container_name', label: 'Palette/Schütte', type: 'string', default: true },
         { id: 'quantity', label: 'Menge', type: 'number', default: true },
+        { id: 'einzelprodukt_ve', label: 'VE', type: 'number', default: true },
+        { id: 'quantity_in_ve', label: 'Menge in VE', type: 'number', default: true },
         { id: 'value_per_unit', label: 'Wert/Einheit', type: 'currency', default: true },
         { id: 'total_value', label: 'Gesamtwert', type: 'currency', default: true },
         { id: 'photo_url', label: 'Foto URL', type: 'string', default: false },
