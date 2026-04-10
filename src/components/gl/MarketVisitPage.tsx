@@ -48,15 +48,15 @@ interface Question {
   questionText: string;
   instruction?: string;
   required: boolean;
-  options?: string[];
+  options?: { id: string; label: string }[];
   likertScale?: {
     min: number;
     max: number;
     minLabel?: string;
     maxLabel?: string;
   };
-  matrixRows?: string[];
-  matrixColumns?: string[];
+  matrixRows?: { id: string; label: string }[];
+  matrixColumns?: { id: string; label: string }[];
   numericConstraints?: {
     min?: number;
     max?: number;
@@ -79,6 +79,7 @@ interface Module {
 interface MarketVisitPageProps {
   market: Market;
   modules: Module[];
+  fragebogenId?: string;
   zeiterfassungActive?: boolean;
   resumeData?: PersistedVisit;
   onClose: () => void;
@@ -91,6 +92,7 @@ interface MarketVisitPageProps {
 export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   market,
   modules,
+  fragebogenId,
   zeiterfassungActive = true,
   resumeData,
   onClose: _onClose,
@@ -111,6 +113,14 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isCompleted, setIsCompleted] = useState(false);
   
+  // Fragebogen response ID — created on first answer attempt (independent of zeiterfassung)
+  const [responseId, setResponseId] = useState<string | null>(null);
+  const responseCreationInFlightRef = useRef<Promise<string | null> | null>(null);
+
+  // UI states for answer persistence feedback
+  const [isSavingAnswer, setIsSavingAnswer] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   // Determine if there are any questions/modules
   const hasFragebogen = modules.length > 0 && allQuestions.length > 0;
   
@@ -249,6 +259,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           savedAt: new Date().toISOString()
         });
       } catch {
+        // Zeiterfassung failure is independent — response run is created separately
         saveActiveVisit({
           submissionId: null,
           glId: user.id,
@@ -266,6 +277,37 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
         });
       }
     }
+  };
+
+  /**
+   * Ensure a fragebogen response run exists before saving answers.
+   * Decoupled from zeiterfassung — can be called independently at first answer.
+   * Returns the responseId on success, or null on failure (sets saveError).
+   */
+  const ensureResponseRun = async (): Promise<string | null> => {
+    if (responseId) return responseId;
+    if (!fragebogenId || !hasFragebogen || !user?.id) return null;
+    if (responseCreationInFlightRef.current) {
+      return responseCreationInFlightRef.current;
+    }
+    const createPromise = (async () => {
+      try {
+        const result = await fragebogenService.responses.create({
+          fragebogen_id: fragebogenId,
+          gebietsleiter_id: user.id,
+          market_id: market.id
+        });
+        setResponseId(result.id);
+        return result.id;
+      } catch {
+        setSaveError('Antwort konnte nicht gespeichert werden. Bitte erneut versuchen.');
+        return null;
+      } finally {
+        responseCreationInFlightRef.current = null;
+      }
+    })();
+    responseCreationInFlightRef.current = createPromise;
+    return createPromise;
   };
 
   // Format elapsed seconds to HH:MM:SS
@@ -372,10 +414,57 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     setAnswers(prev => ({ ...prev, [currentQuestion.id]: value }));
   };
 
+  /** Build a typed AnswerPayload from a raw answer value */
+  const buildAnswerPayload = (question: typeof allQuestions[0], value: any): import('../../services/fragebogenService').AnswerPayload | null => {
+    if (value === undefined || value === null) return null;
+    const base = { question_id: question.id, module_id: question.moduleId, question_type: question.type as any };
+    switch (question.type) {
+      case 'yesno':
+        return { ...base, answer_boolean: value === true };
+      case 'open_numeric':
+      case 'slider':
+      case 'likert':
+        return { ...base, answer_numeric: typeof value === 'number' ? value : parseFloat(value) };
+      case 'single_choice':
+      case 'barcode_scanner':
+        return { ...base, answer_text: String(value) };
+      case 'open_text':
+        return { ...base, answer_text: String(value) };
+      case 'multiple_choice':
+        return { ...base, answer_json: Array.isArray(value) ? value : [value] };
+      case 'matrix':
+        return { ...base, answer_json: value };
+      case 'photo_upload':
+        return { ...base, answer_file_url: String(value) };
+      default:
+        return { ...base, answer_text: String(value) };
+    }
+  };
+
+  /** Persist a single answer to the backend. Returns true on success, false on failure. */
+  const persistAnswer = async (question: typeof allQuestions[0], value: any): Promise<boolean> => {
+    const payload = buildAnswerPayload(question, value);
+    if (!payload) return true; // no payload = nothing to persist, treat as success
+
+    const currentResponseId = await ensureResponseRun();
+    if (!currentResponseId) return false; // ensureResponseRun already set saveError
+
+    setIsSavingAnswer(true);
+    setSaveError(null);
+    try {
+      await fragebogenService.responses.update(currentResponseId, [payload]);
+      setIsSavingAnswer(false);
+      return true;
+    } catch {
+      setIsSavingAnswer(false);
+      setSaveError('Antwort konnte nicht gespeichert werden. Bitte erneut versuchen.');
+      return false;
+    }
+  };
+
   const handleNext = async () => {
     // 'start' step is no longer used - Fahrzeit is auto-calculated by day tracking
     if (zeiterfassungStep === 'start') {
-      // Legacy support: just move to questions
       if (totalQuestions === 0) {
         if (zeiterfassungActive) {
           setZeiterfassungStep('end');
@@ -389,18 +478,60 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     }
     
     if (zeiterfassungStep === 'questions') {
+      // Persist the current answer before moving on; block if it fails
+      if (currentQuestion && answers[currentQuestion.id] !== undefined) {
+        const saved = await persistAnswer(currentQuestion, answers[currentQuestion.id]);
+        if (!saved) return; // error already set in saveError state
+      }
+
+      setSaveError(null);
+
       if (currentIndex < totalQuestions - 1) {
         setCurrentIndex(prev => prev + 1);
       } else if (zeiterfassungActive) {
         setZeiterfassungStep('end');
       } else {
+        // All questions answered — mark response complete
+        if (fragebogenId && hasFragebogen) {
+          setIsSavingAnswer(true);
+          const currentResponseId = await ensureResponseRun();
+          if (!currentResponseId) {
+            setIsSavingAnswer(false);
+            return;
+          }
+          try {
+            await fragebogenService.responses.complete(currentResponseId);
+          } catch {
+            setIsSavingAnswer(false);
+            setSaveError('Abschluss konnte nicht gespeichert werden. Bitte erneut versuchen.');
+            return;
+          }
+          setIsSavingAnswer(false);
+        }
         setIsCompleted(true);
-        // Don't call onComplete here - wait for user to click "Zurück zur Übersicht"
       }
       return;
     }
     
     if (zeiterfassungStep === 'end') {
+      // Ensure response run exists before completing
+      if (fragebogenId && hasFragebogen) {
+        setIsSavingAnswer(true);
+        const currentResponseId = await ensureResponseRun();
+        if (!currentResponseId) {
+          setIsSavingAnswer(false);
+          return; // error already set
+        }
+        try {
+          await fragebogenService.responses.complete(currentResponseId);
+        } catch {
+          setIsSavingAnswer(false);
+          setSaveError('Abschluss konnte nicht gespeichert werden. Bitte erneut versuchen.');
+          return;
+        }
+        setIsSavingAnswer(false);
+      }
+
       const now = new Date();
       const endTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       const needsBis = !zeiterfassung.besuchszeitBis;
@@ -409,6 +540,8 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
         marketEndTime: endTime,
         besuchszeitBis: prev.besuchszeitBis || endTime
       }));
+
+      setSaveError(null);
       setIsCompleted(true);
 
       if (needsBis && submissionId) {
@@ -488,12 +621,14 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   };
 
   const canProceed = () => {
+    // Block navigation while a save is in flight
+    if (isSavingAnswer) return false;
     // 'start' step is no longer used - always allow proceeding
     if (zeiterfassungStep === 'start') {
       return true;
     }
     if (zeiterfassungStep === 'end') {
-      return zeiterfassung.besuchszeitVon && zeiterfassung.besuchszeitBis;
+      return !!(zeiterfassung.besuchszeitVon && zeiterfassung.besuchszeitBis);
     }
     // If in 'questions' step but no questions exist, allow proceeding
     if (zeiterfassungStep === 'questions' && totalQuestions === 0) {
@@ -516,14 +651,14 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
       case 'single_choice':
         return (
           <div className={styles.optionsGrid}>
-            {currentQuestion.options?.map((option, idx) => (
+            {currentQuestion.options?.map((option) => (
               <button
-                key={idx}
-                className={`${styles.optionButton} ${answer === option ? styles.optionButtonSelected : ''}`}
-                onClick={() => handleAnswer(option)}
+                key={option.id}
+                className={`${styles.optionButton} ${answer === option.id ? styles.optionButtonSelected : ''}`}
+                onClick={() => handleAnswer(option.id)}
               >
-                <RadioButton size={20} weight={answer === option ? 'fill' : 'regular'} />
-                <span>{option}</span>
+                <RadioButton size={20} weight={answer === option.id ? 'fill' : 'regular'} />
+                <span>{option.label}</span>
               </button>
             ))}
           </div>
@@ -533,22 +668,22 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
         const selectedOptions = answer || [];
         return (
           <div className={styles.optionsGrid}>
-            {currentQuestion.options?.map((option, idx) => {
-              const isSelected = selectedOptions.includes(option);
+            {currentQuestion.options?.map((option) => {
+              const isSelected = selectedOptions.includes(option.id);
               return (
                 <button
-                  key={idx}
+                  key={option.id}
                   className={`${styles.optionButton} ${isSelected ? styles.optionButtonSelected : ''}`}
                   onClick={() => {
                     if (isSelected) {
-                      handleAnswer(selectedOptions.filter((o: string) => o !== option));
+                      handleAnswer(selectedOptions.filter((id: string) => id !== option.id));
                     } else {
-                      handleAnswer([...selectedOptions, option]);
+                      handleAnswer([...selectedOptions, option.id]);
                     }
                   }}
                 >
                   <RadioButton size={20} weight={isSelected ? 'fill' : 'regular'} />
-                  <span>{option}</span>
+                  <span>{option.label}</span>
                 </button>
               );
             })}
@@ -709,31 +844,31 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
               <thead>
                 <tr>
                   <th></th>
-                  {currentQuestion.matrixColumns?.map((col, idx) => (
-                    <th key={idx}>{col}</th>
+                  {currentQuestion.matrixColumns?.map((col) => (
+                    <th key={col.id}>{col.label}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {currentQuestion.matrixRows?.map((row, rowIdx) => (
-                  <tr key={rowIdx}>
-                    <td className={styles.matrixRowLabel}>{row}</td>
-                    {currentQuestion.matrixColumns?.map((col, colIdx) => {
-                      const matrixAnswers = answer || {};
-                      const isSelected = matrixAnswers[row] === col;
-                      return (
-                        <td key={colIdx}>
+                {currentQuestion.matrixRows?.map((row) => {
+                  const matrixAnswers = answer || {};
+                  const isSelected = (colId: string) => matrixAnswers[row.id] === colId;
+                  return (
+                    <tr key={row.id}>
+                      <td className={styles.matrixRowLabel}>{row.label}</td>
+                      {currentQuestion.matrixColumns?.map((col) => (
+                        <td key={col.id}>
                           <button
-                            className={`${styles.matrixCell} ${isSelected ? styles.matrixCellSelected : ''}`}
-                            onClick={() => handleAnswer({ ...matrixAnswers, [row]: col })}
+                            className={`${styles.matrixCell} ${isSelected(col.id) ? styles.matrixCellSelected : ''}`}
+                            onClick={() => handleAnswer({ ...matrixAnswers, [row.id]: col.id })}
                           >
-                            {isSelected && <Check size={16} weight="bold" />}
+                            {isSelected(col.id) && <Check size={16} weight="bold" />}
                           </button>
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1192,6 +1327,21 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
       {/* Fixed Navigation Footer */}
       <footer className={styles.footer}>
         <div className={styles.footerContent}>
+          {saveError && (
+            <div className={styles.saveErrorBanner}>
+              <span>{saveError}</span>
+              <button
+                className={styles.saveErrorRetry}
+                onClick={() => {
+                  setSaveError(null);
+                  handleNext();
+                }}
+              >
+                Erneut versuchen
+              </button>
+            </div>
+          )}
+          <div className={styles.footerButtons}>
           <button 
             className={styles.navButton}
             onClick={handlePrev}
@@ -1209,12 +1359,13 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
             <span>
               {zeiterfassungStep === 'end' || (!zeiterfassungActive && currentIndex === totalQuestions - 1) 
                 ? 'Abschließen' 
-                : 'Weiter'}
+                : isSavingAnswer ? 'Speichern…' : 'Weiter'}
             </span>
             {zeiterfassungStep === 'end' || (!zeiterfassungActive && currentIndex === totalQuestions - 1) 
               ? <Check size={20} />
               : <ArrowRight size={20} />}
           </button>
+          </div>
         </div>
       </footer>
     </div>

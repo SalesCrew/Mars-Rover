@@ -724,8 +724,46 @@
   margin: 0 auto;
   padding: 0 var(--space-3xl);
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footerButtons {
+  display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.saveErrorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 10px;
+  font-size: var(--font-size-sm);
+  color: #B91C1C;
+  font-weight: var(--font-weight-medium);
+}
+
+.saveErrorRetry {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  background: #B91C1C;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.saveErrorRetry:hover {
+  background: #991B1B;
 }
 
 .navButton {
