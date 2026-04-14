@@ -19,10 +19,10 @@ interface Question {
   questionText: string;
   required: boolean;
   order: number;
-  options?: string[];
+  options?: { id: string; label: string }[];
   likertScale?: { min: number; max: number; minLabel: string; maxLabel: string };
-  matrixRows?: string[];
-  matrixColumns?: string[];
+  matrixRows?: { id: string; label: string }[];
+  matrixColumns?: { id: string; label: string }[];
   numericConstraints?: { min?: number; max?: number; decimals?: boolean };
   sliderConfig?: { min: number; max: number; step: number; unit?: string };
   instruction?: string;
@@ -577,14 +577,14 @@ export const FragebogenPreviewModal: React.FC<FragebogenPreviewModalProps> = ({
       case 'single_choice':
         return (
           <div className={styles.optionsGrid}>
-            {currentQuestion.options?.map((option, idx) => (
+            {currentQuestion.options?.map((option) => (
               <button
-                key={idx}
-                className={`${styles.optionButton} ${answer === option ? styles.optionButtonSelected : ''}`}
-                onClick={() => handleAnswer(option)}
+                key={option.id}
+                className={`${styles.optionButton} ${answer === option.id ? styles.optionButtonSelected : ''}`}
+                onClick={() => handleAnswer(option.id)}
               >
-                <RadioButton size={20} weight={answer === option ? 'fill' : 'regular'} />
-                <span>{option}</span>
+                <RadioButton size={20} weight={answer === option.id ? 'fill' : 'regular'} />
+                <span>{option.label}</span>
               </button>
             ))}
           </div>
@@ -594,22 +594,22 @@ export const FragebogenPreviewModal: React.FC<FragebogenPreviewModalProps> = ({
         const selectedOptions = (answer as string[]) || [];
         return (
           <div className={styles.optionsGrid}>
-            {currentQuestion.options?.map((option, idx) => {
-              const isSelected = selectedOptions.includes(option);
+            {currentQuestion.options?.map((option) => {
+              const isSelected = selectedOptions.includes(option.id);
               return (
                 <button
-                  key={idx}
+                  key={option.id}
                   className={`${styles.optionButton} ${isSelected ? styles.optionButtonSelected : ''}`}
                   onClick={() => {
                     if (isSelected) {
-                      handleAnswer(selectedOptions.filter(o => o !== option));
+                      handleAnswer(selectedOptions.filter(id => id !== option.id));
                     } else {
-                      handleAnswer([...selectedOptions, option]);
+                      handleAnswer([...selectedOptions, option.id]);
                     }
                   }}
                 >
                   <CheckSquare size={20} weight={isSelected ? 'fill' : 'regular'} />
-                  <span>{option}</span>
+                  <span>{option.label}</span>
                 </button>
               );
             })}
@@ -620,15 +620,15 @@ export const FragebogenPreviewModal: React.FC<FragebogenPreviewModalProps> = ({
         return (
           <div className={styles.yesnoGrid}>
             <button
-              className={`${styles.yesnoButton} ${styles.yesButton} ${answer === 'Ja' ? styles.yesnoButtonSelected : ''}`}
-              onClick={() => handleAnswer('Ja')}
+              className={`${styles.yesnoButton} ${styles.yesButton} ${answer === true ? styles.yesnoButtonSelected : ''}`}
+              onClick={() => handleAnswer(true)}
             >
               <Check size={24} weight="bold" />
               <span>Ja</span>
             </button>
             <button
-              className={`${styles.yesnoButton} ${styles.noButton} ${answer === 'Nein' ? styles.yesnoButtonSelected : ''}`}
-              onClick={() => handleAnswer('Nein')}
+              className={`${styles.yesnoButton} ${styles.noButton} ${answer === false ? styles.yesnoButtonSelected : ''}`}
+              onClick={() => handleAnswer(false)}
             >
               <X size={24} weight="bold" />
               <span>Nein</span>
@@ -752,22 +752,22 @@ export const FragebogenPreviewModal: React.FC<FragebogenPreviewModalProps> = ({
               <thead>
                 <tr>
                   <th></th>
-                  {cols.map((col, idx) => (
-                    <th key={idx}>{col}</th>
+                  {cols.map((col) => (
+                    <th key={col.id}>{col.label}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, rowIdx) => (
-                  <tr key={rowIdx}>
-                    <td className={styles.matrixRowLabel}>{row}</td>
-                    {cols.map((col, colIdx) => (
-                      <td key={colIdx}>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td className={styles.matrixRowLabel}>{row.label}</td>
+                    {cols.map((col) => (
+                      <td key={col.id}>
                         <button
-                          className={`${styles.matrixCell} ${matrixAnswers[row] === col ? styles.matrixCellSelected : ''}`}
-                          onClick={() => handleAnswer({ ...matrixAnswers, [row]: col })}
+                          className={`${styles.matrixCell} ${matrixAnswers[row.id] === col.id ? styles.matrixCellSelected : ''}`}
+                          onClick={() => handleAnswer({ ...matrixAnswers, [row.id]: col.id })}
                         >
-                          {matrixAnswers[row] === col && <Check size={16} weight="bold" />}
+                          {matrixAnswers[row.id] === col.id && <Check size={16} weight="bold" />}
                         </button>
                       </td>
                     ))}
@@ -796,17 +796,38 @@ export const FragebogenPreviewModal: React.FC<FragebogenPreviewModalProps> = ({
             <div className={styles.answersPreview}>
               <h4>Ihre Antworten:</h4>
               <div className={styles.answersList}>
-                {allQuestions.map((q, idx) => (
-                  <div key={q.id} className={styles.answerItem}>
-                    <span className={styles.answerNumber}>{idx + 1}</span>
-                    <span className={styles.answerQuestion}>{q.questionText.substring(0, 50)}...</span>
-                    <span className={styles.answerValue}>
-                      {typeof answers[q.id] === 'object' 
-                        ? JSON.stringify(answers[q.id])
-                        : String(answers[q.id] ?? '-')}
-                    </span>
-                  </div>
-                ))}
+                {allQuestions.map((q, idx) => {
+                  const rawAnswer = answers[q.id];
+                  let displayAnswer: string;
+                  if (q.type === 'single_choice') {
+                    displayAnswer = q.options?.find(o => o.id === rawAnswer)?.label ?? String(rawAnswer ?? '-');
+                  } else if (q.type === 'multiple_choice' && Array.isArray(rawAnswer)) {
+                    displayAnswer = rawAnswer
+                      .map((id: string) => q.options?.find(o => o.id === id)?.label ?? id)
+                      .join(', ');
+                  } else if (q.type === 'yesno') {
+                    displayAnswer = rawAnswer === true ? 'Ja' : rawAnswer === false ? 'Nein' : '-';
+                  } else if (q.type === 'matrix' && typeof rawAnswer === 'object' && rawAnswer !== null) {
+                    displayAnswer = Object.entries(rawAnswer as Record<string, string>)
+                      .map(([rowId, colId]) => {
+                        const rowLabel = q.matrixRows?.find(r => r.id === rowId)?.label ?? rowId;
+                        const colLabel = q.matrixColumns?.find(c => c.id === colId)?.label ?? colId;
+                        return `${rowLabel}: ${colLabel}`;
+                      })
+                      .join(', ');
+                  } else if (typeof rawAnswer === 'object') {
+                    displayAnswer = JSON.stringify(rawAnswer);
+                  } else {
+                    displayAnswer = String(rawAnswer ?? '-');
+                  }
+                  return (
+                    <div key={q.id} className={styles.answerItem}>
+                      <span className={styles.answerNumber}>{idx + 1}</span>
+                      <span className={styles.answerQuestion}>{q.questionText.substring(0, 50)}...</span>
+                      <span className={styles.answerValue}>{displayAnswer}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <button className={styles.closeButtonLarge} onClick={onClose}>

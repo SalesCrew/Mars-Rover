@@ -22,15 +22,15 @@ interface QuestionData {
   instruction?: string;
   required: boolean;
   order: number;
-  options?: string[];
+  options?: { id: string; label: string }[];
   likertScale?: {
     min: number;
     max: number;
     minLabel: string;
     maxLabel: string;
   };
-  matrixRows?: string[];
-  matrixColumns?: string[];
+  matrixRows?: { id: string; label: string }[];
+  matrixColumns?: { id: string; label: string }[];
   numericConstraints?: {
     min?: number;
     max?: number;
@@ -231,9 +231,9 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
                     <div className={styles.questionOptions}>
                       <span className={styles.optionsLabel}>Antwortmöglichkeiten:</span>
                       <div className={styles.optionsList}>
-                        {question.options.map((option, idx) => (
-                          <span key={idx} className={styles.optionPill}>
-                            {option}
+                        {question.options.map((option) => (
+                          <span key={option.id} className={styles.optionPill}>
+                            {option.label}
                           </span>
                         ))}
                       </div>

@@ -27,6 +27,13 @@ CREATE TABLE IF NOT EXISTS fb_zusatz_zeiterfassung (
     -- Optional comment
     kommentar TEXT,
     
+    -- Schulung location (only for reason='schulung')
+    -- Values: 'auto' | 'buero' | 'homeoffice'
+    -- Only 'auto' counts toward Diäten calculation
+    schulung_ort TEXT,
+    CONSTRAINT fb_zusatz_zeiterfassung_schulung_ort_check
+        CHECK (schulung_ort IS NULL OR schulung_ort IN ('auto', 'buero', 'homeoffice')),
+    
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -66,8 +73,16 @@ CREATE TRIGGER update_fb_zusatz_zeiterfassung_updated_at
 -- reason: 'arztbesuch'     | reason_label: 'Arztbesuch'
 -- reason: 'werkstatt'      | reason_label: 'Werkstatt/Autoreinigung'
 -- reason: 'homeoffice'     | reason_label: 'Homeoffice'
--- reason: 'schulung'       | reason_label: 'Schulung'
+-- reason: 'schulung'       | reason_label: 'Schulung'  -> schulung_ort: 'auto'|'buero'|'homeoffice'
 -- reason: 'lager'          | reason_label: 'Lager'
 -- reason: 'heimfahrt'      | reason_label: 'Heimfahrt'
 -- reason: 'hotel'          | reason_label: 'Hotelübernachtung'
+-- reason: 'dienstreise'    | reason_label: 'Dienstreise'
+-- reason: 'sonderaufgabe'  | reason_label: 'Sonderaufgabe'
+-- reason: 'unterbrechung'  | reason_label: 'Unterbrechung' (is_work_time_deduction=true)
+-- ============================================================================
+-- schulung_ort allowed values:
+--   'auto'        → counts toward Diäten
+--   'buero'       → excluded from Diäten
+--   'homeoffice'  → excluded from Diäten
 -- ============================================================================

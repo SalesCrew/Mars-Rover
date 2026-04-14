@@ -1,4 +1,5 @@
 import express, { Router, Request, Response } from 'express';
+import ExcelJS from 'exceljs';
 import { createFreshClient } from '../config/supabase';
 
 const router: Router = express.Router();
@@ -125,7 +126,7 @@ router.get('/questions/:id', async (req: Request, res: Response) => {
 
 /**
  * POST /api/fragebogen/questions
- * Create a new question
+ * Create a new question. Ensures options and matrix entries have stable IDs.
  */
 router.post('/questions', async (req: Request, res: Response) => {
   try {
@@ -143,22 +144,49 @@ router.post('/questions', async (req: Request, res: Response) => {
       created_by
     } = req.body;
     
-    // Validate required fields
     if (!type || !question_text) {
       return res.status(400).json({ error: 'type and question_text are required' });
     }
     
-    // Validate type-specific fields
     if ((type === 'single_choice' || type === 'multiple_choice') && (!options || !Array.isArray(options))) {
       return res.status(400).json({ error: 'options array is required for choice questions' });
     }
-    
     if (type === 'likert' && !likert_scale) {
       return res.status(400).json({ error: 'likert_scale is required for likert questions' });
     }
-    
     if (type === 'matrix' && !matrix_config) {
       return res.status(400).json({ error: 'matrix_config is required for matrix questions' });
+    }
+
+    // Ensure options carry stable IDs — accept both string[] (legacy) and {id,label}[]
+    let normalisedOptions: any[] | null = null;
+    if (options && Array.isArray(options)) {
+      normalisedOptions = options.map((opt: any, idx: number) => {
+        if (typeof opt === 'string') {
+          return { id: `opt_${idx}_${Date.now().toString(36)}`, label: opt };
+        }
+        if (!opt.id) {
+          return { ...opt, id: `opt_${idx}_${Date.now().toString(36)}` };
+        }
+        return opt;
+      });
+    }
+
+    // Ensure matrix rows and columns carry stable IDs
+    let normalisedMatrix: any = matrix_config || null;
+    if (normalisedMatrix) {
+      normalisedMatrix = {
+        rows: (normalisedMatrix.rows || []).map((r: any, idx: number) => {
+          if (typeof r === 'string') return { id: `row_${idx}_${Date.now().toString(36)}`, label: r };
+          if (!r.id) return { ...r, id: `row_${idx}_${Date.now().toString(36)}` };
+          return r;
+        }),
+        columns: (normalisedMatrix.columns || []).map((c: any, idx: number) => {
+          if (typeof c === 'string') return { id: `col_${idx}_${Date.now().toString(36)}`, label: c };
+          if (!c.id) return { ...c, id: `col_${idx}_${Date.now().toString(36)}` };
+          return c;
+        }),
+      };
     }
     
     const { data, error } = await freshClient
@@ -168,9 +196,9 @@ router.post('/questions', async (req: Request, res: Response) => {
         question_text,
         instruction: instruction || null,
         is_template: is_template || false,
-        options: options || null,
+        options: normalisedOptions,
         likert_scale: likert_scale || null,
-        matrix_config: matrix_config || null,
+        matrix_config: normalisedMatrix,
         numeric_constraints: numeric_constraints || null,
         slider_config: slider_config || null,
         images: req.body.images || [],
@@ -191,18 +219,43 @@ router.post('/questions', async (req: Request, res: Response) => {
 
 /**
  * PUT /api/fragebogen/questions/:id
- * Update an existing question
+ * Update an existing question. Preserves existing option/matrix IDs; assigns new
+ * stable IDs to any item that arrives without one.
  */
 router.put('/questions/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const freshClient = createFreshClient();
-    const updates = req.body;
+    const updates = { ...req.body };
     
-    // Remove fields that shouldn't be updated directly
     delete updates.id;
     delete updates.created_at;
     delete updates.created_by;
+
+    // Normalise options if present
+    if (updates.options && Array.isArray(updates.options)) {
+      updates.options = updates.options.map((opt: any, idx: number) => {
+        if (typeof opt === 'string') return { id: `opt_${idx}_${Date.now().toString(36)}`, label: opt };
+        if (!opt.id) return { ...opt, id: `opt_${idx}_${Date.now().toString(36)}` };
+        return opt;
+      });
+    }
+
+    // Normalise matrix_config if present
+    if (updates.matrix_config) {
+      updates.matrix_config = {
+        rows: (updates.matrix_config.rows || []).map((r: any, idx: number) => {
+          if (typeof r === 'string') return { id: `row_${idx}_${Date.now().toString(36)}`, label: r };
+          if (!r.id) return { ...r, id: `row_${idx}_${Date.now().toString(36)}` };
+          return r;
+        }),
+        columns: (updates.matrix_config.columns || []).map((c: any, idx: number) => {
+          if (typeof c === 'string') return { id: `col_${idx}_${Date.now().toString(36)}`, label: c };
+          if (!c.id) return { ...c, id: `col_${idx}_${Date.now().toString(36)}` };
+          return c;
+        }),
+      };
+    }
     
     const { data, error } = await freshClient
       .from('fb_questions')
@@ -779,7 +832,8 @@ router.get('/modules/:id/usage', async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/fragebogen/modules/:id/permanent
- * Permanently delete a module and optionally its questions
+ * Permanently delete a module and optionally its questions.
+ * Blocked if any question in this module has existing answers.
  */
 router.delete('/modules/:id/permanent', async (req: Request, res: Response) => {
   try {
@@ -787,7 +841,7 @@ router.delete('/modules/:id/permanent', async (req: Request, res: Response) => {
     const { deleteQuestions } = req.query;
     const freshClient = createFreshClient();
     
-    // First get all question IDs associated with this module
+    // Get all question IDs associated with this module
     const { data: moduleQuestions, error: mqError } = await freshClient
       .from('fb_module_questions')
       .select('question_id')
@@ -795,7 +849,21 @@ router.delete('/modules/:id/permanent', async (req: Request, res: Response) => {
     
     if (mqError) throw mqError;
     
-    const questionIds = (moduleQuestions || []).map(mq => mq.question_id);
+    const questionIds = (moduleQuestions || []).map((mq: any) => mq.question_id);
+
+    // Guard: block deletion if any question in this module has saved answers
+    if (questionIds.length > 0) {
+      const { count: answerCount, error: acError } = await freshClient
+        .from('fb_response_answers')
+        .select('*', { count: 'exact', head: true })
+        .in('question_id', questionIds);
+      if (acError) throw acError;
+      if ((answerCount ?? 0) > 0) {
+        return res.status(409).json({
+          error: 'Cannot permanently delete this module because it contains questions with saved answers. Archive it instead.'
+        });
+      }
+    }
     
     // Delete module rules
     const { error: rulesError } = await freshClient
@@ -1324,12 +1392,26 @@ router.delete('/fragebogen/:id', async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/fragebogen/fragebogen/:id/permanent
- * Permanently delete a fragebogen (keeps modules and questions intact)
+ * Permanently delete a fragebogen (keeps modules and questions intact).
+ * Blocked if any completed responses exist.
  */
 router.delete('/fragebogen/:id/permanent', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const freshClient = createFreshClient();
+
+    // Guard: block if completed responses exist
+    const { count: completedCount, error: ccError } = await freshClient
+      .from('fb_responses')
+      .select('*', { count: 'exact', head: true })
+      .eq('fragebogen_id', id)
+      .eq('status', 'completed');
+    if (ccError) throw ccError;
+    if ((completedCount ?? 0) > 0) {
+      return res.status(409).json({
+        error: 'Cannot permanently delete this Fragebogen because it has completed responses. Archive it instead.'
+      });
+    }
     
     // Delete fragebogen-module associations
     const { error: fmError } = await freshClient
@@ -1461,14 +1543,13 @@ router.get('/responses/fragebogen/:fragebogenId', async (req: Request, res: Resp
 
 /**
  * GET /api/fragebogen/responses/:id
- * Get a single response with all answers
+ * Get a single response with all answers and resolved label context.
  */
 router.get('/responses/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const freshClient = createFreshClient();
     
-    // Get response
     const { data: response, error: responseError } = await freshClient
       .from('fb_responses')
       .select(`
@@ -1480,27 +1561,73 @@ router.get('/responses/:id', async (req: Request, res: Response) => {
       .single();
     
     if (responseError) throw responseError;
-    
     if (!response) {
       return res.status(404).json({ error: 'Response not found' });
     }
     
-    // Get answers
     const { data: answers, error: answersError } = await freshClient
       .from('fb_response_answers')
       .select(`
         *,
-        question:fb_questions (id, type, question_text)
+        question:fb_questions (id, type, question_text, options, matrix_config, likert_scale)
       `)
       .eq('response_id', id)
       .order('answered_at', { ascending: true });
     
     if (answersError) throw answersError;
-    
-    res.json({
-      ...response,
-      answers: answers || []
+
+    // Enrich each answer with a human-readable display value resolved from current definitions
+    const enrichedAnswers = (answers || []).map((a: any) => {
+      let displayValue: any = null;
+      const q = a.question;
+      if (!q) return { ...a, display_value: null };
+
+      switch (q.type) {
+        case 'yesno':
+          displayValue = a.answer_boolean === true ? 'Ja' : a.answer_boolean === false ? 'Nein' : null;
+          break;
+        case 'single_choice': {
+          const opt = (q.options || []).find((o: any) => o.id === a.answer_text);
+          displayValue = opt ? opt.label : a.answer_text;
+          break;
+        }
+        case 'multiple_choice': {
+          const ids: string[] = a.answer_json || [];
+          displayValue = ids.map((id: string) => {
+            const opt = (q.options || []).find((o: any) => o.id === id);
+            return opt ? opt.label : id;
+          });
+          break;
+        }
+        case 'matrix': {
+          const map: Record<string, string> = a.answer_json || {};
+          displayValue = Object.entries(map).map(([rowId, colId]) => {
+            const row = (q.matrix_config?.rows || []).find((r: any) => r.id === rowId);
+            const col = (q.matrix_config?.columns || []).find((c: any) => c.id === colId);
+            return `${row?.label ?? rowId}: ${col?.label ?? colId}`;
+          });
+          break;
+        }
+        case 'likert':
+        case 'open_numeric':
+        case 'slider':
+          displayValue = a.answer_numeric;
+          break;
+        case 'open_text':
+        case 'barcode_scanner':
+          displayValue = a.answer_text;
+          break;
+        case 'photo_upload':
+          displayValue = a.answer_file_url;
+          break;
+        default:
+          displayValue = a.answer_text ?? a.answer_numeric ?? a.answer_json;
+      }
+
+      return { ...a, display_value: displayValue };
     });
+    
+    res.json({ ...response, answers: enrichedAnswers });
   } catch (error: any) {
     console.error('Error fetching response:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch response' });
@@ -1509,12 +1636,13 @@ router.get('/responses/:id', async (req: Request, res: Response) => {
 
 /**
  * POST /api/fragebogen/responses
- * Start a new response (GL)
+ * Start a new response run for a GL at a market.
+ * Multiple runs per (fragebogen, GL, market) are supported.
  */
 router.post('/responses', async (req: Request, res: Response) => {
   try {
     const freshClient = createFreshClient();
-    const { fragebogen_id, gebietsleiter_id, market_id } = req.body;
+    const { fragebogen_id, gebietsleiter_id, market_id, zeiterfassung_submission_id } = req.body;
     
     if (!fragebogen_id || !gebietsleiter_id || !market_id) {
       return res.status(400).json({ 
@@ -1522,26 +1650,14 @@ router.post('/responses', async (req: Request, res: Response) => {
       });
     }
     
-    // Check if response already exists
-    const { data: existing } = await freshClient
-      .from('fb_responses')
-      .select('id, status')
-      .eq('fragebogen_id', fragebogen_id)
-      .eq('gebietsleiter_id', gebietsleiter_id)
-      .eq('market_id', market_id)
-      .single();
-    
-    if (existing) {
-      return res.json(existing); // Return existing response
-    }
-    
-    // Create new response
+    // Always create a new run — multiple historical runs are intentional
     const { data, error } = await freshClient
       .from('fb_responses')
       .insert({
         fragebogen_id,
         gebietsleiter_id,
         market_id,
+        zeiterfassung_submission_id: zeiterfassung_submission_id || null,
         status: 'in_progress'
       })
       .select()
@@ -1549,7 +1665,7 @@ router.post('/responses', async (req: Request, res: Response) => {
     
     if (error) throw error;
     
-    console.log(`✅ Started response: ${data.id}`);
+    console.log(`✅ Started response run: ${data.id}`);
     res.status(201).json(data);
   } catch (error: any) {
     console.error('Error creating response:', error);
@@ -1559,7 +1675,8 @@ router.post('/responses', async (req: Request, res: Response) => {
 
 /**
  * PUT /api/fragebogen/responses/:id
- * Update a response (add/update answers)
+ * Save/update answers for a response run. Validates each answer against the
+ * authoritative question definition in the database before persisting.
  */
 router.put('/responses/:id', async (req: Request, res: Response) => {
   try {
@@ -1570,60 +1687,257 @@ router.put('/responses/:id', async (req: Request, res: Response) => {
     if (!answers || !Array.isArray(answers)) {
       return res.status(400).json({ error: 'answers array is required' });
     }
-    
-    // Upsert answers
+
+    // --- Guard: response must exist and must not be completed ---
+    const { data: responseRow, error: responseFetchError } = await freshClient
+      .from('fb_responses')
+      .select('id, status')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (responseFetchError) throw responseFetchError;
+    if (!responseRow) {
+      return res.status(404).json({ error: 'Response not found' });
+    }
+    if (responseRow.status === 'completed') {
+      return res.status(409).json({ error: 'Response is already completed and cannot be modified' });
+    }
+
+    const now = new Date().toISOString();
+
     for (const answer of answers) {
-      const { question_id, module_id, answer_text, answer_numeric, answer_json, answer_file_url } = answer;
-      
-      // Check if answer exists
+      const { question_id, module_id } = answer;
+
+      if (!question_id || !module_id) {
+        return res.status(400).json({ error: 'Each answer must have question_id and module_id' });
+      }
+
+      // --- Validate question belongs to module ---
+      const { data: moduleQuestion, error: mqError } = await freshClient
+        .from('fb_module_questions')
+        .select('question_id')
+        .eq('module_id', module_id)
+        .eq('question_id', question_id)
+        .maybeSingle();
+
+      if (mqError) throw mqError;
+      if (!moduleQuestion) {
+        return res.status(400).json({
+          error: `Question ${question_id} is not part of module ${module_id}`
+        });
+      }
+
+      // --- Fetch authoritative question definition ---
+      const { data: questionDef, error: qError } = await freshClient
+        .from('fb_questions')
+        .select('id, type, options, matrix_config, likert_scale, numeric_constraints, slider_config')
+        .eq('id', question_id)
+        .single();
+
+      if (qError || !questionDef) {
+        return res.status(400).json({ error: `Question ${question_id} not found` });
+      }
+
+      // Use DB question_type — do not trust client-provided question_type
+      const dbType: string = questionDef.type;
+
+      // --- Per-type validation ---
+      let kind: string;
+      let text: any = null;
+      let numeric: any = null;
+      let boolVal: any = null;
+      let json: any = null;
+      let file: any = null;
+
+      if (dbType === 'yesno') {
+        if (typeof answer.answer_boolean !== 'boolean') {
+          return res.status(400).json({ error: `Question ${question_id} (yesno) requires a boolean answer_boolean` });
+        }
+        kind = 'boolean';
+        boolVal = answer.answer_boolean;
+
+      } else if (dbType === 'likert') {
+        const numVal = answer.answer_numeric;
+        if (typeof numVal !== 'number' || isNaN(numVal)) {
+          return res.status(400).json({ error: `Question ${question_id} (likert) requires a numeric answer_numeric` });
+        }
+        const scale = questionDef.likert_scale as { min?: number; max?: number } | null;
+        if (scale?.min !== undefined && numVal < scale.min) {
+          return res.status(400).json({ error: `Question ${question_id}: value ${numVal} below likert min ${scale.min}` });
+        }
+        if (scale?.max !== undefined && numVal > scale.max) {
+          return res.status(400).json({ error: `Question ${question_id}: value ${numVal} above likert max ${scale.max}` });
+        }
+        kind = 'numeric';
+        numeric = numVal;
+
+      } else if (dbType === 'open_numeric') {
+        const numVal = answer.answer_numeric;
+        if (typeof numVal !== 'number' || isNaN(numVal)) {
+          return res.status(400).json({ error: `Question ${question_id} (open_numeric) requires a numeric answer_numeric` });
+        }
+        const nc = questionDef.numeric_constraints as { min?: number; max?: number; decimals?: number } | null;
+        if (nc?.min !== undefined && numVal < nc.min) {
+          return res.status(400).json({ error: `Question ${question_id}: value ${numVal} below min ${nc.min}` });
+        }
+        if (nc?.max !== undefined && numVal > nc.max) {
+          return res.status(400).json({ error: `Question ${question_id}: value ${numVal} above max ${nc.max}` });
+        }
+        if (nc?.decimals !== undefined && Number.isInteger(nc.decimals) && nc.decimals >= 0) {
+          const scale = Math.pow(10, nc.decimals);
+          const rounded = Math.round(numVal * scale) / scale;
+          if (Math.abs(rounded - numVal) > 1e-9) {
+            return res.status(400).json({ error: `Question ${question_id}: value ${numVal} exceeds allowed decimal places (${nc.decimals})` });
+          }
+        }
+        kind = 'numeric';
+        numeric = numVal;
+
+      } else if (dbType === 'slider') {
+        const numVal = answer.answer_numeric;
+        if (typeof numVal !== 'number' || isNaN(numVal)) {
+          return res.status(400).json({ error: `Question ${question_id} (slider) requires a numeric answer_numeric` });
+        }
+        const sc = questionDef.slider_config as { min?: number; max?: number; step?: number } | null;
+        if (sc?.min !== undefined && numVal < sc.min) {
+          return res.status(400).json({ error: `Question ${question_id}: slider value ${numVal} below min ${sc.min}` });
+        }
+        if (sc?.max !== undefined && numVal > sc.max) {
+          return res.status(400).json({ error: `Question ${question_id}: slider value ${numVal} above max ${sc.max}` });
+        }
+        if (sc?.step !== undefined && sc.step > 0 && sc.min !== undefined) {
+          const stepsFromMin = (numVal - sc.min) / sc.step;
+          if (Math.abs(stepsFromMin - Math.round(stepsFromMin)) > 1e-9) {
+            return res.status(400).json({ error: `Question ${question_id}: slider value ${numVal} is not aligned to step ${sc.step}` });
+          }
+        }
+        kind = 'numeric';
+        numeric = numVal;
+
+      } else if (dbType === 'single_choice') {
+        const val = answer.answer_text;
+        if (!val || typeof val !== 'string') {
+          return res.status(400).json({ error: `Question ${question_id} (single_choice) requires a string answer_text` });
+        }
+        const options = (questionDef.options ?? []) as { id: string; label: string }[];
+        if (options.length > 0 && !options.some(o => o.id === val)) {
+          return res.status(400).json({ error: `Question ${question_id}: option id '${val}' is not valid` });
+        }
+        kind = 'text';
+        text = val;
+
+      } else if (dbType === 'multiple_choice') {
+        const vals = answer.answer_json;
+        if (!Array.isArray(vals)) {
+          return res.status(400).json({ error: `Question ${question_id} (multiple_choice) requires an array answer_json` });
+        }
+        if (vals.some((v: unknown) => typeof v !== 'string')) {
+          return res.status(400).json({ error: `Question ${question_id} (multiple_choice) requires string[] option ids` });
+        }
+        const options = (questionDef.options ?? []) as { id: string; label: string }[];
+        if (options.length > 0) {
+          const validIds = new Set(options.map(o => o.id));
+          const invalid = vals.filter((v: string) => !validIds.has(v));
+          if (invalid.length > 0) {
+            return res.status(400).json({ error: `Question ${question_id}: invalid option ids: ${invalid.join(', ')}` });
+          }
+        }
+        kind = 'json';
+        json = vals;
+
+      } else if (dbType === 'matrix') {
+        const val = answer.answer_json;
+        if (!val || typeof val !== 'object' || Array.isArray(val)) {
+          return res.status(400).json({ error: `Question ${question_id} (matrix) requires an object answer_json` });
+        }
+        const mc = questionDef.matrix_config as { rows?: { id: string }[]; columns?: { id: string }[] } | null;
+        if (mc) {
+          const validRows = new Set((mc.rows ?? []).map((r: { id: string }) => r.id));
+          const validCols = new Set((mc.columns ?? []).map((c: { id: string }) => c.id));
+          for (const [rowId, colId] of Object.entries(val)) {
+            if (validRows.size > 0 && !validRows.has(rowId)) {
+              return res.status(400).json({ error: `Question ${question_id}: invalid matrix row id '${rowId}'` });
+            }
+            if (validCols.size > 0 && !validCols.has(colId as string)) {
+              return res.status(400).json({ error: `Question ${question_id}: invalid matrix column id '${colId}'` });
+            }
+          }
+        }
+        kind = 'json';
+        json = val;
+
+      } else if (dbType === 'photo_upload') {
+        const val = answer.answer_file_url;
+        if (!val || typeof val !== 'string') {
+          return res.status(400).json({ error: `Question ${question_id} (photo_upload) requires a string answer_file_url` });
+        }
+        kind = 'file';
+        file = val;
+
+      } else {
+        // open_text, barcode_scanner, fallback
+        const val = answer.answer_text;
+        if (val === undefined || val === null || val === '') {
+          return res.status(400).json({ error: `Question ${question_id} (${dbType}) requires a non-empty answer_text` });
+        }
+        kind = 'text';
+        text = String(val);
+      }
+
+      // --- Upsert the validated answer ---
       const { data: existing } = await freshClient
         .from('fb_response_answers')
         .select('id')
         .eq('response_id', id)
         .eq('question_id', question_id)
         .eq('module_id', module_id)
-        .single();
+        .maybeSingle();
       
       if (existing) {
-        // Update existing answer
         const { error: updateError } = await freshClient
           .from('fb_response_answers')
           .update({
-            answer_text,
-            answer_numeric,
-            answer_json,
-            answer_file_url,
-            answered_at: new Date().toISOString()
+            question_type: dbType,
+            answer_kind: kind,
+            answer_text: text,
+            answer_numeric: numeric,
+            answer_boolean: boolVal,
+            answer_json: json,
+            answer_file_url: file,
+            answered_at: now,
+            updated_at: now
           })
           .eq('id', existing.id);
-        
         if (updateError) throw updateError;
       } else {
-        // Insert new answer
         const { error: insertError } = await freshClient
           .from('fb_response_answers')
           .insert({
             response_id: id,
             question_id,
             module_id,
-            answer_text,
-            answer_numeric,
-            answer_json,
-            answer_file_url
+            question_type: dbType,
+            answer_kind: kind,
+            answer_text: text,
+            answer_numeric: numeric,
+            answer_boolean: boolVal,
+            answer_json: json,
+            answer_file_url: file,
+            answered_at: now,
+            created_at: now,
+            updated_at: now
           });
-        
         if (insertError) throw insertError;
       }
     }
     
-    // Get updated response
     const { data: response } = await freshClient
       .from('fb_responses')
       .select('*')
       .eq('id', id)
       .single();
     
-    console.log(`✅ Updated response: ${id}`);
+    console.log(`✅ Saved ${answers.length} answer(s) for response: ${id}`);
     res.json(response);
   } catch (error: any) {
     console.error('Error updating response:', error);
@@ -2711,6 +3025,13 @@ router.post('/day-tracking/end', async (req: Request, res: Response) => {
       .eq('gebietsleiter_id', gebietsleiter_id)
       .eq('entry_date', today)
       .eq('reason', 'unterbrechung');
+
+    // Load all zusatz entries for today to detect homeoffice-as-last-action
+    const { data: allZusatzToday } = await freshClient
+      .from('fb_zusatz_zeiterfassung')
+      .select('reason, zeit_bis')
+      .eq('gebietsleiter_id', gebietsleiter_id)
+      .eq('entry_date', today);
     
     // Calculate totals
     let totalFahrzeitMinutes = 0;
@@ -2755,9 +3076,24 @@ router.post('/day-tracking/end', async (req: Request, res: Response) => {
         totalBesuchszeitMinutes += parseInt(parts[0]) * 60 + parseInt(parts[1]);
       }
     }
-    
-    // Calculate Heimfahrt (last visit end to day end)
-    if (visits && visits.length > 0) {
+
+    // --- Homeoffice last-action check ---
+    // Build a list of all actions (market + zusatz) by their end time to find the final one
+    const allActions: { endTime: string; isHomeoffice: boolean }[] = [];
+    for (const v of (visits || [])) {
+      const endTime = v.market_end_time || v.besuchszeit_bis;
+      if (endTime) allActions.push({ endTime: endTime.substring(0, 5), isHomeoffice: false });
+    }
+    for (const z of (allZusatzToday || [])) {
+      if (z.zeit_bis) allActions.push({ endTime: z.zeit_bis.substring(0, 5), isHomeoffice: (z.reason || '').toLowerCase() === 'homeoffice' });
+    }
+    allActions.sort((a, b) => a.endTime.localeCompare(b.endTime));
+    const lastAction = allActions.length > 0 ? allActions[allActions.length - 1] : null;
+    const lastIsHomeoffice = lastAction?.isHomeoffice === true;
+    const effectiveEndTime = lastIsHomeoffice ? lastAction!.endTime : end_time;
+
+    // Calculate Heimfahrt (last visit end to day end) — skipped when last action is homeoffice
+    if (!lastIsHomeoffice && visits && visits.length > 0) {
       const lastVisit = visits[visits.length - 1];
       const lastVisitEndTime = lastVisit.market_end_time || lastVisit.besuchszeit_bis;
       if (lastVisitEndTime) {
@@ -2774,9 +3110,10 @@ router.post('/day-tracking/end', async (req: Request, res: Response) => {
       }
     }
     
-    // Calculate total Arbeitszeit (day end - day start - unterbrechung)
-    const { minutes: totalDayMinutes } = calculateTimeDiff(dayTracking.day_start_time, end_time);
-    const totalArbeitszeitMinutes = totalDayMinutes - totalUnterbrechungMinutes;
+    // Calculate total Arbeitszeit:
+    // When last action is homeoffice, cap at homeoffice end (no phantom Heimfahrt time)
+    const { minutes: totalDayMinutes } = calculateTimeDiff(dayTracking.day_start_time, effectiveEndTime);
+    const totalArbeitszeitMinutes = Math.max(0, totalDayMinutes - totalUnterbrechungMinutes);
     
     // Format intervals
     const formatInterval = (mins: number) => {
@@ -2998,6 +3335,601 @@ router.post('/day-tracking/market-start', async (req: Request, res: Response) =>
   } catch (error: any) {
     console.error('Error recording market start:', error);
     res.status(500).json({ error: error.message || 'Failed to record market start' });
+  }
+});
+
+
+// ============================================================================
+// FRAGEBOGEN EXCEL EXPORT
+// GET /api/fragebogen/fragebogen/:id/export.xlsx
+// Generates a multi-sheet Excel workbook:
+//   - One sheet per GL with market-block layout
+//   - One "Auswertung" sheet with question-level averages
+// ============================================================================
+
+// ---- Helper: resolve a typed answer to a human-readable string ----
+function resolveAnswerDisplay(answer: any, question: any): string {
+  if (!answer) return '—';
+
+  const type: string = question?.type || answer.question_type || '';
+  const options: { id: string; label: string }[] = question?.options ?? [];
+  const mc = question?.matrix_config ?? null;
+  const likertScale = question?.likert_scale ?? null;
+  const sliderCfg = question?.slider_config ?? null;
+
+  switch (type) {
+    case 'yesno':
+      if (answer.answer_boolean === true) return 'Ja';
+      if (answer.answer_boolean === false) return 'Nein';
+      return '—';
+
+    case 'single_choice': {
+      const val = answer.answer_text;
+      if (!val) return '—';
+      const opt = options.find(o => o.id === val);
+      return opt ? opt.label : `[Unbekannt: ${val}]`;
+    }
+
+    case 'multiple_choice': {
+      const vals: string[] = answer.answer_json ?? [];
+      if (!Array.isArray(vals) || vals.length === 0) return '—';
+      return vals.map(v => {
+        const opt = options.find(o => o.id === v);
+        return opt ? opt.label : `[Unbekannt: ${v}]`;
+      }).join(', ');
+    }
+
+    case 'likert': {
+      const n = answer.answer_numeric;
+      if (n === null || n === undefined) return '—';
+      const parts = [`${n}`];
+      if (likertScale?.min !== undefined && likertScale?.max !== undefined) {
+        parts.push(`(${likertScale.min}–${likertScale.max})`);
+      }
+      if (n === likertScale?.min && likertScale?.minLabel) parts.push(`— ${likertScale.minLabel}`);
+      if (n === likertScale?.max && likertScale?.maxLabel) parts.push(`— ${likertScale.maxLabel}`);
+      return parts.join(' ');
+    }
+
+    case 'open_numeric': {
+      const n = answer.answer_numeric;
+      if (n === null || n === undefined) return '—';
+      return String(n);
+    }
+
+    case 'slider': {
+      const n = answer.answer_numeric;
+      if (n === null || n === undefined) return '—';
+      const unit = sliderCfg?.unit ?? '';
+      return unit ? `${n} ${unit}` : `${n}`;
+    }
+
+    case 'open_text':
+      return answer.answer_text?.trim() || '—';
+
+    case 'barcode_scanner':
+      return answer.answer_text || '—';
+
+    case 'photo_upload':
+      return answer.answer_file_url ? answer.answer_file_url : '—';
+
+    case 'matrix': {
+      const val = answer.answer_json;
+      if (!val || typeof val !== 'object' || Array.isArray(val)) return '—';
+      const rows: { id: string; label: string }[] = mc?.rows ?? [];
+      const cols: { id: string; label: string }[] = mc?.columns ?? [];
+      return Object.entries(val).map(([rowId, colId]) => {
+        const rowLabel = rows.find(r => r.id === rowId)?.label ?? `[Zeile: ${rowId}]`;
+        const colLabel = cols.find(c => c.id === colId as string)?.label ?? `[Spalte: ${colId}]`;
+        return `${rowLabel} → ${colLabel}`;
+      }).join('\n') || '—';
+    }
+
+    default:
+      return answer.answer_text ?? answer.answer_numeric ?? (answer.answer_boolean != null ? String(answer.answer_boolean) : '—');
+  }
+}
+
+// ---- Helper: question type German label ----
+function typeLabel(type: string): string {
+  const map: Record<string, string> = {
+    single_choice: 'Einfachauswahl',
+    multiple_choice: 'Mehrfachauswahl',
+    yesno: 'Ja/Nein',
+    likert: 'Likert-Skala',
+    open_numeric: 'Numerisch',
+    slider: 'Slider',
+    open_text: 'Freitext',
+    barcode_scanner: 'Barcode',
+    photo_upload: 'Foto-Upload',
+    matrix: 'Matrix',
+  };
+  return map[type] ?? type;
+}
+
+// ---- Style helpers ----
+function applyHeaderStyle(row: ExcelJS.Row, bgArgb = 'FF1E3A5F') {
+  row.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } };
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+    cell.alignment = { vertical: 'middle', wrapText: true };
+    cell.border = {
+      bottom: { style: 'medium', color: { argb: 'FFB0B8C4' } }
+    };
+  });
+}
+
+function applySectionHeader(row: ExcelJS.Row) {
+  row.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F7' } };
+    cell.font = { bold: true, size: 10, color: { argb: 'FF1E3A5F' } };
+    cell.alignment = { vertical: 'middle' };
+    cell.border = { bottom: { style: 'thin', color: { argb: 'FFA0B4CA' } } };
+  });
+}
+
+function applySubHeader(row: ExcelJS.Row) {
+  row.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDF4FF' } };
+    cell.font = { bold: true, size: 9, italic: true, color: { argb: 'FF2C5F8A' } };
+    cell.alignment = { vertical: 'middle' };
+  });
+}
+
+function applyDataRow(row: ExcelJS.Row, zebra: boolean) {
+  row.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra ? 'FFF7FAFF' : 'FFFFFFFF' } };
+    cell.font = { size: 10 };
+    cell.alignment = { vertical: 'top', wrapText: true };
+    cell.border = { bottom: { style: 'hair', color: { argb: 'FFD0D7E2' } } };
+  });
+}
+
+function applyAverageHeader(row: ExcelJS.Row) {
+  row.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2C4A' } };
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  });
+}
+
+function applyGroupRow(row: ExcelJS.Row) {
+  row.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FB' } };
+    cell.font = { bold: true, size: 10, color: { argb: 'FF1E3A5F' } };
+    cell.alignment = { vertical: 'middle' };
+    cell.border = { top: { style: 'thin', color: { argb: 'FFA0B4CA' } } };
+  });
+}
+
+router.get('/fragebogen/:id/export.xlsx', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const freshClient = createFreshClient();
+
+    // 1) Load Fragebogen definition
+    const { data: fragebogen, error: fbError } = await freshClient
+      .from('fb_fragebogen')
+      .select('id, name, start_date, end_date')
+      .eq('id', id)
+      .single();
+    if (fbError || !fragebogen) return res.status(404).json({ error: 'Fragebogen not found' });
+
+    // 2) Load all responses for this Fragebogen
+    const { data: responses, error: rError } = await freshClient
+      .from('fb_responses')
+      .select(`
+        id, status, started_at, completed_at, gebietsleiter_id, market_id,
+        user:users!gebietsleiter_id (id, first_name, last_name),
+        market:markets!market_id (id, name, chain, address, postal_code, city)
+      `)
+      .eq('fragebogen_id', id)
+      .order('started_at', { ascending: true });
+    if (rError) throw rError;
+    if (!responses || responses.length === 0) {
+      return res.status(404).json({ error: 'No responses found for this Fragebogen' });
+    }
+
+    const responseIds = responses.map((r: any) => r.id);
+
+    // 3) Load all answers with question metadata
+    const { data: allAnswers, error: aError } = await freshClient
+      .from('fb_response_answers')
+      .select(`
+        id, response_id, question_id, module_id, question_type,
+        answer_kind, answer_text, answer_numeric, answer_boolean,
+        answer_json, answer_file_url, answered_at,
+        question:fb_questions!question_id (
+          id, type, question_text, options, matrix_config, likert_scale,
+          numeric_constraints, slider_config
+        )
+      `)
+      .in('response_id', responseIds)
+      .order('answered_at', { ascending: true });
+    if (aError) throw aError;
+
+    // 4) Load Fragebogen module/question order for consistent column ordering
+    const { data: fbModules } = await freshClient
+      .from('fb_fragebogen_modules')
+      .select(`
+        order_index,
+        module:fb_modules!module_id (
+          id, name,
+          questions:fb_module_questions (
+            order_index, question_id,
+            question:fb_questions!question_id (id, type, question_text, options, matrix_config, likert_scale, slider_config)
+          )
+        )
+      `)
+      .eq('fragebogen_id', id)
+      .order('order_index', { ascending: true });
+
+    // Build ordered question list
+    type OrderedQuestion = {
+      id: string; type: string; question_text: string; module_name: string;
+      options: any[]; matrix_config: any; likert_scale: any; slider_config: any;
+    };
+    const orderedQuestions: OrderedQuestion[] = [];
+    const questionIds: string[] = [];
+    for (const fm of (fbModules ?? [])) {
+      const mod = (fm as any).module;
+      const moduleQuestions = [...((mod?.questions ?? []) as any[])]
+        .sort((a: any, b: any) => a.order_index - b.order_index);
+      for (const mq of moduleQuestions) {
+        const q = mq.question;
+        if (!q || questionIds.includes(q.id)) continue;
+        questionIds.push(q.id);
+        orderedQuestions.push({
+          id: q.id, type: q.type, question_text: q.question_text,
+          module_name: mod?.name ?? '',
+          options: q.options ?? [], matrix_config: q.matrix_config ?? null,
+          likert_scale: q.likert_scale ?? null, slider_config: q.slider_config ?? null,
+        });
+      }
+    }
+    // Fallback: questions that appeared in answers but not in module order
+    for (const ans of (allAnswers ?? [])) {
+      const q = (ans as any).question;
+      if (!q || questionIds.includes(q.id)) continue;
+      questionIds.push(q.id);
+      orderedQuestions.push({
+        id: q.id, type: q.type, question_text: q.question_text, module_name: '',
+        options: q.options ?? [], matrix_config: q.matrix_config ?? null,
+        likert_scale: q.likert_scale ?? null, slider_config: q.slider_config ?? null,
+      });
+    }
+
+    // Index answers by response_id -> question_id -> answer
+    const answerIndex: Record<string, Record<string, any>> = {};
+    for (const ans of (allAnswers ?? [])) {
+      const a = ans as any;
+      if (!answerIndex[a.response_id]) answerIndex[a.response_id] = {};
+      answerIndex[a.response_id][a.question_id] = a;
+    }
+
+    // Group responses by GL
+    type AnyResp = any;
+    const byGL: Record<string, { gl: any; responses: AnyResp[] }> = {};
+    for (const resp of responses) {
+      const r = resp as any;
+      const glId = r.gebietsleiter_id;
+      if (!byGL[glId]) byGL[glId] = { gl: r.user, responses: [] };
+      byGL[glId].responses.push(r);
+    }
+
+    // ---- Build Workbook ----
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Mars Rover Admin';
+    workbook.created = new Date();
+
+    const COLS = {
+      Q_NUM: 6, Q_TYPE: 16, Q_TEXT: 40, ANSWER: 50, STATUS: 12
+    };
+
+    // ---- Averages Sheet (first) ----
+    const avgWs = workbook.addWorksheet('Auswertung');
+    avgWs.columns = [
+      { key: 'c1', width: 6 },
+      { key: 'c2', width: 18 },
+      { key: 'c3', width: 42 },
+      { key: 'c4', width: 30 },
+      { key: 'c5', width: 14 },
+      { key: 'c6', width: 14 },
+      { key: 'c7', width: 14 },
+      { key: 'c8', width: 14 },
+    ];
+    // ---- GL Sheets (after Auswertung is created first) ----
+    for (const glId of Object.keys(byGL)) {
+      const { gl, responses: glResponses } = byGL[glId];
+      const glName = gl ? `${gl.first_name} ${gl.last_name}` : `GL ${glId.slice(0, 8)}`;
+      // Excel sheet names max 31 chars, no special chars
+      const sheetName = glName.replace(/[\\\/\*\?\[\]:]/g, '').slice(0, 31);
+      const ws = workbook.addWorksheet(sheetName);
+
+      // Column definitions
+      ws.columns = [
+        { key: 'col1', width: 5 },   // #
+        { key: 'col2', width: COLS.Q_TYPE },  // Typ
+        { key: 'col3', width: COLS.Q_TEXT },  // Frage
+        { key: 'col4', width: COLS.ANSWER },  // Antwort
+        { key: 'col5', width: 16 },  // Status / Info
+      ];
+
+      // Sheet title
+      const titleRow = ws.addRow([`Fragebogen: ${fragebogen.name}   —   GL: ${glName}`]);
+      titleRow.height = 28;
+      ws.mergeCells(titleRow.number, 1, titleRow.number, 5);
+      titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2C4A' } };
+      titleRow.getCell(1).font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+      titleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left' };
+
+      ws.addRow([]); // spacer
+
+      // Group responses by market
+      const byMarket: Record<string, AnyResp[]> = {};
+      const marketOrder: string[] = [];
+      for (const resp of glResponses) {
+        const r = resp as any;
+        if (!byMarket[r.market_id]) { byMarket[r.market_id] = []; marketOrder.push(r.market_id); }
+        byMarket[r.market_id].push(r);
+      }
+
+      let questionCounter = 0;
+
+      for (const marketId of marketOrder) {
+        const marketResponses = byMarket[marketId];
+        const firstResp = marketResponses[0] as any;
+        const market = firstResp.market as any;
+        const marketLabel = market
+          ? `${market.chain}  ${market.name}  —  ${market.address ?? ''}, ${market.postal_code ?? ''} ${market.city ?? ''}`
+          : `Markt ${marketId.slice(0, 8)}`;
+
+        // Market header
+        const mRow = ws.addRow([``, marketLabel, '', '', '']);
+        ws.mergeCells(mRow.number, 1, mRow.number, 5);
+        mRow.getCell(1).value = marketLabel;
+        mRow.height = 22;
+        applySectionHeader(mRow);
+
+        for (let subIdx = 0; subIdx < marketResponses.length; subIdx++) {
+          const resp = marketResponses[subIdx] as any;
+          const submissionDate = resp.started_at
+            ? new Date(resp.started_at).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : '—';
+          const statusLabel = resp.status === 'completed' ? 'Abgeschlossen' : 'In Bearbeitung';
+          const subLabel = marketResponses.length > 1
+            ? `Einreichung ${subIdx + 1} von ${marketResponses.length}  |  ${submissionDate}  |  ${statusLabel}`
+            : `Einreichung  |  ${submissionDate}  |  ${statusLabel}`;
+
+          const subRow = ws.addRow(['', subLabel, '', '', '']);
+          ws.mergeCells(subRow.number, 1, subRow.number, 5);
+          subRow.getCell(1).value = subLabel;
+          subRow.height = 18;
+          applySubHeader(subRow);
+
+          // Column header for questions block
+          const colHeaderRow = ws.addRow(['#', 'Fragetyp', 'Frage', 'Antwort', 'Modul']);
+          colHeaderRow.height = 20;
+          applyHeaderStyle(colHeaderRow, 'FF2C5F8A');
+
+          const answers = answerIndex[resp.id] ?? {};
+
+          if (orderedQuestions.length === 0) {
+            const noQRow = ws.addRow(['', '', 'Keine Fragen vorhanden', '—', '']);
+            applyDataRow(noQRow, false);
+          } else {
+            let localQ = 0;
+            for (const oq of orderedQuestions) {
+              localQ++;
+              questionCounter++;
+              const ans = answers[oq.id];
+              const displayVal = ans ? resolveAnswerDisplay(ans, oq) : '—';
+              const dataRow = ws.addRow([localQ, typeLabel(oq.type), oq.question_text, displayVal, oq.module_name]);
+              dataRow.getCell(4).alignment = { wrapText: true, vertical: 'top' };
+              dataRow.getCell(3).alignment = { wrapText: true, vertical: 'top' };
+              dataRow.height = displayVal.includes('\n') ? Math.min(20 * (displayVal.split('\n').length), 80) : 18;
+              applyDataRow(dataRow, localQ % 2 === 0);
+            }
+          }
+
+          ws.addRow([]); // spacer between submissions
+        }
+
+        ws.addRow([]); // spacer between markets
+      }
+
+      void questionCounter; // used for tracking only
+    }
+
+    // ---- Now fill Auswertung sheet content ----
+
+    // Title
+    const avgTitle = avgWs.addRow([`Auswertung: ${fragebogen.name}`]);
+    avgTitle.height = 28;
+    avgWs.mergeCells(avgTitle.number, 1, avgTitle.number, 8);
+    avgTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2C4A' } };
+    avgTitle.getCell(1).font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+    avgTitle.getCell(1).alignment = { vertical: 'middle' };
+
+    // Meta row
+    const totalSubmissions = responses.length;
+    const completedCount = responses.filter((r: any) => r.status === 'completed').length;
+    const metaRow = avgWs.addRow([
+      '',
+      `Einreichungen gesamt: ${totalSubmissions}`,
+      `Davon abgeschlossen: ${completedCount}`,
+      `Exportdatum: ${new Date().toLocaleDateString('de-AT')}`,
+      '', '', '', ''
+    ]);
+    avgWs.mergeCells(metaRow.number, 2, metaRow.number, 4);
+    metaRow.getCell(2).font = { italic: true, size: 9, color: { argb: 'FF555555' } };
+    avgWs.addRow([]);
+
+    // Column header
+    const avgColHeader = avgWs.addRow(['#', 'Fragetyp', 'Frage', 'Antwort / Wert', 'Anzahl', 'Anteil', 'Min', 'Max']);
+    avgColHeader.height = 22;
+    applyAverageHeader(avgColHeader);
+
+    // Compute aggregates per question
+    let qIdx = 0;
+    let groupHeaderPrinted = '';
+
+    for (const oq of orderedQuestions) {
+      qIdx++;
+
+      // Print module group header if changed
+      if (oq.module_name && oq.module_name !== groupHeaderPrinted) {
+        groupHeaderPrinted = oq.module_name;
+        const grpRow = avgWs.addRow(['', '', `Modul: ${oq.module_name}`, '', '', '', '', '']);
+        avgWs.mergeCells(grpRow.number, 1, grpRow.number, 8);
+        grpRow.getCell(1).value = `Modul: ${oq.module_name}`;
+        applyGroupRow(grpRow);
+      }
+
+      // Gather all answers for this question across all responses
+      const questionAnswers = (allAnswers ?? []).filter((a: any) => a.question_id === oq.id);
+      const answered = questionAnswers.length;
+      const pct = (n: number) => totalSubmissions > 0 ? `${Math.round((n / totalSubmissions) * 100)}%` : '—';
+
+      const numericTypes = ['likert', 'open_numeric', 'slider'];
+      const choiceTypes = ['single_choice', 'multiple_choice'];
+      const isNumeric = numericTypes.includes(oq.type);
+      const isChoice = choiceTypes.includes(oq.type);
+
+      if (isNumeric) {
+        const nums = questionAnswers
+          .map((a: any) => a.answer_numeric)
+          .filter((n: any) => typeof n === 'number' && !isNaN(n));
+        const mean = nums.length > 0 ? nums.reduce((s: number, n: number) => s + n, 0) / nums.length : null;
+        const min = nums.length > 0 ? Math.min(...nums) : null;
+        const max = nums.length > 0 ? Math.max(...nums) : null;
+
+        const dRow = avgWs.addRow([
+          qIdx, typeLabel(oq.type), oq.question_text,
+          mean !== null ? `Ø ${mean.toFixed(2)}` : '—',
+          answered, pct(answered),
+          min !== null ? min : '—',
+          max !== null ? max : '—'
+        ]);
+        applyDataRow(dRow, qIdx % 2 === 0);
+
+      } else if (oq.type === 'yesno') {
+        const jaCount = questionAnswers.filter((a: any) => a.answer_boolean === true).length;
+        const neinCount = questionAnswers.filter((a: any) => a.answer_boolean === false).length;
+
+        const r1 = avgWs.addRow([qIdx, typeLabel(oq.type), oq.question_text, 'Ja', jaCount, pct(jaCount), '', '']);
+        applyDataRow(r1, qIdx % 2 === 0);
+        const r2 = avgWs.addRow(['', '', '', 'Nein', neinCount, pct(neinCount), '', '']);
+        applyDataRow(r2, false);
+
+      } else if (isChoice) {
+        const options = oq.options ?? [];
+        // Count per option
+        const optCounts: Record<string, number> = {};
+        for (const opt of options) optCounts[opt.id] = 0;
+
+        for (const ans of questionAnswers) {
+          const a = ans as any;
+          if (oq.type === 'single_choice' && a.answer_text) {
+            optCounts[a.answer_text] = (optCounts[a.answer_text] ?? 0) + 1;
+          } else if (oq.type === 'multiple_choice' && Array.isArray(a.answer_json)) {
+            for (const optId of a.answer_json) {
+              optCounts[optId] = (optCounts[optId] ?? 0) + 1;
+            }
+          }
+        }
+
+        const denom = oq.type === 'single_choice' ? totalSubmissions : answered;
+        let first = true;
+        for (const opt of options) {
+          const cnt = optCounts[opt.id] ?? 0;
+          const optPct = denom > 0 ? `${Math.round((cnt / denom) * 100)}%` : '—';
+          const dRow = avgWs.addRow([
+            first ? qIdx : '',
+            first ? typeLabel(oq.type) : '',
+            first ? oq.question_text : '',
+            opt.label, cnt, optPct, '', ''
+          ]);
+          applyDataRow(dRow, qIdx % 2 === 0);
+          first = false;
+        }
+        if (options.length === 0) {
+          const dRow = avgWs.addRow([qIdx, typeLabel(oq.type), oq.question_text, '—', answered, pct(answered), '', '']);
+          applyDataRow(dRow, qIdx % 2 === 0);
+        }
+
+      } else if (oq.type === 'matrix') {
+        const rows: { id: string; label: string }[] = oq.matrix_config?.rows ?? [];
+        const cols: { id: string; label: string }[] = oq.matrix_config?.columns ?? [];
+        // Count [rowId][colId]
+        const matCounts: Record<string, Record<string, number>> = {};
+        for (const row of rows) {
+          matCounts[row.id] = {};
+          for (const col of cols) matCounts[row.id][col.id] = 0;
+        }
+        for (const ans of questionAnswers) {
+          const val = (ans as any).answer_json;
+          if (!val || typeof val !== 'object') continue;
+          for (const [rowId, colId] of Object.entries(val)) {
+            if (matCounts[rowId]) {
+              matCounts[rowId][colId as string] = (matCounts[rowId][colId as string] ?? 0) + 1;
+            }
+          }
+        }
+        let first = true;
+        for (const row of rows) {
+          for (const col of cols) {
+            const cnt = matCounts[row.id]?.[col.id] ?? 0;
+            const optPct = answered > 0 ? `${Math.round((cnt / answered) * 100)}%` : '—';
+            const dRow = avgWs.addRow([
+              first ? qIdx : '',
+              first ? typeLabel(oq.type) : '',
+              first ? oq.question_text : '',
+              `${row.label} → ${col.label}`,
+              cnt, optPct, '', ''
+            ]);
+            applyDataRow(dRow, qIdx % 2 === 0);
+            first = false;
+          }
+        }
+        if (rows.length === 0) {
+          const dRow = avgWs.addRow([qIdx, typeLabel(oq.type), oq.question_text, '—', answered, pct(answered), '', '']);
+          applyDataRow(dRow, qIdx % 2 === 0);
+        }
+
+      } else {
+        // open_text, barcode_scanner, photo_upload
+        const textSamples = questionAnswers
+          .map((a: any) => a.answer_text ?? a.answer_file_url ?? '')
+          .filter(Boolean)
+          .slice(0, 3)
+          .join(' | ');
+        const dRow = avgWs.addRow([
+          qIdx, typeLabel(oq.type), oq.question_text,
+          textSamples || '—',
+          answered, pct(answered), '', ''
+        ]);
+        dRow.getCell(4).alignment = { wrapText: true, vertical: 'top' };
+        applyDataRow(dRow, qIdx % 2 === 0);
+      }
+    }
+
+    // Stream response
+    const safeName = fragebogen.name.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const fileName = `fragebogen_${safeName}_${dateStr}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    console.log(`📊 Exporting Fragebogen "${fragebogen.name}" — ${responses.length} responses, ${orderedQuestions.length} questions`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    console.error('Error generating Fragebogen export:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || 'Failed to generate export' });
+    }
   }
 });
 

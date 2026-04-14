@@ -87,6 +87,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [activeVisit, setActiveVisit] = useState<{
     market: Market;
     modules: any[];
+    fragebogenId?: string;
     zeiterfassungActive: boolean;
     resumeData?: PersistedVisit;
   } | null>(null);
@@ -623,6 +624,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         setActiveVisit({
           market,
           modules,
+          fragebogenId: fullFragebogen.id,
           zeiterfassungActive: true // Always enable zeiterfassung
         });
         setIsMarketModalOpen(false);
@@ -705,6 +707,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         <MarketVisitPage
           market={activeVisit.market}
           modules={activeVisit.modules}
+          fragebogenId={activeVisit.fragebogenId}
           zeiterfassungActive={activeVisit.zeiterfassungActive}
           resumeData={activeVisit.resumeData}
           onClose={() => setActiveVisit(null)}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { CaretDown, CaretRight, CaretLeft, Storefront, Car, CalendarCheck, TrendUp, Receipt, User, MagnifyingGlass, Pause, Star, FirstAidKit, House, GraduationCap, Warehouse, Path, Bed, Check, X, Trash, Warning, NavigationArrow, Airplane } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, CaretLeft, Storefront, Car, CalendarCheck, TrendUp, Receipt, User, MagnifyingGlass, Pause, Star, FirstAidKit, House, GraduationCap, Warehouse, Path, Bed, Check, X, Trash, Warning, NavigationArrow, Airplane, CheckCircle } from '@phosphor-icons/react';
 import XLSX from 'xlsx-js-style';
 import fragebogenService from '../../services/fragebogenService';
 import styles from './ZeiterfassungPage.module.css';
@@ -130,6 +130,43 @@ const zusatzReasonIcons: Record<string, React.ElementType> = {
 interface ZeiterfassungPageProps {
   viewMode: 'date' | 'profile';
 }
+
+// ── Shared homeoffice rule helper ──────────────────────────────────────────
+// Returns info about the final chronological action of a day.
+// "Final" is determined by comparing action end times (besuchszeit_bis / zeit_bis).
+interface LastActionInfo {
+  isLastHomeoffice: boolean;
+  homeofficeEndTime: string | null; // end of the homeoffice block when rule is active
+}
+
+const getLastActionInfo = (
+  marketEntries: Array<{ besuchszeit_bis?: string | null }>,
+  zusatzEntries: Array<{ reason?: string; zeit_bis?: string | null }>
+): LastActionInfo => {
+  // Build a flat list of { endTime, isHomeoffice }
+  const actions: { endTime: string; isHomeoffice: boolean }[] = [];
+
+  for (const e of marketEntries) {
+    if (e.besuchszeit_bis) {
+      actions.push({ endTime: e.besuchszeit_bis.substring(0, 5), isHomeoffice: false });
+    }
+  }
+  for (const z of zusatzEntries) {
+    if (z.zeit_bis) {
+      actions.push({ endTime: z.zeit_bis.substring(0, 5), isHomeoffice: (z.reason || '').toLowerCase() === 'homeoffice' });
+    }
+  }
+
+  if (actions.length === 0) return { isLastHomeoffice: false, homeofficeEndTime: null };
+
+  // Sort by end time string (HH:MM) – handles midnight crossing sufficiently for day view
+  actions.sort((a, b) => a.endTime.localeCompare(b.endTime));
+  const last = actions[actions.length - 1];
+  return {
+    isLastHomeoffice: last.isHomeoffice,
+    homeofficeEndTime: last.isHomeoffice ? last.endTime : null,
+  };
+};
 
 // Export helper function for Excel
 const exportToExcel = (data: string[][], filename: string) => {
@@ -811,7 +848,19 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
     if (dayTrack?.day_end_time && items.length > 0) {
       const lastItem = items[items.length - 1];
       const gap = gapMins(lastItem.endTime, dayTrack.day_end_time);
-      if (gap > 0) {
+
+      // Check homeoffice last-action rule
+      const mEntries = marketEntries.map(e => ({ besuchszeit_bis: e.besuchszeit_bis || null }));
+      const zEntries = glZusatz.map(z => ({ reason: z.reason || '', zeit_bis: z.zeit_bis || null }));
+      const { isLastHomeoffice } = getLastActionInfo(mEntries, zEntries);
+
+      if (isLastHomeoffice) {
+        // No Heimfahrt — add a neutral "Tag beendet" stamp
+        const row = glName
+          ? [formattedDate, glName, 'Tag beendet', '', '', '', '', lastItem.endTime, lastItem.endTime, '0', '', '', '', '', dayTrack.km_stand_end?.toString() || '']
+          : [formattedDate, 'Tag beendet', '', '', '', '', lastItem.endTime, lastItem.endTime, '0', '', '', '', '', dayTrack.km_stand_end?.toString() || ''];
+        rows.push(row);
+      } else if (gap > 0) {
         const row = glName
           ? [formattedDate, glName, 'Heimfahrt', '', '', '', '', lastItem.endTime, dayTrack.day_end_time, fmtGap(gap), '', '', '', '', dayTrack.km_stand_end?.toString() || '']
           : [formattedDate, 'Heimfahrt', '', '', '', '', lastItem.endTime, dayTrack.day_end_time, fmtGap(gap), '', '', '', '', dayTrack.km_stand_end?.toString() || ''];
@@ -1066,6 +1115,23 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
           if (dt.day_end_time) dd.endFrac = Math.max(dd.endFrac, hmToFraction(dt.day_end_time));
           if (dt.km_stand_start != null) dd.kmStart = dt.km_stand_start;
           if (dt.km_stand_end != null) dd.kmEnd = dt.km_stand_end;
+        });
+
+        // 4) Homeoffice last-action correction — cap endFrac at homeoffice end when applicable
+        Object.keys(dayData).forEach(dayNumStr => {
+          const dayNum = parseInt(dayNumStr, 10);
+          const dateStr = `${year}-${monthStr}-${String(dayNum).padStart(2, '0')}`;
+          const dayMarketEntries = entries
+            .filter(en => en.gebietsleiter_id === glId && toViennaDate(en.created_at) === dateStr)
+            .map(en => ({ besuchszeit_bis: (en.besuchszeit_bis || en.fahrzeit_bis || null) as string | null }));
+          const dayZusatzEntries = zusatzEntries
+            .filter(z => z.gebietsleiter_id === glId && z.entry_date === dateStr)
+            .map(z => ({ reason: z.reason || '', zeit_bis: (z.zeit_bis || null) as string | null }));
+          const { isLastHomeoffice, homeofficeEndTime } = getLastActionInfo(dayMarketEntries, dayZusatzEntries);
+          if (isLastHomeoffice && homeofficeEndTime) {
+            // Do not let day_end_time (which arrives after homeoffice) inflate duration
+            dayData[dayNum].endFrac = hmToFraction(homeofficeEndTime);
+          }
         });
 
         // ── Build worksheet ──
@@ -2329,30 +2395,57 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                               // Add Heimfahrt if day has ended
                               if (dayTracking?.day_end_time && timelineItems.length > 0) {
                                 const lastItem = timelineItems[timelineItems.length - 1];
-                                const heimfahrtMinutes = calcGapMinutes(lastItem.endTime, dayTracking.day_end_time);
                                 const heimfahrtEditKey = `heimfahrt|${selectedGL.glId}::${day.date}`;
-                                if (heimfahrtMinutes > 0) {
+
+                                // Homeoffice last-action rule
+                                const { isLastHomeoffice } = getLastActionInfo(
+                                  dayDetailedEntries.map(e => ({ besuchszeit_bis: e.besuchszeit_bis || null })),
+                                  glZusatzEntries.map(z => ({ reason: z.reason || '', zeit_bis: z.zeit_bis || null }))
+                                );
+
+                                if (isLastHomeoffice) {
+                                  // Show a neutral "Tag beendet" stamp instead of Heimfahrt
                                   renderedItems.push(
-                                    <div key="heimfahrt" className={styles.fahrzeitLine}>
+                                    <div key="tag-beendet" className={styles.fahrzeitLine}>
                                       <div className={styles.fahrzeitInfo}>
-                                        <Car size={16} weight="fill" />
-                                        <span className={styles.fahrzeitLabel}>Heimfahrt</span>
+                                        <CheckCircle size={16} weight="fill" style={{ color: '#10B981' }} />
+                                        <span className={styles.fahrzeitLabel}>Tag beendet</span>
                                         {dayTracking.km_stand_end != null && (
                                           <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
                                         )}
-                                        {editingTimeId === heimfahrtEditKey ? renderHeimfahrtTimeEdit(heimfahrtEditKey) : (
-                                          <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
-                                            <span className={styles.fahrzeitTime}>
-                                              {lastItem.endTime} - {dayTracking.day_end_time}
-                                            </span>
-                                            <span className={styles.duration}>
-                                              {formatGap(heimfahrtMinutes)}
-                                            </span>
-                                          </div>
-                                        )}
+                                        <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
+                                          <span className={styles.fahrzeitTime}>
+                                            {lastItem.endTime}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
                                   );
+                                } else {
+                                  const heimfahrtMinutes = calcGapMinutes(lastItem.endTime, dayTracking.day_end_time);
+                                  if (heimfahrtMinutes > 0) {
+                                    renderedItems.push(
+                                      <div key="heimfahrt" className={styles.fahrzeitLine}>
+                                        <div className={styles.fahrzeitInfo}>
+                                          <Car size={16} weight="fill" />
+                                          <span className={styles.fahrzeitLabel}>Heimfahrt</span>
+                                          {dayTracking.km_stand_end != null && (
+                                            <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
+                                          )}
+                                          {editingTimeId === heimfahrtEditKey ? renderHeimfahrtTimeEdit(heimfahrtEditKey) : (
+                                            <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
+                                              <span className={styles.fahrzeitTime}>
+                                                {lastItem.endTime} - {dayTracking.day_end_time}
+                                              </span>
+                                              <span className={styles.duration}>
+                                                {formatGap(heimfahrtMinutes)}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
                                 }
                               }
                               
@@ -2884,30 +2977,56 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                             // Add Heimfahrt if day has ended
                             if (dayTracking?.day_end_time && timelineItems.length > 0) {
                               const lastItem = timelineItems[timelineItems.length - 1];
-                              const heimfahrtMinutes = calcGapMinutes(lastItem.endTime, dayTracking.day_end_time);
                               const heimfahrtEditKey = `heimfahrt|${gl.glId}::${dayGroup.date}`;
-                              if (heimfahrtMinutes > 0) {
+
+                              // Homeoffice last-action rule
+                              const { isLastHomeoffice } = getLastActionInfo(
+                                marketEntries.map(e => ({ besuchszeit_bis: e.besuchszeit_bis || null })),
+                                glZusatzEntries.map(z => ({ reason: z.reason || '', zeit_bis: z.zeit_bis || null }))
+                              );
+
+                              if (isLastHomeoffice) {
                                 renderedItems.push(
-                                  <div key="heimfahrt" className={styles.fahrzeitLine}>
+                                  <div key="tag-beendet" className={styles.fahrzeitLine}>
                                     <div className={styles.fahrzeitInfo}>
-                                      <Car size={16} weight="fill" />
-                                      <span className={styles.fahrzeitLabel}>Heimfahrt</span>
+                                      <CheckCircle size={16} weight="fill" style={{ color: '#10B981' }} />
+                                      <span className={styles.fahrzeitLabel}>Tag beendet</span>
                                       {dayTracking.km_stand_end != null && (
                                         <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
                                       )}
-                                      {editingTimeId === heimfahrtEditKey ? renderHeimfahrtTimeEdit(heimfahrtEditKey) : (
-                                        <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
-                                          <span className={styles.fahrzeitTime}>
-                                            {lastItem.endTime} - {dayTracking.day_end_time}
-                                          </span>
-                                          <span className={styles.duration}>
-                                            {formatGap(heimfahrtMinutes)}
-                                          </span>
-                                        </div>
-                                      )}
+                                      <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
+                                        <span className={styles.fahrzeitTime}>
+                                          {lastItem.endTime}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                 );
+                              } else {
+                                const heimfahrtMinutes = calcGapMinutes(lastItem.endTime, dayTracking.day_end_time);
+                                if (heimfahrtMinutes > 0) {
+                                  renderedItems.push(
+                                    <div key="heimfahrt" className={styles.fahrzeitLine}>
+                                      <div className={styles.fahrzeitInfo}>
+                                        <Car size={16} weight="fill" />
+                                        <span className={styles.fahrzeitLabel}>Heimfahrt</span>
+                                        {dayTracking.km_stand_end != null && (
+                                          <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
+                                        )}
+                                        {editingTimeId === heimfahrtEditKey ? renderHeimfahrtTimeEdit(heimfahrtEditKey) : (
+                                          <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
+                                            <span className={styles.fahrzeitTime}>
+                                              {lastItem.endTime} - {dayTracking.day_end_time}
+                                            </span>
+                                            <span className={styles.duration}>
+                                              {formatGap(heimfahrtMinutes)}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                }
                               }
                             }
                             
