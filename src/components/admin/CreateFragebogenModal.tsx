@@ -753,6 +753,7 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
   };
 
   return (
+    <>
     <div className={styles.modalOverlay} onClick={handleClose}>
       <div className={`${styles.modal} ${step === 'name' ? styles.modalNameStep : ''}`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -1432,6 +1433,7 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
         onCancel={() => setIsImportModalOpen(false)}
       />
     )}
+    </>
   );
 };
 
