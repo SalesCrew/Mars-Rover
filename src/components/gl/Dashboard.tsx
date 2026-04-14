@@ -615,7 +615,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             matrixRows: q.question?.matrix_config?.rows,
             matrixColumns: q.question?.matrix_config?.columns,
             numericConstraints: q.question?.numeric_constraints,
-            sliderConfig: q.question?.slider_config
+            sliderConfig: q.question?.slider_config,
+            images: Array.isArray(q.question?.images) ? q.question.images : []
           }))
         }));
         

@@ -48,6 +48,7 @@ interface Question {
   questionText: string;
   instruction?: string;
   required: boolean;
+  images?: string[];
   options?: { id: string; label: string }[];
   likertScale?: {
     min: number;
@@ -1282,6 +1283,23 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
                 
                 {currentQuestion.instruction && (
                   <p className={styles.questionInstruction}>{currentQuestion.instruction}</p>
+                )}
+
+                {/* Question images — shown between text/instruction and answer controls */}
+                {Array.isArray(currentQuestion.images) && currentQuestion.images.filter(Boolean).length > 0 && (
+                  <div className={`${styles.questionImagesSection} ${currentQuestion.images.filter(Boolean).length === 1 ? styles.questionImagesSingle : styles.questionImagesMulti}`}>
+                    {currentQuestion.images.filter(Boolean).map((url, idx) => (
+                      <div key={idx} className={styles.questionImageCard}>
+                        <img
+                          src={url}
+                          alt={`Fragebild ${idx + 1}`}
+                          className={styles.questionImage}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 )}
                 
                 <div className={styles.inputArea}>
