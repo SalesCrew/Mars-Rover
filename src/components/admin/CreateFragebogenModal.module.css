@@ -702,6 +702,60 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+}
+
+.importMarketsButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: white;
+  border: 1.5px solid rgba(124, 58, 237, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7C3AED;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+.importMarketsButton:hover {
+  background: rgba(124, 58, 237, 0.06);
+  border-color: #7C3AED;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.12);
+}
+
+.importMarketsButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.importMarketsButton:disabled:hover {
+  background: white;
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: none;
+}
+
+.importSummaryBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #047857;
+  margin-bottom: 4px;
+}
+
+.importSummaryBadge svg {
+  flex-shrink: 0;
+  color: #10B981;
 }
 
 .selectMarketsButton {

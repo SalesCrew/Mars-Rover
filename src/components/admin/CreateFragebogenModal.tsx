@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { X, ArrowLeft, Check, Plus, Trash, DotsSixVertical, Calendar, Infinity, Stack, Storefront, MagnifyingGlass, CaretLeft, CaretRight, WarningCircle, ArrowsClockwise, XCircle } from '@phosphor-icons/react';
+import { X, ArrowLeft, Check, Plus, Trash, DotsSixVertical, Calendar, Infinity, Stack, Storefront, MagnifyingGlass, CaretLeft, CaretRight, WarningCircle, ArrowsClockwise, XCircle, UploadSimple } from '@phosphor-icons/react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -7,6 +7,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Module } from './FragebogenPage';
 import { marketService } from '../../services/marketService';
 import type { AdminMarket } from '../../types/market-types';
+import { FragebogenMarketImportMapperModal } from './FragebogenMarketImportMapperModal';
 import styles from './CreateFragebogenModal.module.css';
 
 type Step = 'name' | 'modules' | 'settings' | 'conflicts';
@@ -106,6 +107,11 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
   const [marketSearchTerm, setMarketSearchTerm] = useState('');
   const [openFilter, setOpenFilter] = useState<FilterType | null>(null);
+  // Import-from-Excel state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importSummary, setImportSummary] = useState<{
+    matched: number; unmatched: number; excluded: number
+  } | null>(null);
   const [conflicts, setConflicts] = useState<MarketConflict[]>([]);
   const [searchTerms, setSearchTerms] = useState<Record<FilterType, string>>({
     chain: '',
@@ -244,6 +250,8 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
     setSelectedMarkets([]);
     setMarketSearchTerm('');
     setOpenFilter(null);
+    setIsImportModalOpen(false);
+    setImportSummary(null);
     setSearchTerms({
       chain: '',
       plz: '',
@@ -956,7 +964,31 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
 
               {/* Market Selection */}
               <div className={styles.settingsSection}>
-                <h3 className={styles.sectionTitle}>Märkte ({selectedMarkets.length} ausgewählt)</h3>
+                <div className={styles.marketsSectionHeader}>
+                  <h3 className={styles.sectionTitle}>Märkte ({selectedMarkets.length} ausgewählt)</h3>
+                  <button
+                    type="button"
+                    className={styles.importMarketsButton}
+                    onClick={() => { setIsImportModalOpen(true); setImportSummary(null); }}
+                    title={isLoadingMarkets ? 'Märkte werden noch geladen…' : 'Märkte aus Excel importieren'}
+                    disabled={isLoadingMarkets}
+                  >
+                    <UploadSimple size={15} weight="bold" />
+                    <span>Import aus Excel</span>
+                  </button>
+                </div>
+
+                {/* Import summary badge */}
+                {importSummary && (
+                  <div className={styles.importSummaryBadge}>
+                    <Check size={14} weight="bold" />
+                    <span>
+                      {importSummary.matched} Märkte importiert
+                      {importSummary.unmatched > 0 && ` · ${importSummary.unmatched} nicht gefunden`}
+                      {importSummary.excluded > 0 && ` · ${importSummary.excluded} gefiltert`}
+                    </span>
+                  </div>
+                )}
 
                 {isMarketSelectorOpen && (
                   <div className={styles.marketSelector}>
@@ -1383,6 +1415,23 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
         )}
       </div>
     </div>
+
+    {/* Fragebogen market import modal */}
+    {isImportModalOpen && (
+      <FragebogenMarketImportMapperModal
+        availableMarkets={markets}
+        onConfirm={(res) => {
+          setSelectedMarkets(res.matchedMarketIds);
+          setImportSummary({
+            matched: res.matchedMarketIds.length,
+            unmatched: res.unmatchedInternalIds.length,
+            excluded: res.excludedByFormat,
+          });
+          setIsImportModalOpen(false);
+        }}
+        onCancel={() => setIsImportModalOpen(false)}
+      />
+    )}
   );
 };
 
