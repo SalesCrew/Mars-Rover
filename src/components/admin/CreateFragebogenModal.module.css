@@ -803,6 +803,26 @@
   margin-left: auto;
 }
 
+.selectAllButton {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  background: white;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7C3AED;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.selectAllButton:hover {
+  background: rgba(124, 58, 237, 0.06);
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
 .marketSearchInput {
   width: 220px;
   padding: 8px 12px 8px 36px;

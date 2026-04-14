@@ -1227,6 +1227,27 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
                           onChange={(e) => setMarketSearchTerm(e.target.value)}
                         />
                       </div>
+
+                      {/* Select / Deselect all visible markets */}
+                      {filteredMarkets.length > 0 && (() => {
+                        const allSelected = filteredMarkets.every(m => selectedMarkets.includes(m.id));
+                        return (
+                          <button
+                            type="button"
+                            className={styles.selectAllButton}
+                            onClick={() => {
+                              if (allSelected) {
+                                setSelectedMarkets(prev => prev.filter(id => !filteredMarkets.find(m => m.id === id)));
+                              } else {
+                                const newIds = filteredMarkets.map(m => m.id);
+                                setSelectedMarkets(prev => [...new Set([...prev, ...newIds])]);
+                              }
+                            }}
+                          >
+                            {allSelected ? 'Alle abwählen' : 'Alle auswählen'}
+                          </button>
+                        );
+                      })()}
                     </div>
 
                     {/* Market List - Compact Single Row */}
