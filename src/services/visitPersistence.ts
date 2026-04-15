@@ -10,6 +10,11 @@ export interface PendingSync {
 
 export interface PersistedVisit {
   submissionId: string | null;
+  // Legacy single-response ID (kept for backward compatibility with older saved visits)
+  responseId?: string | null;
+  // Multi-fragebogen support
+  fragebogenIds?: string[];
+  responseIdByFragebogenId?: Record<string, string>;
   glId: string;
   marketId: string;
   marketName: string;

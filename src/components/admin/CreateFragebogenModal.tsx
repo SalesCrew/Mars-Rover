@@ -337,13 +337,12 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
   };
 
   const handleProceedToConflicts = () => {
+    // Keep conflict detection logic available for future UI use, but do not block save.
     const detectedConflicts = detectConflicts();
-    if (detectedConflicts.length > 0) {
-      setConflicts(detectedConflicts);
-      setStep('conflicts');
-    } else {
-      handleSave();
-    }
+    void detectedConflicts;
+    // Overlapping market assignments are allowed. Keep all existing
+    // validation in handleSave(), but do not block on overlap conflicts.
+    handleSave();
   };
 
   const handleConflictResolution = (marketId: string, resolution: 'override' | 'remove') => {

@@ -44,6 +44,7 @@ type QuestionType =
 
 interface Question {
   id: string;
+  questionInstanceId?: string;
   type: QuestionType;
   questionText: string;
   instruction?: string;
@@ -73,16 +74,27 @@ interface Question {
 
 interface Module {
   id: string;
+  moduleInstanceId?: string;
+  fragebogenId?: string;
+  fragebogenName?: string;
   name: string;
   questions: Question[];
 }
 
-type QuestionWithContext = Question & { moduleName: string; moduleId: string };
+type QuestionWithContext = Question & {
+  moduleName: string;
+  moduleId: string;
+  moduleInstanceId?: string;
+  fragebogenId?: string;
+  fragebogenName?: string;
+  questionKey: string;
+};
 
 interface MarketVisitPageProps {
   market: Market;
   modules: Module[];
   fragebogenId?: string;
+  fragebogenIds?: string[];
   zeiterfassungActive?: boolean;
   resumeData?: PersistedVisit;
   onClose: () => void;
@@ -96,6 +108,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   market,
   modules,
   fragebogenId,
+  fragebogenIds,
   zeiterfassungActive = true,
   resumeData,
   onClose: _onClose,
@@ -107,18 +120,36 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   void _onClose;
   const { user } = useAuth();
   // Flatten all questions with module context
-  const allQuestions = useMemo(() => 
-    modules.flatMap(module => 
-      module.questions.map(q => ({ ...q, moduleName: module.name, moduleId: module.id }))
-    ), [modules]);
+  const allQuestions = useMemo(
+    () =>
+      modules.flatMap((module, moduleIndex) =>
+        module.questions.map((q, questionIndex) => {
+          const questionKey =
+            q.questionInstanceId ||
+            `${module.fragebogenId || fragebogenId || fragebogenIds?.[0] || 'fb'}:${module.id}:${q.id}:${moduleIndex}:${questionIndex}`;
+          return {
+            ...q,
+            moduleName: module.name,
+            moduleId: module.id,
+            moduleInstanceId: module.moduleInstanceId,
+            fragebogenId: module.fragebogenId || fragebogenId || fragebogenIds?.[0],
+            fragebogenName: module.fragebogenName,
+            questionKey
+          };
+        })
+      ),
+    [modules, fragebogenId, fragebogenIds]
+  );
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isCompleted, setIsCompleted] = useState(false);
   
-  // Fragebogen response ID — created on first answer attempt (independent of zeiterfassung)
-  const [responseId, setResponseId] = useState<string | null>(null);
-  const responseCreationInFlightRef = useRef<Promise<string | null> | null>(null);
+  // Response IDs by Fragebogen — created lazily on first answer per Fragebogen.
+  const [responseIdByFragebogenId, setResponseIdByFragebogenId] = useState<Record<string, string>>(
+    resumeData?.responseIdByFragebogenId || {}
+  );
+  const responseCreationInFlightRef = useRef<Partial<Record<string, Promise<string | null>>>>({});
 
   // Pending answer sync queue — keyed by questionId, stores the latest un-synced value.
   // Navigation never waits for this; it is flushed in the background and before completion.
@@ -265,6 +296,8 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           foodProzent: 50,
           distanzKm: '',
           pendingSync: {},
+          fragebogenIds: Array.from(new Set(modules.map(m => m.fragebogenId).filter(Boolean))) as string[],
+          responseIdByFragebogenId,
           modules,
           savedAt: new Date().toISOString()
         });
@@ -282,6 +315,8 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           foodProzent: 50,
           distanzKm: '',
           pendingSync: { create: true },
+          fragebogenIds: Array.from(new Set(modules.map(m => m.fragebogenId).filter(Boolean))) as string[],
+          responseIdByFragebogenId,
           modules,
           savedAt: new Date().toISOString()
         });
@@ -294,29 +329,35 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
    * Decoupled from zeiterfassung — can be called independently at first answer.
    * Returns the responseId on success, or null on failure (sets saveError).
    */
-  const ensureResponseRun = async (): Promise<string | null> => {
-    if (responseId) return responseId;
-    if (!fragebogenId || !hasFragebogen || !user?.id) return null;
-    if (responseCreationInFlightRef.current) {
-      return responseCreationInFlightRef.current;
+  const ensureResponseRun = async (targetFragebogenId?: string): Promise<string | null> => {
+    const resolvedFragebogenId = targetFragebogenId || fragebogenId || fragebogenIds?.[0];
+    if (!resolvedFragebogenId || !hasFragebogen || !user?.id) return null;
+    if (responseIdByFragebogenId[resolvedFragebogenId]) return responseIdByFragebogenId[resolvedFragebogenId];
+    if (responseCreationInFlightRef.current[resolvedFragebogenId]) {
+      return responseCreationInFlightRef.current[resolvedFragebogenId];
     }
+
     const createPromise = (async () => {
       try {
         const result = await fragebogenService.responses.create({
-          fragebogen_id: fragebogenId,
+          fragebogen_id: resolvedFragebogenId,
           gebietsleiter_id: user.id,
           market_id: market.id
         });
-        setResponseId(result.id);
+        setResponseIdByFragebogenId(prev => {
+          const next = { ...prev, [resolvedFragebogenId]: result.id };
+          updateActiveVisit({ responseIdByFragebogenId: next });
+          return next;
+        });
         return result.id;
       } catch {
         setSaveError('Antwort konnte nicht gespeichert werden. Bitte erneut versuchen.');
         return null;
       } finally {
-        responseCreationInFlightRef.current = null;
+        delete responseCreationInFlightRef.current[resolvedFragebogenId];
       }
     })();
-    responseCreationInFlightRef.current = createPromise;
+    responseCreationInFlightRef.current[resolvedFragebogenId] = createPromise;
     return createPromise;
   };
 
@@ -421,11 +462,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
 
   const handleAnswer = (value: any) => {
     if (!currentQuestion) return;
-    setAnswers(prev => ({ ...prev, [currentQuestion.id]: value }));
+    setAnswers(prev => ({ ...prev, [currentQuestion.questionKey]: value }));
   };
 
   /** Build a typed AnswerPayload from a raw answer value */
-  const buildAnswerPayload = (question: typeof allQuestions[0], value: any) => {
+  const buildAnswerPayload = (question: QuestionWithContext, value: any) => {
     if (value === undefined || value === null) return null;
     const base = { question_id: question.id, module_id: question.moduleId, question_type: question.type as any };
     switch (question.type) {
@@ -453,7 +494,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
 
   /** Add a question answer to the pending sync queue (overwrites any prior queued value for the same question). */
   const enqueueAnswer = (question: QuestionWithContext, value: any) => {
-    pendingAnswersRef.current.set(question.id, { question, value });
+    pendingAnswersRef.current.set(question.questionKey, { question, value });
     setPendingSyncCount(pendingAnswersRef.current.size);
   };
 
@@ -465,7 +506,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   const flushPendingAnswers = async (): Promise<boolean> => {
     if (isSyncingRef.current) return pendingAnswersRef.current.size === 0;
     if (pendingAnswersRef.current.size === 0) return true;
-    if (!fragebogenId || !hasFragebogen) {
+    if (!hasFragebogen) {
       pendingAnswersRef.current.clear();
       setPendingSyncCount(0);
       return true;
@@ -473,21 +514,20 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
 
     isSyncingRef.current = true;
     try {
-      const currentResponseId = await ensureResponseRun();
-      if (!currentResponseId) {
-        setSyncError('Verbindung konnte nicht hergestellt werden. Antworten werden beim nächsten Versuch erneut gespeichert.');
-        return false;
-      }
-
-      for (const [questionId, { question, value }] of Array.from(pendingAnswersRef.current.entries())) {
+      for (const [questionKey, { question, value }] of Array.from(pendingAnswersRef.current.entries())) {
         const payload = buildAnswerPayload(question, value);
         if (!payload) {
-          pendingAnswersRef.current.delete(questionId);
+          pendingAnswersRef.current.delete(questionKey);
+          continue;
+        }
+        const questionFragebogenId = question.fragebogenId || fragebogenId;
+        const currentResponseId = await ensureResponseRun(questionFragebogenId);
+        if (!currentResponseId) {
           continue;
         }
         try {
           await fragebogenService.responses.update(currentResponseId, [payload]);
-          pendingAnswersRef.current.delete(questionId);
+          pendingAnswersRef.current.delete(questionKey);
         } catch {
           // Keep failed item in queue; next flush will retry it.
         }
@@ -504,6 +544,19 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
       setSyncError(null);
     }
     return allSynced;
+  };
+
+  const completeAllResponseRuns = async (): Promise<boolean> => {
+    const responseIds = Object.values(responseIdByFragebogenId);
+    if (responseIds.length === 0) return true;
+    for (const id of responseIds) {
+      try {
+        await fragebogenService.responses.complete(id);
+      } catch {
+        return false;
+      }
+    }
+    return true;
   };
 
   const handleNext = async () => {
@@ -523,8 +576,8 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     
     if (zeiterfassungStep === 'questions') {
       // Enqueue the current answer for background sync — navigation never waits for this.
-      if (currentQuestion && answers[currentQuestion.id] !== undefined) {
-        enqueueAnswer(currentQuestion as QuestionWithContext, answers[currentQuestion.id]);
+      if (currentQuestion && answers[currentQuestion.questionKey] !== undefined) {
+        enqueueAnswer(currentQuestion as QuestionWithContext, answers[currentQuestion.questionKey]);
       }
 
       setSaveError(null);
@@ -547,15 +600,9 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           setSaveError('Antworten konnten nicht gespeichert werden. Bitte erneut versuchen.');
           return;
         }
-        if (fragebogenId && hasFragebogen) {
-          const currentResponseId = await ensureResponseRun();
-          if (!currentResponseId) {
-            setIsSavingAnswer(false);
-            return;
-          }
-          try {
-            await fragebogenService.responses.complete(currentResponseId);
-          } catch {
+        if (hasFragebogen) {
+          const allCompleted = await completeAllResponseRuns();
+          if (!allCompleted) {
             setIsSavingAnswer(false);
             setSaveError('Abschluss konnte nicht gespeichert werden. Bitte erneut versuchen.');
             return;
@@ -569,7 +616,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     
     if (zeiterfassungStep === 'end') {
       // Flush any pending answers before completing the response run
-      if (fragebogenId && hasFragebogen) {
+      if (hasFragebogen) {
         setIsSavingAnswer(true);
         const allFlushed = await flushPendingAnswers();
         if (!allFlushed) {
@@ -577,14 +624,8 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           setSaveError('Antworten konnten nicht gespeichert werden. Bitte erneut versuchen.');
           return;
         }
-        const currentResponseId = await ensureResponseRun();
-        if (!currentResponseId) {
-          setIsSavingAnswer(false);
-          return; // error already set
-        }
-        try {
-          await fragebogenService.responses.complete(currentResponseId);
-        } catch {
+        const allCompleted = await completeAllResponseRuns();
+        if (!allCompleted) {
           setIsSavingAnswer(false);
           setSaveError('Abschluss konnte nicht gespeichert werden. Bitte erneut versuchen.');
           return;
@@ -657,7 +698,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     } else {
       clearActiveVisit();
     }
-    onComplete({ ...answers, zeiterfassung, submissionId });
+    onComplete({ ...answers, zeiterfassung, submissionId, responseIdByFragebogenId });
   };
 
   const handlePrev = () => {
@@ -696,7 +737,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     }
     if (!currentQuestion) return false;
     if (!currentQuestion.required) return true;
-    const answer = answers[currentQuestion.id];
+    const answer = answers[currentQuestion.questionKey];
     if (answer === undefined || answer === null || answer === '') return false;
     if (Array.isArray(answer) && answer.length === 0) return false;
     return true;
@@ -705,7 +746,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   // Render question based on type
   const renderQuestionInput = () => {
     if (!currentQuestion) return null;
-    const answer = answers[currentQuestion.id];
+    const answer = answers[currentQuestion.questionKey];
 
     switch (currentQuestion.type) {
       case 'single_choice':

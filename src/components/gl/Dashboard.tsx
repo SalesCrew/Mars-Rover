@@ -88,6 +88,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     market: Market;
     modules: any[];
     fragebogenId?: string;
+    fragebogenIds?: string[];
     zeiterfassungActive: boolean;
     resumeData?: PersistedVisit;
   } | null>(null);
@@ -230,6 +231,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     setActiveVisit({
       market,
       modules: persisted.modules || [],
+      fragebogenIds: persisted.fragebogenIds || [],
       zeiterfassungActive: true,
       resumeData: persisted
     });
@@ -591,41 +593,62 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     try {
       const allFragebogen = await fragebogenService.fragebogen.getAll({ status: 'active' });
       
-      // Find fragebogen assigned to this market
-      const marketFragebogen = allFragebogen.find((f: any) => 
+      // Find all active fragebogen assigned to this market
+      const marketFragebogen = allFragebogen
+        .filter((f: any) =>
         f.market_ids && f.market_ids.includes(marketId)
-      );
+        )
+        .sort((a: any, b: any) => {
+          const dateA = new Date(a.start_date || '1970-01-01').getTime();
+          const dateB = new Date(b.start_date || '1970-01-01').getTime();
+          if (dateA !== dateB) return dateA - dateB;
+          return String(a.name || '').localeCompare(String(b.name || ''), 'de');
+        });
       
-      if (marketFragebogen) {
-        // Fetch full fragebogen with modules and questions
-        const fullFragebogen = await fragebogenService.fragebogen.getById(marketFragebogen.id);
-        
-        // Transform modules to the format MarketVisitPage expects
-        const modules = (fullFragebogen.modules || []).map((fm: any) => ({
-          id: fm.module?.id || fm.id,
-          name: fm.module?.name || 'Modul',
-          questions: (fm.module?.questions || []).map((q: any) => ({
-            id: q.question?.id || q.id,
-            type: q.question?.type || 'open_text',
-            questionText: q.question?.question_text || '',
-            instruction: q.question?.instruction,
-            required: q.required || false,
-            options: q.question?.options,
-            likertScale: q.question?.likert_scale,
-            matrixRows: q.question?.matrix_config?.rows,
-            matrixColumns: q.question?.matrix_config?.columns,
-            numericConstraints: q.question?.numeric_constraints,
-            sliderConfig: q.question?.slider_config,
-            images: Array.isArray(q.question?.images) ? q.question.images : []
+      if (marketFragebogen.length > 0) {
+        const fullFragebogenList = await Promise.all(
+          marketFragebogen.map((f: any) => fragebogenService.fragebogen.getById(f.id))
+        );
+
+        // Flatten all modules across assigned fragebogen while carrying hidden
+        // source metadata for per-fragebogen response routing.
+        const modules = fullFragebogenList.flatMap((fullFragebogen: any) =>
+          (fullFragebogen.modules || []).map((fm: any, moduleIndex: number) => ({
+            id: fm.module?.id || fm.id,
+            name: fm.module?.name || 'Modul',
+            fragebogenId: fullFragebogen.id,
+            fragebogenName: fullFragebogen.name,
+            moduleInstanceId: `${fullFragebogen.id}:${fm.module?.id || fm.id}:${moduleIndex}`,
+            questions: (fm.module?.questions || []).map((q: any, questionIndex: number) => ({
+              id: q.question?.id || q.id,
+              type: q.question?.type || 'open_text',
+              questionText: q.question?.question_text || '',
+              instruction: q.question?.instruction,
+              required: q.required || false,
+              options: q.question?.options,
+              likertScale: q.question?.likert_scale,
+              matrixRows: q.question?.matrix_config?.rows,
+              matrixColumns: q.question?.matrix_config?.columns,
+              numericConstraints: q.question?.numeric_constraints,
+              sliderConfig: q.question?.slider_config,
+              images: Array.isArray(q.question?.images) ? q.question.images : [],
+              questionInstanceId: `${fullFragebogen.id}:${fm.module?.id || fm.id}:${q.question?.id || q.id}:${questionIndex}`
+            }))
           }))
-        }));
+        );
         
-        console.log('Starting visit with fragebogen:', fullFragebogen.name, 'modules:', modules.length);
+        console.log(
+          'Starting visit with fragebogen:',
+          fullFragebogenList.map((f: any) => f.name).join(', '),
+          'modules:',
+          modules.length
+        );
         
         setActiveVisit({
           market,
           modules,
-          fragebogenId: fullFragebogen.id,
+          fragebogenId: fullFragebogenList[0]?.id,
+          fragebogenIds: fullFragebogenList.map((f: any) => f.id),
           zeiterfassungActive: true // Always enable zeiterfassung
         });
         setIsMarketModalOpen(false);
@@ -709,6 +732,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           market={activeVisit.market}
           modules={activeVisit.modules}
           fragebogenId={activeVisit.fragebogenId}
+          fragebogenIds={activeVisit.fragebogenIds}
           zeiterfassungActive={activeVisit.zeiterfassungActive}
           resumeData={activeVisit.resumeData}
           onClose={() => setActiveVisit(null)}
