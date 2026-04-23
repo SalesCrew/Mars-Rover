@@ -607,6 +607,22 @@
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
+.photoButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.photoPreview {
+  width: 100%;
+  max-width: 280px;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+  object-fit: cover;
+}
+
 .photoConfirm {
   color: #10B981;
   font-weight: 600;

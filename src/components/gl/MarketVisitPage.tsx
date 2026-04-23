@@ -199,6 +199,9 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   // Quick actions button state
   const [quickActionsExpanded, setQuickActionsExpanded] = useState(false);
   const quickActionsRef = useRef<HTMLDivElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoQuestionRef = useRef<QuestionWithContext | null>(null);
+  const [photoUploadInProgressKey, setPhotoUploadInProgressKey] = useState<string | null>(null);
   const fahrzeitStartRef = useRef<number | null>(null);
   const besuchszeitStartRef = useRef<number | null>(null);
   const [prevFahrzeitDisplay, setPrevFahrzeitDisplay] = useState('--:--:--');
@@ -463,6 +466,71 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   const handleAnswer = (value: any) => {
     if (!currentQuestion) return;
     setAnswers(prev => ({ ...prev, [currentQuestion.questionKey]: value }));
+  };
+
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Foto konnte nicht gelesen werden.'));
+      reader.readAsDataURL(file);
+    });
+
+  const uploadPhotoAnswer = async (question: QuestionWithContext, file: File): Promise<string> => {
+    if (!user?.id) {
+      throw new Error('Benutzer nicht erkannt. Bitte neu anmelden.');
+    }
+    const resolvedFragebogenId = question.fragebogenId || fragebogenId;
+    if (!resolvedFragebogenId) {
+      throw new Error('Fragebogen-Kontext fehlt.');
+    }
+
+    const responseId = await ensureResponseRun(resolvedFragebogenId);
+    if (!responseId) {
+      throw new Error('Antwortlauf konnte nicht gestartet werden.');
+    }
+
+    const image = await readFileAsDataUrl(file);
+    const uploaded = await fragebogenService.responses.uploadPhoto({
+      image,
+      fragebogen_id: resolvedFragebogenId,
+      market_id: market.id,
+      gebietsleiter_id: user.id,
+      response_id: responseId,
+      question_id: question.id,
+      filename: file.name
+    });
+
+    if (!uploaded?.url) {
+      throw new Error('Upload erfolgreich, aber keine URL erhalten.');
+    }
+    return uploaded.url;
+  };
+
+  const openPhotoPicker = (question: QuestionWithContext) => {
+    photoQuestionRef.current = question;
+    photoInputRef.current?.click();
+  };
+
+  const handlePhotoFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    event.currentTarget.value = '';
+    if (!selectedFile) return;
+
+    const question = photoQuestionRef.current;
+    if (!question) return;
+
+    setSaveError(null);
+    setSyncError(null);
+    setPhotoUploadInProgressKey(question.questionKey);
+    try {
+      const uploadedUrl = await uploadPhotoAnswer(question, selectedFile);
+      setAnswers(prev => ({ ...prev, [question.questionKey]: uploadedUrl }));
+    } catch (error: any) {
+      setSaveError(error?.message || 'Foto konnte nicht hochgeladen werden.');
+    } finally {
+      setPhotoUploadInProgressKey(null);
+    }
   };
 
   /** Build a typed AnswerPayload from a raw answer value */
@@ -907,18 +975,27 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
         );
 
       case 'photo_upload':
+        const photoUploading = photoUploadInProgressKey === currentQuestion.questionKey;
+        const photoAnswerUrl = typeof answer === 'string' ? answer : '';
         return (
           <div className={styles.photoUpload}>
             <Camera size={48} weight="regular" />
-            <p>Tippen um Foto aufzunehmen</p>
+            <p>Tippen um Foto aufzunehmen oder auszuwählen</p>
             <button 
+              type="button"
               className={styles.photoButton}
-              onClick={() => handleAnswer('photo_captured_test')}
+              onClick={() => openPhotoPicker(currentQuestion as QuestionWithContext)}
+              disabled={photoUploading}
             >
               <Camera size={20} />
-              <span>Foto aufnehmen</span>
+              <span>{photoUploading ? 'Foto wird hochgeladen…' : 'Foto aufnehmen'}</span>
             </button>
-            {answer && <span className={styles.photoConfirm}>Foto aufgenommen</span>}
+            {photoAnswerUrl && (
+              <>
+                <img src={photoAnswerUrl} alt="Hochgeladenes Foto" className={styles.photoPreview} />
+                <span className={styles.photoConfirm}>Foto hochgeladen</span>
+              </>
+            )}
           </div>
         );
 
@@ -1505,6 +1582,15 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           </div>
         </div>
       </footer>
+
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={handlePhotoFileChange}
+      />
     </div>
   );
 };

@@ -531,6 +531,7 @@ export const fragebogenApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates)
     });
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to update fragebogen');
@@ -653,6 +654,30 @@ export const responsesApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error((err as any).error || `Abschluss fehlgeschlagen (${res.status})`);
+    }
+    return res.json();
+  },
+
+  /**
+   * Upload a photo answer for a photo_upload question.
+   */
+  async uploadPhoto(data: {
+    image: string;
+    fragebogen_id: string;
+    market_id: string;
+    gebietsleiter_id: string;
+    response_id: string;
+    question_id: string;
+    filename?: string;
+  }): Promise<{ url: string; path: string; content_type: string; size: number }> {
+    const res = await fetch(`${FRAGEBOGEN_API}/responses/upload-photo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err as any).error || `Foto konnte nicht hochgeladen werden (${res.status})`);
     }
     return res.json();
   },
