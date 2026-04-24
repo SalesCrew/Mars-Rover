@@ -402,7 +402,10 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
         if (domainA.kind === 'interval' && domainB.kind === 'point') {
           return pointInInterval(domainB.value, domainA);
         }
-        return intervalsOverlap(domainA, domainB);
+        if (domainA.kind === 'interval' && domainB.kind === 'interval') {
+          return intervalsOverlap(domainA, domainB);
+        }
+        return false;
       }
     }
 
