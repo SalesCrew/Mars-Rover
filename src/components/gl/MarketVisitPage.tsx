@@ -822,7 +822,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           continue;
         }
         try {
-          await fragebogenService.responses.update(currentResponseId, [payload]);
+          await fragebogenService.responses.update(currentResponseId, [payload], user?.id);
           pendingAnswersRef.current.delete(questionKey);
         } catch {
           // Keep failed item in queue; next flush will retry it.

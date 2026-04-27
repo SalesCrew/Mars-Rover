@@ -20,6 +20,7 @@ import { API_BASE_URL } from '../../config/database';
 import { wellenService, type Welle } from '../../services/wellenService';
 import { produktersatzService, type ProduktErsatzEntry } from '../../services/produktersatzService';
 import { VorbestellerModal } from './VorbestellerModal';
+import FragebogenHistorySection from './FragebogenHistorySection';
 import styles from './VorbestellerHistoryPage.module.css';
 
 // ============================================================================
@@ -1139,6 +1140,8 @@ export const VorbestellerHistoryPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <FragebogenHistorySection />
       </div>
 
       {fotoModalWaveId && (

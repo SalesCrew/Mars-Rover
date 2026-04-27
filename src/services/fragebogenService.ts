@@ -153,6 +153,38 @@ export interface Response {
   answers?: ResponseAnswer[];
 }
 
+export interface GLHistoryQuestion {
+  id: string;
+  module_id: string;
+  local_id: string;
+  order_index: number;
+  required: boolean;
+  question: Question;
+}
+
+export interface GLHistoryModule {
+  id: string;
+  name: string;
+  description?: string;
+  order_index: number;
+  questions: GLHistoryQuestion[];
+  rules: ModuleRule[];
+}
+
+export interface GLHistoryRun extends Response {
+  fragebogen?: {
+    id: string;
+    name: string;
+    description?: string;
+    start_date?: string;
+    end_date?: string;
+    status?: string;
+  };
+  market?: { id: string; name: string; chain: string; address?: string; city?: string };
+  modules: GLHistoryModule[];
+  answers: ResponseAnswer[];
+}
+
 export type AnswerKind = 'text' | 'numeric' | 'boolean' | 'json' | 'file';
 
 export interface ResponseAnswer {
@@ -178,6 +210,8 @@ export interface AnswerPayload {
   question_id: string;
   module_id: string;
   question_type: QuestionType;
+  /** clear  → removes existing stored answer for this question/module in the run */
+  clear?: boolean;
   /** text   → answer_text (single_choice optionId, open_text, barcode_scanner) */
   answer_text?: string;
   /** numeric → answer_numeric (likert, open_numeric, slider) */
@@ -635,6 +669,16 @@ export const responsesApi = {
   },
 
   /**
+   * Get all fragebogen history runs for a GL (with modules, rules and answers).
+   */
+  async getGLHistory(glId: string): Promise<GLHistoryRun[]> {
+    const params = new URLSearchParams({ requester_gebietsleiter_id: glId });
+    const response = await fetch(`${FRAGEBOGEN_API}/responses/gl-history/${glId}?${params.toString()}`);
+    if (!response.ok) throw new Error('Failed to fetch fragebogen history');
+    return response.json();
+  },
+
+  /**
    * Start a new response (GL)
    */
   async create(data: {
@@ -657,11 +701,14 @@ export const responsesApi = {
   /**
    * Update a response with answers (save one or more answers for a run)
    */
-  async update(id: string, answers: AnswerPayload[]): Promise<Response> {
+  async update(id: string, answers: AnswerPayload[], requesterGebietsleiterId?: string): Promise<Response> {
     const res = await fetch(`${FRAGEBOGEN_API}/responses/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers })
+      body: JSON.stringify({
+        answers,
+        requester_gebietsleiter_id: requesterGebietsleiterId
+      })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
