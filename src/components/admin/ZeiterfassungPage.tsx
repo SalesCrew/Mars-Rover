@@ -999,8 +999,8 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const monthStr = String(month + 1).padStart(2, '0');
 
-      const DIAETEN_VALID_ZUSATZ: Set<string> = new Set([
-        'marktbesuch', 'sonderaufgabe', 'werkstatt', 'lager', 'hotel', 'dienstreise', 'heimfahrt'
+      const DIAETEN_BREAK_ZUSATZ: Set<string> = new Set([
+        'homeoffice', 'arztbesuch', 'arzt'
       ]);
 
       const hmToFraction = (hm: string): number => {
@@ -1033,12 +1033,46 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       if (glIds.length === 0) return;
 
       // ── Shared constants ──
-      type DayData = { startFrac: number; endFrac: number; locations: Set<string>; reasons: Set<string>; kmStart: number | null; kmEnd: number | null };
-      const PAUSE_FRAC = 30 / (24 * 60);
+      type DayData = {
+        startFrac: number;
+        endFrac: number;
+        pauseMinutes: number;
+        locations: Set<string>;
+        reasons: Set<string>;
+        kmStart: number | null;
+        kmEnd: number | null;
+      };
+      type DiaetenEventKind = 'eligible' | 'pause' | 'break';
+      type DiaetenEvent = {
+        startMin: number;
+        endMin: number;
+        kind: DiaetenEventKind;
+        location?: string;
+        reasonLabel?: string;
+      };
       const DATE_FMT = 'DD.MM.YYYY';
       const TIME_FMT = 'HH:MM';
       const EURO_FMT = '#,##0.00" €"';
       const NUM2_FMT = '0.00';
+      const MINUTES_PER_DAY = 24 * 60;
+      const hmToMinutes = (hm: string): number => {
+        const parts = hm.split(':').map(Number);
+        return (parts[0] || 0) * 60 + (parts[1] || 0);
+      };
+      const minutesToFrac = (minutes: number): number => minutes / MINUTES_PER_DAY;
+      const normalizeReasonLabel = (reason: string, reasonLabel?: string): string => {
+        const fallback = {
+          marktbesuch: 'Marktbesuch',
+          sonderaufgabe: 'Sonderaufgabe',
+          werkstatt: 'Werkstatt',
+          lager: 'Lager',
+          hotel: 'Hotel',
+          dienstreise: 'Dienstreise',
+          heimfahrt: 'Heimfahrt',
+          schulung: 'Schulung (Auto)'
+        } as Record<string, string>;
+        return reasonLabel || fallback[reason] || reason;
+      };
 
       // ── Colors (matching reference Excel) ──
       const CLR_PURPLE = 'F2CFEE';
@@ -1059,8 +1093,22 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       const buildWorkbook = (glId: string, glFullName: string) => {
         const dayData: Record<number, DayData> = {};
         const ensureDay = (d: number): DayData => {
-          if (!dayData[d]) dayData[d] = { startFrac: 1, endFrac: 0, locations: new Set(), reasons: new Set(), kmStart: null, kmEnd: null };
+          if (!dayData[d]) dayData[d] = {
+            startFrac: 1,
+            endFrac: 0,
+            pauseMinutes: 0,
+            locations: new Set(),
+            reasons: new Set(),
+            kmStart: null,
+            kmEnd: null
+          };
           return dayData[d];
+        };
+        const dayEvents: Record<number, DiaetenEvent[]> = {};
+        const addEvent = (dayNum: number, event: DiaetenEvent) => {
+          if (event.endMin <= event.startMin) return;
+          if (!dayEvents[dayNum]) dayEvents[dayNum] = [];
+          dayEvents[dayNum].push(event);
         };
 
         // 1) Market visits (fb_zeiterfassung_submissions)
@@ -1079,28 +1127,57 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
             dd.locations.add(parts.join(', '));
           }
           dd.reasons.add('Marktbesuch');
+          if (s && eEnd) {
+            addEvent(dayNum, {
+              startMin: hmToMinutes(s),
+              endMin: hmToMinutes(eEnd),
+              kind: 'eligible',
+              location: en.market?.name ? [en.market.name, en.market.address, en.market.city, en.market.postal_code].filter(Boolean).join(', ') : undefined,
+              reasonLabel: 'Marktbesuch'
+            });
+          }
         });
 
         // 2) Zusatz entries
         zusatzEntries.filter(z => z.gebietsleiter_id === glId).forEach(z => {
           if (!z.entry_date?.startsWith(`${year}-${monthStr}`)) return;
           const reason = (z.reason || '').toLowerCase();
-          if (reason === 'schulung') {
-            const ort = (z.schulung_ort || '').toLowerCase();
-            if (ort !== 'auto') return;
-          } else if (!DIAETEN_VALID_ZUSATZ.has(reason)) {
-            return;
-          }
           const dayNum = parseInt(z.entry_date.split('-')[2], 10);
           const dd = ensureDay(dayNum);
-          if (z.zeit_von) dd.startFrac = Math.min(dd.startFrac, hmToFraction(z.zeit_von));
-          if (z.zeit_bis) dd.endFrac = Math.max(dd.endFrac, hmToFraction(z.zeit_bis));
-          if (z.market?.name) dd.locations.add(z.market.name);
-          const labels: Record<string, string> = {
-            marktbesuch: 'Marktbesuch', sonderaufgabe: 'Sonderaufgabe', werkstatt: 'Werkstatt',
-            lager: 'Lager', hotel: 'Hotel', dienstreise: 'Dienstreise', heimfahrt: 'Heimfahrt', schulung: 'Schulung (Auto)'
-          };
-          dd.reasons.add(labels[reason] || z.reason_label || reason);
+          const hasTimes = !!(z.zeit_von && z.zeit_bis);
+          if (hasTimes) {
+            dd.startFrac = Math.min(dd.startFrac, hmToFraction(z.zeit_von));
+            dd.endFrac = Math.max(dd.endFrac, hmToFraction(z.zeit_bis));
+          }
+
+          // New rule: everything counts for diäten except hard-break reasons.
+          const isEligibleZusatz = !DIAETEN_BREAK_ZUSATZ.has(reason);
+          const isPause = z.is_work_time_deduction || reason === 'unterbrechung';
+          const isBreak = DIAETEN_BREAK_ZUSATZ.has(reason);
+          const reasonLabel = normalizeReasonLabel(reason, z.reason_label);
+
+          if (isEligibleZusatz) {
+            if (z.market?.name) dd.locations.add(z.market.name);
+            dd.reasons.add(reasonLabel);
+          }
+
+          if (hasTimes) {
+            const startMin = hmToMinutes(z.zeit_von);
+            const endMin = hmToMinutes(z.zeit_bis);
+            if (isPause) {
+              addEvent(dayNum, { startMin, endMin, kind: 'pause' });
+            } else if (isEligibleZusatz) {
+              addEvent(dayNum, {
+                startMin,
+                endMin,
+                kind: 'eligible',
+                location: z.market?.name || undefined,
+                reasonLabel
+              });
+            } else if (isBreak) {
+              addEvent(dayNum, { startMin, endMin, kind: 'break' });
+            }
+          }
         });
 
         // 3) Day tracking
@@ -1117,21 +1194,81 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
           if (dt.km_stand_end != null) dd.kmEnd = dt.km_stand_end;
         });
 
-        // 4) Homeoffice last-action correction — cap endFrac at homeoffice end when applicable
+        // 4) Build consecutive away-blocks split by hard breaks (homeoffice/arzt)
         Object.keys(dayData).forEach(dayNumStr => {
           const dayNum = parseInt(dayNumStr, 10);
-          const dateStr = `${year}-${monthStr}-${String(dayNum).padStart(2, '0')}`;
-          const dayMarketEntries = entries
-            .filter(en => en.gebietsleiter_id === glId && toViennaDate(en.created_at) === dateStr)
-            .map(en => ({ besuchszeit_bis: (en.besuchszeit_bis || en.fahrzeit_bis || null) as string | null }));
-          const dayZusatzEntries = zusatzEntries
-            .filter(z => z.gebietsleiter_id === glId && z.entry_date === dateStr)
-            .map(z => ({ reason: z.reason || '', zeit_bis: (z.zeit_bis || null) as string | null }));
-          const { isLastHomeoffice, homeofficeEndTime } = getLastActionInfo(dayMarketEntries, dayZusatzEntries);
-          if (isLastHomeoffice && homeofficeEndTime) {
-            // Do not let day_end_time (which arrives after homeoffice) inflate duration
-            dayData[dayNum].endFrac = hmToFraction(homeofficeEndTime);
+          const dd = dayData[dayNum];
+          const events = (dayEvents[dayNum] || []).sort((a, b) => {
+            if (a.startMin !== b.startMin) return a.startMin - b.startMin;
+            return a.endMin - b.endMin;
+          });
+          if (events.length === 0) return;
+
+          const dayStartMin = Math.round(dd.startFrac * MINUTES_PER_DAY);
+          const dayEndMin = Math.round(dd.endFrac * MINUTES_PER_DAY);
+          if (dayEndMin <= dayStartMin) return;
+
+          const breaks = events
+            .filter((event) => event.kind === 'break')
+            .map((event) => ({
+              startMin: Math.max(dayStartMin, event.startMin),
+              endMin: Math.min(dayEndMin, event.endMin)
+            }))
+            .filter((event) => event.endMin > event.startMin)
+            .sort((a, b) => a.startMin - b.startMin);
+
+          const mergedBreaks: Array<{ startMin: number; endMin: number }> = [];
+          breaks.forEach((br) => {
+            const last = mergedBreaks[mergedBreaks.length - 1];
+            if (!last || br.startMin > last.endMin) {
+              mergedBreaks.push({ ...br });
+            } else {
+              last.endMin = Math.max(last.endMin, br.endMin);
+            }
+          });
+
+          const segments: Array<{ startMin: number; endMin: number }> = [];
+          let cursorMin = dayStartMin;
+          mergedBreaks.forEach((br) => {
+            if (br.startMin > cursorMin) {
+              segments.push({ startMin: cursorMin, endMin: br.startMin });
+            }
+            cursorMin = Math.max(cursorMin, br.endMin);
+          });
+          if (cursorMin < dayEndMin) {
+            segments.push({ startMin: cursorMin, endMin: dayEndMin });
           }
+
+          const eligibleEvents = events.filter((event) => event.kind === 'eligible');
+          const segmentsWithEligible = segments.filter((segment) =>
+            eligibleEvents.some((event) => event.endMin > segment.startMin && event.startMin < segment.endMin)
+          );
+          if (segmentsWithEligible.length === 0) return;
+
+          const selectedSegment = segmentsWithEligible.reduce((best, current) => {
+            const bestLen = best.endMin - best.startMin;
+            const currentLen = current.endMin - current.startMin;
+            return currentLen > bestLen ? current : best;
+          });
+
+          const realPauseMinutes = events
+            .filter((event) => event.kind === 'pause')
+            .reduce((sum, event) => {
+              const overlapStart = Math.max(event.startMin, selectedSegment.startMin);
+              const overlapEnd = Math.min(event.endMin, selectedSegment.endMin);
+              return overlapEnd > overlapStart ? sum + (overlapEnd - overlapStart) : sum;
+            }, 0);
+          const pauseMinutes = realPauseMinutes > 0 ? realPauseMinutes : 30;
+
+          const inSegmentEligible = eligibleEvents.filter((event) =>
+            event.endMin > selectedSegment.startMin && event.startMin < selectedSegment.endMin
+          );
+
+          dd.startFrac = minutesToFrac(selectedSegment.startMin);
+          dd.endFrac = minutesToFrac(selectedSegment.endMin);
+          dd.pauseMinutes = pauseMinutes;
+          dd.locations = new Set(inSegmentEligible.map((event) => event.location).filter(Boolean) as string[]);
+          dd.reasons = new Set(inSegmentEligible.map((event) => event.reasonLabel).filter(Boolean) as string[]);
         });
 
         // ── Build worksheet ──
@@ -1243,10 +1380,9 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
             continue;
           }
 
-          const rawH = (dd.endFrac - dd.startFrac) * 24;
-          const hasPause = rawH > 6;
-          const pFrac = hasPause ? PAUSE_FRAC : 0;
-          const durFrac = dd.endFrac - dd.startFrac - pFrac;
+          const pFrac = dd.pauseMinutes > 0 ? minutesToFrac(dd.pauseMinutes) : 0;
+          // 6h rule now uses full away-time incl. pause; pause is displayed, not subtracted.
+          const durFrac = dd.endFrac - dd.startFrac;
           const abwH = durFrac * 24;
 
           const tg = berechneDiaet(abwH);
@@ -1256,7 +1392,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
 
           cell(row, 1, dd.startFrac, { t: 'n', z: TIME_FMT, s: purpleFill });
           cell(row, 2, dd.endFrac, { t: 'n', z: TIME_FMT, s: purpleFill });
-          cell(row, 3, hasPause ? PAUSE_FRAC : '', { t: hasPause ? 'n' : 's', z: TIME_FMT, s: purpleFill });
+          cell(row, 3, pFrac > 0 ? pFrac : '', { t: pFrac > 0 ? 'n' : 's', z: TIME_FMT, s: purpleFill });
           cell(row, 4, durFrac, { t: 'n', z: TIME_FMT, s: purpleFill });
           cell(row, 5, Array.from(dd.locations).join('\n'), { s: { alignment: { wrapText: true, vertical: 'top' as const } } });
           cell(row, 6, Array.from(dd.reasons).join(', '));

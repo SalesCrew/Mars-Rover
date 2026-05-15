@@ -669,6 +669,19 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 
   const handleCreateWelle = async () => {
     if (isSaving) return; // Prevent double-click
+
+    // Guard against saving when loaded assignments are already truncated.
+    if (editingWelle && typeof editingWelle.assignedMarketCount === 'number') {
+      const loadedAssignmentLength = editingWelle.assignedMarketIds?.length || 0;
+      if (loadedAssignmentLength !== editingWelle.assignedMarketCount) {
+        alert(
+          `Marktzuteilung unvollständig geladen (${loadedAssignmentLength}/${editingWelle.assignedMarketCount}). ` +
+          'Bitte Seite neu laden und erneut versuchen, damit keine Märkte überschrieben werden.'
+        );
+        return;
+      }
+    }
+
     setIsSaving(true);
     
     try {

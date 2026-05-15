@@ -200,6 +200,41 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
 
   const totalQuantity = Object.values(itemQuantities).reduce((sum, qty) => sum + qty, 0);
 
+  const normalizeProductName = (name: string): string => name.trim().toLowerCase().replace(/\s+/g, ' ');
+
+  const masterProductVeByName = useMemo(() => {
+    const map = new Map<string, number>();
+    masterProducts.forEach((product) => {
+      const key = normalizeProductName(product.name);
+      if (!key) return;
+      if (typeof product.palletSize === 'number' && product.palletSize > 0 && !map.has(key)) {
+        map.set(key, product.palletSize);
+      }
+    });
+    return map;
+  }, [masterProducts]);
+
+  const resolveEinzelproduktVe = (itemName: string, explicitVe?: number | string | null): number | string | null => {
+    if (explicitVe !== null && explicitVe !== undefined && String(explicitVe).trim() !== '') {
+      return explicitVe;
+    }
+    return masterProductVeByName.get(normalizeProductName(itemName)) ?? null;
+  };
+
+  const renderItemMeta = (
+    item: { itemValue?: number | null },
+    ve?: number | string | null
+  ): string => {
+    const parts: string[] = [];
+    if (item.itemValue !== null && item.itemValue !== undefined) {
+      parts.push(`€${item.itemValue.toFixed(2)} / Stück`);
+    }
+    if (ve !== null && ve !== undefined && String(ve).trim() !== '') {
+      parts.push(`VE: ${ve}`);
+    }
+    return parts.join(' · ');
+  };
+
   // Calculate total value for palettes and schütten (towards €600 goal)
   const paletteSchutteValue = useMemo(() => {
     let total = 0;
@@ -1325,8 +1360,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.itemInfo}>
                           <div className={styles.itemName}>{display.name}</div>
                           <div className={styles.itemMeta}>
-                            Ziel: {display.targetNumber} Stück
-                            {display.itemValue && ` · €${display.itemValue.toFixed(2)}`}
+                            {renderItemMeta(display)}
                           </div>
                         </div>
                         <div className={styles.quantityControls}>
@@ -1371,8 +1405,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.itemInfo}>
                           <div className={styles.itemName}>{item.name}</div>
                           <div className={styles.itemMeta}>
-                            Ziel: {item.targetNumber} Stück
-                            {item.itemValue && ` · €${item.itemValue.toFixed(2)}`}
+                            {renderItemMeta(item)}
                           </div>
                         </div>
                         <div className={styles.quantityControls}>
@@ -1417,8 +1450,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.itemInfo}>
                           <div className={styles.itemName}>{item.name}</div>
                           <div className={styles.itemMeta}>
-                            Ziel: {item.targetNumber} Stück
-                            {item.itemValue && ` · €${item.itemValue.toFixed(2)}`}
+                            {renderItemMeta(item, resolveEinzelproduktVe(item.name, item.ve))}
                           </div>
                         </div>
                         <div className={styles.quantityControls}>
@@ -1492,6 +1524,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                   <div className={styles.productMeta}>
                                     {product.weight && `${product.weight}`}
                                     {product.price > 0 && ` · €${product.price.toFixed(2)}`}
+                                    {typeof product.palletSize === 'number' && product.palletSize > 0 && ` · VE: ${product.palletSize}`}
                                   </div>
                                 </div>
                                 <div className={styles.quantityControls}>

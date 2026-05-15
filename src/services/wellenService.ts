@@ -7,6 +7,7 @@ export interface WelleDisplay {
   currentNumber?: number;
   picture: string | null;
   itemValue?: number | null;
+  ve?: number | string | null;
 }
 
 export interface WelleKartonware {
@@ -16,6 +17,7 @@ export interface WelleKartonware {
   currentNumber?: number;
   picture: string | null;
   itemValue?: number | null;
+  ve?: number | string | null;
 }
 
 export interface WelleEinzelprodukt {
@@ -25,6 +27,7 @@ export interface WelleEinzelprodukt {
   currentNumber?: number;
   picture: string | null;
   itemValue?: number | null;
+  ve?: number | string | null;
 }
 
 export interface WellePaletteProduct {
@@ -101,6 +104,7 @@ export interface Welle {
   einzelproduktItems?: WelleEinzelprodukt[];
   kwDays?: WelleKWDay[];
   assignedMarketIds?: string[];
+  assignedMarketCount?: number;
   participatingGLs?: number;
   totalGLs?: number;
   fotoEnabled?: boolean;
