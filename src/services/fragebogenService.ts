@@ -732,6 +732,21 @@ export const responsesApi = {
   },
 
   /**
+   * Delete an in-progress response run (used when aborting a visit).
+   */
+  async deleteRun(id: string, requesterGebietsleiterId: string): Promise<void> {
+    const res = await fetch(`${FRAGEBOGEN_API}/responses/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requester_gebietsleiter_id: requesterGebietsleiterId })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err as any).error || `Löschen fehlgeschlagen (${res.status})`);
+    }
+  },
+
+  /**
    * Upload a photo answer for a photo_upload question.
    */
   async uploadPhoto(data: {

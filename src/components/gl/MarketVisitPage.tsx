@@ -3,6 +3,7 @@ import {
   ArrowLeft, 
   ArrowRight, 
   Check, 
+  X,
   RadioButton,
   CheckSquare,
   TextT,
@@ -26,7 +27,9 @@ import Aurora from './Aurora';
 import type { Market } from '../../types/market-types';
 import { useAuth } from '../../contexts/AuthContext';
 import fragebogenService from '../../services/fragebogenService';
+import { marketService, type VisitCrmContext } from '../../services/marketService';
 import { saveActiveVisit, updateActiveVisit, updatePendingSync, clearActiveVisit, type PersistedVisit } from '../../services/visitPersistence';
+import { VisitMiniCrmPanel } from './VisitMiniCrmPanel';
 import styles from './MarketVisitPage.module.css';
 
 // Question types matching the fragebogen system
@@ -124,13 +127,12 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   fragebogenIds,
   zeiterfassungActive = true,
   resumeData,
-  onClose: _onClose,
+  onClose,
   onComplete,
   onOpenVorbesteller,
   onOpenVorverkauf,
   onOpenProduktrechner
 }) => {
-  void _onClose;
   const { user } = useAuth();
   // Flatten all questions with module context
   const allQuestions = useMemo(
@@ -214,6 +216,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   // Quick actions button state
   const [quickActionsExpanded, setQuickActionsExpanded] = useState(false);
   const quickActionsRef = useRef<HTMLDivElement>(null);
+  const [isMiniCrmOpen, setIsMiniCrmOpen] = useState(true);
+  const [visitCrmContext, setVisitCrmContext] = useState<VisitCrmContext | null>(null);
+  const [visitCrmLoading, setVisitCrmLoading] = useState(false);
+  const [visitCrmError, setVisitCrmError] = useState<string | null>(null);
+  const [isAbortingVisit, setIsAbortingVisit] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const photoQuestionRef = useRef<QuestionWithContext | null>(null);
   const [photoUploadInProgressKey, setPhotoUploadInProgressKey] = useState<string | null>(null);
@@ -283,6 +290,28 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   }, [quickActionsExpanded]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadVisitCrmContext = useCallback(async () => {
+    if (!market?.id || !user?.id) return;
+
+    setVisitCrmLoading(true);
+    setVisitCrmError(null);
+    try {
+      const context = await marketService.getVisitCrmContext(market.id, user.id);
+      setVisitCrmContext(context);
+    } catch (error) {
+      console.error('Error loading mini CRM context:', error);
+      setVisitCrmContext(null);
+      setVisitCrmError('Mini-CRM konnte nicht geladen werden.');
+    } finally {
+      setVisitCrmLoading(false);
+    }
+  }, [market?.id, user?.id]);
+
+  useEffect(() => {
+    setIsMiniCrmOpen(true);
+    void loadVisitCrmContext();
+  }, [loadVisitCrmContext]);
 
   const startMarketVisit = async () => {
     const now = new Date();
@@ -998,6 +1027,53 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     onComplete({ ...answers, zeiterfassung, submissionId, responseIdByFragebogenId });
   };
 
+  const handleAbortVisit = async () => {
+    const confirmed = window.confirm(
+      'Marktbesuch wirklich abbrechen?\nAlle bisher gespeicherten Antworten dieses Besuchs werden gelöscht.'
+    );
+    if (!confirmed) return;
+
+    setIsAbortingVisit(true);
+    setSaveError(null);
+    setSyncError(null);
+
+    try {
+      // Stop tracking new pending work and wait for response-run creation promises,
+      // so we can clean up all created runs deterministically.
+      pendingAnswersRef.current.clear();
+      setPendingSyncCount(0);
+
+      const inFlightCreations = Object.values(responseCreationInFlightRef.current).filter(Boolean) as Promise<string | null>[];
+      const creationResults = await Promise.allSettled(inFlightCreations);
+      const createdIds = creationResults
+        .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled')
+        .map((r) => r.value)
+        .filter((id): id is string => Boolean(id));
+
+      const responseIds = Array.from(
+        new Set([...Object.values(responseIdByFragebogenId), ...createdIds].filter(Boolean))
+      );
+
+      if (user?.id) {
+        await Promise.all(responseIds.map((id) => fragebogenService.responses.deleteRun(id, user.id)));
+      } else if (responseIds.length > 0) {
+        throw new Error('Benutzer nicht erkannt. Bitte neu anmelden.');
+      }
+
+      if (submissionId) {
+        await fragebogenService.zeiterfassung.deleteEntry(submissionId);
+      }
+
+      clearActiveVisit();
+      onClose();
+    } catch (error) {
+      console.error('Error aborting market visit cleanup:', error);
+      setSaveError('Besuch konnte nicht vollständig abgebrochen werden. Bitte erneut versuchen.');
+    } finally {
+      setIsAbortingVisit(false);
+    }
+  };
+
   const handlePrev = () => {
     if (zeiterfassungStep === 'end') {
       // Go back to questions (no longer going to 'start' - Fahrzeit is auto-calculated)
@@ -1659,6 +1735,18 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
       {/* Main container with max-width like TourPage */}
       <main className={styles.main}>
         <div className={styles.container}>
+          <button
+            className={styles.closeButtonTop}
+            onClick={() => {
+              void handleAbortVisit();
+            }}
+            disabled={isAbortingVisit}
+            title="Marktbesuch abbrechen"
+            aria-label="Marktbesuch abbrechen"
+          >
+            <X size={20} weight="bold" />
+          </button>
+
           {/* Progress Bar */}
           <div className={styles.progressContainer}>
             <div className={styles.progressBar}>
@@ -1827,6 +1915,19 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
         style={{ display: 'none' }}
         onChange={handlePhotoFileChange}
       />
+
+      {isMiniCrmOpen && (
+        <VisitMiniCrmPanel
+          market={market}
+          context={visitCrmContext}
+          loading={visitCrmLoading}
+          error={visitCrmError}
+          onClose={() => setIsMiniCrmOpen(false)}
+          onRetry={() => {
+            void loadVisitCrmContext();
+          }}
+        />
+      )}
     </div>
   );
 };

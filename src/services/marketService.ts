@@ -1,6 +1,54 @@
 import { API_ENDPOINTS } from '../config/database';
 import type { AdminMarket } from '../types/market-types';
 
+export interface VisitCrmItem {
+  id: string;
+  type: 'fragebogen' | 'vorbesteller' | 'vorverkauf' | 'produkttausch' | 'nara';
+  timestamp: string;
+  title: string;
+  subtitle?: string;
+  meta: string[];
+  comment: string | null;
+  details: any;
+  section?: string;
+}
+
+export interface VisitCrmSection {
+  count: number;
+  latest: VisitCrmItem | null;
+  items: VisitCrmItem[];
+}
+
+export interface VisitCrmContext {
+  market: {
+    id: string;
+    name: string;
+    chain: string;
+    addressLine: string;
+    postalCode: string;
+    city: string;
+    address: string;
+  };
+  lastVisit: {
+    date: string | null;
+    visitComment: string | null;
+    visitWindow: {
+      from: string | null;
+      to: string | null;
+    } | null;
+    timestamp: string | null;
+    label: string;
+    actionsOnLastVisit: VisitCrmItem[];
+  };
+  sections: {
+    fragebogen: VisitCrmSection;
+    vorbesteller: VisitCrmSection;
+    vorverkauf: VisitCrmSection;
+    produkttausch: VisitCrmSection;
+    nara: VisitCrmSection;
+  };
+}
+
 class MarketService {
   /**
    * Fetch all markets from the API
@@ -122,6 +170,25 @@ class MarketService {
       return await response.json();
     } catch (error) {
       console.error(`Error recording visit for market ${marketId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get compact visit CRM context for a specific market + GL.
+   */
+  async getVisitCrmContext(marketId: string, glId: string): Promise<VisitCrmContext> {
+    try {
+      const endpoint = `${API_ENDPOINTS.markets.getById(marketId)}/visit-crm?gl_id=${encodeURIComponent(glId)}`;
+      const response = await fetch(endpoint);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error(`Error fetching visit CRM context for market ${marketId}:`, error);
       throw error;
     }
   }
