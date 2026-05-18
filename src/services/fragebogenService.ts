@@ -766,6 +766,88 @@ export const responsesApi = {
 };
 
 // ============================================================================
+// FRAGEBOGEN PHOTO ADMIN API
+// ============================================================================
+
+export interface FragebogenAdminPhoto {
+  id: string;
+  source: 'fotofragen';
+  fragebogenId: string;
+  fragebogenName: string;
+  questionId: string;
+  glId: string;
+  glName: string;
+  marketId: string;
+  marketName: string;
+  marketChain: string;
+  marketAddressLine: string;
+  marketPostalCode: string;
+  marketCity: string;
+  marketAddress: string;
+  photoUrl: string;
+  tags: string[];
+  comment: string | null;
+  createdAt: string;
+}
+
+export const photosApi = {
+  async getAdminPhotos(filters?: {
+    fragebogen_id?: string;
+    gl_id?: string;
+    market_id?: string;
+    start_date?: string;
+    end_date?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ photos: FragebogenAdminPhoto[]; total: number }> {
+    const params = new URLSearchParams();
+    Object.entries(filters || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && String(v).trim() !== '') params.set(k, String(v));
+    });
+
+    const response = await fetch(`${FRAGEBOGEN_API}/photos?${params.toString()}`);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).error || 'Fotofragen Fotos konnten nicht geladen werden');
+    }
+    return response.json();
+  },
+
+  async downloadAdminPhotosZip(filters?: {
+    fragebogen_id?: string;
+    gl_id?: string;
+    market_id?: string;
+    start_date?: string;
+    end_date?: string;
+    zip_name?: string;
+  }): Promise<void> {
+    const params = new URLSearchParams();
+    Object.entries(filters || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && String(v).trim() !== '') params.set(k, String(v));
+    });
+
+    const response = await fetch(`${FRAGEBOGEN_API}/photos/export.zip?${params.toString()}`);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).error || 'Fotofragen ZIP-Export fehlgeschlagen');
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    const zipName = (filters?.zip_name || `fotofragen_photos_${new Date().toISOString().slice(0, 10)}`)
+      .replace(/[^a-zA-Z0-9äöüÄÖÜß\-_ ]/g, '_')
+      .trim();
+    anchor.href = url;
+    anchor.download = `${zipName || 'fotofragen_photos'}.zip`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+};
+
+// ============================================================================
 // FRAGEBOGEN EXPORT API
 // ============================================================================
 
@@ -826,6 +908,15 @@ export const exportApi = {
     anchor.click();
     document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
+  },
+
+  async downloadFotofragenZip(fragebogenId: string, fragebogenName: string): Promise<void> {
+    const safeName = fragebogenName.replace(/[^a-zA-Z0-9_\- ]/g, '_').slice(0, 40);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    await photosApi.downloadAdminPhotosZip({
+      fragebogen_id: fragebogenId,
+      zip_name: `fotofragen_${safeName}_${dateStr}`
+    });
   }
 };
 
@@ -979,6 +1070,7 @@ export default {
   modules: modulesApi,
   fragebogen: fragebogenApi,
   responses: responsesApi,
+  photos: photosApi,
   zeiterfassung: zeiterfassungApi,
   export: exportApi,
   API_URL: FRAGEBOGEN_API

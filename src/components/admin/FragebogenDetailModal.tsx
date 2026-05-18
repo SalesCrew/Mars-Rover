@@ -417,6 +417,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
 
   // Export state
   const [isExporting, setIsExporting] = useState(false);
+  const [isPhotoExporting, setIsPhotoExporting] = useState(false);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -426,6 +427,17 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
       console.error('Export fehlgeschlagen:', err?.message);
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handlePhotoExport = async () => {
+    setIsPhotoExporting(true);
+    try {
+      await fragebogenService.export.downloadFotofragenZip(fragebogen.id, fragebogen.name);
+    } catch (err: any) {
+      console.error('Fotofragen-Export fehlgeschlagen:', err?.message);
+    } finally {
+      setIsPhotoExporting(false);
     }
   };
 
@@ -459,13 +471,24 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
             <button
               className={styles.exportButton}
               onClick={handleExport}
-              disabled={isExporting}
+              disabled={isExporting || isPhotoExporting}
               title="Excel-Export aller Einreichungen"
             >
               {isExporting
                 ? <SpinnerGap size={18} weight="bold" className={styles.exportSpinner} />
                 : <DownloadSimple size={18} weight="bold" />}
               {isExporting ? 'Exportiere…' : 'Excel Export'}
+            </button>
+            <button
+              className={styles.photoExportButton}
+              onClick={handlePhotoExport}
+              disabled={isExporting || isPhotoExporting}
+              title="ZIP-Export aller Fotofragen-Bilder"
+            >
+              {isPhotoExporting
+                ? <SpinnerGap size={18} weight="bold" className={styles.exportSpinner} />
+                : <DownloadSimple size={18} weight="bold" />}
+              {isPhotoExporting ? 'Exportiere…' : 'Fotofragen ZIP'}
             </button>
             <button className={styles.archiveButton} onClick={handleArchiveClick}>
               <ActionIcon size={20} weight="bold" />

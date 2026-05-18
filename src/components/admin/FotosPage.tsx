@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { Camera, CircleNotch, CaretLeft, CaretRight, Trash, X, Image as ImageIcon, DownloadSimple, CheckCircle, CaretDown, MagnifyingGlass, Funnel } from '@phosphor-icons/react';
-import JSZip from 'jszip';
 import { wellenService, type WellePhoto, type Welle } from '../../services/wellenService';
 import { CustomDatePicker } from './CustomDatePicker';
 import styles from './FotosPage.module.css';
 
 interface GLOption { id: string; name: string; }
+type PhotoSourceFilter = 'all' | 'fotowelle' | 'fotofragen';
+
+const getPhotoSource = (photo: WellePhoto): 'fotowelle' | 'fotofragen' => (
+  photo.source === 'fotofragen' ? 'fotofragen' : 'fotowelle'
+);
+
+const getSourceLabel = (source: 'fotowelle' | 'fotofragen'): string => (
+  source === 'fotofragen' ? 'Fotofragen' : 'Fotowelle'
+);
 
 const LazyImage: React.FC<{ src: string; className: string }> = memo(({ src, className }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -35,20 +43,26 @@ interface PhotoCardProps {
   formatDate: (d: string) => string;
 }
 
-const PhotoCard = memo<PhotoCardProps>(({ photo, onClick, formatDate }) => (
-  <div className={styles.photoCard} onClick={onClick}>
-    <LazyImage src={photo.photoUrl} className={styles.photoThumb} />
-    <div className={styles.photoInfo}>
-      <p className={styles.photoGl}>{photo.glName}</p>
-      <p className={styles.photoMarket}>{photo.marketName} {photo.marketChain && `(${photo.marketChain})`}</p>
-      <span className={styles.photoDate}>{formatDate(photo.createdAt)}</span>
-      <div className={styles.photoTags}>
-        {photo.tags?.slice(0, 3).map(t => <span key={t} className={styles.photoTag}>{t}</span>)}
-        {(photo.tags?.length || 0) > 3 && <span className={styles.photoTagMore}>+{photo.tags!.length - 3}</span>}
+const PhotoCard = memo<PhotoCardProps>(({ photo, onClick, formatDate }) => {
+  const source = getPhotoSource(photo);
+  return (
+    <div className={styles.photoCard} onClick={onClick}>
+      <LazyImage src={photo.photoUrl} className={styles.photoThumb} />
+      <div className={styles.photoInfo}>
+        <div className={`${styles.sourceBadge} ${source === 'fotofragen' ? styles.sourceBadgeFotofragen : styles.sourceBadgeFotowelle}`}>
+          {getSourceLabel(source)}
+        </div>
+        <p className={styles.photoGl}>{photo.glName}</p>
+        <p className={styles.photoMarket}>{photo.marketName} {photo.marketChain && `(${photo.marketChain})`}</p>
+        <span className={styles.photoDate}>{formatDate(photo.createdAt)}</span>
+        <div className={styles.photoTags}>
+          {photo.tags?.slice(0, 3).map(t => <span key={t} className={styles.photoTag}>{t}</span>)}
+          {(photo.tags?.length || 0) > 3 && <span className={styles.photoTagMore}>+{photo.tags!.length - 3}</span>}
+        </div>
       </div>
     </div>
-  </div>
-));
+  );
+});
 
 export const FotosPage: React.FC = () => {
   const [photos, setPhotos] = useState<WellePhoto[]>([]);
@@ -58,6 +72,7 @@ export const FotosPage: React.FC = () => {
   const [total, setTotal] = useState(0);
 
   // Filters
+  const [filterSource, setFilterSource] = useState<PhotoSourceFilter>('all');
   const [filterWelle, setFilterWelle] = useState('');
   const [filterGL, setFilterGL] = useState('');
   const [filterMarket, setFilterMarket] = useState('');
@@ -87,6 +102,7 @@ export const FotosPage: React.FC = () => {
     setLoading(true);
     try {
       const params: any = { limit: 200 };
+      params.source = filterSource;
       if (filterWelle) params.welle_id = filterWelle;
       if (filterGL) params.gl_id = filterGL;
       if (filterMarket) params.market_id = filterMarket;
@@ -104,9 +120,15 @@ export const FotosPage: React.FC = () => {
       setGls(Array.from(glMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [filterWelle, filterGL, filterMarket, filterTags, filterStartDate, filterEndDate]);
+  }, [filterSource, filterWelle, filterGL, filterMarket, filterTags, filterStartDate, filterEndDate]);
 
   useEffect(() => { fetchPhotos(); }, [fetchPhotos]);
+
+  useEffect(() => {
+    if (filterSource === 'fotofragen' && filterWelle) {
+      setFilterWelle('');
+    }
+  }, [filterSource, filterWelle]);
 
   // All unique tags from photos
   const allTags = useMemo(() => {
@@ -120,11 +142,12 @@ export const FotosPage: React.FC = () => {
   };
 
   const clearFilters = () => {
+    setFilterSource('all');
     setFilterWelle(''); setFilterGL(''); setFilterMarket('');
     setFilterTags([]); setFilterStartDate(''); setFilterEndDate('');
   };
 
-  const hasFilters = filterWelle || filterGL || filterMarket || filterTags.length > 0 || filterStartDate || filterEndDate;
+  const hasFilters = filterSource !== 'all' || filterWelle || filterGL || filterMarket || filterTags.length > 0 || filterStartDate || filterEndDate;
 
   // Unique markets from photos for dropdown
   const allMarkets = useMemo(() => {
@@ -148,11 +171,15 @@ export const FotosPage: React.FC = () => {
   }, [openDropdown]);
 
   // Delete photo
-  const handleDelete = async (photoId: string) => {
+  const handleDelete = async (photo: WellePhoto) => {
+    if (getPhotoSource(photo) === 'fotofragen') {
+      alert('Fotofragen-Fotos können hier nicht gelöscht werden.');
+      return;
+    }
     if (!confirm('Foto wirklich löschen?')) return;
     try {
-      await wellenService.deletePhoto(photoId);
-      setPhotos(prev => prev.filter(p => p.id !== photoId));
+      await wellenService.deletePhoto(photo.id);
+      setPhotos(prev => prev.filter(p => p.id !== photo.id));
       setTotal(prev => prev - 1);
       setLightboxIndex(null);
     } catch (e) { console.error(e); alert('Fehler beim Löschen'); }
@@ -181,54 +208,20 @@ export const FotosPage: React.FC = () => {
   const handleExportZip = async () => {
     if (photos.length === 0 || !zipName.trim()) return;
     setIsExporting(true);
-    setExportProgress(0);
+    setExportProgress(15);
 
     try {
-      const zip = new JSZip();
-      const nameCount: Record<string, number> = {};
-
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
-        setExportProgress(Math.round(((i + 1) / photos.length) * 100));
-
-        const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9äöüÄÖÜß\-_. ]/g, '_');
-        const chainPart = sanitize(photo.marketChain || '');
-        const namePart = sanitize(photo.marketName || '');
-        const addressPart = sanitize(photo.marketAddress || '');
-        let baseName = [chainPart, namePart, addressPart].filter(Boolean).join(' + ') || 'foto';
-
-        // Handle duplicate names
-        if (nameCount[baseName] !== undefined) {
-          nameCount[baseName]++;
-          baseName = `${baseName}_${nameCount[baseName]}`;
-        } else {
-          nameCount[baseName] = 0;
-        }
-
-        // Determine extension from URL
-        const urlPath = new URL(photo.photoUrl).pathname;
-        const ext = urlPath.split('.').pop()?.toLowerCase() || 'jpg';
-        const fileName = `${baseName}.${ext}`;
-
-        // Fetch the image
-        try {
-          const response = await fetch(photo.photoUrl);
-          const blob = await response.blob();
-          zip.file(fileName, blob);
-        } catch (err) {
-          console.error(`Failed to fetch photo ${photo.id}:`, err);
-        }
-      }
-
-      const content = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(content);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${zipName.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß\-_ ]/g, '_')}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setExportProgress(45);
+      await wellenService.downloadPhotosZip({
+        source: filterSource,
+        welle_id: filterWelle || undefined,
+        gl_id: filterGL || undefined,
+        market_id: filterMarket || undefined,
+        tags: filterTags.length > 0 ? filterTags.join(',') : undefined,
+        start_date: filterStartDate || undefined,
+        end_date: filterEndDate || undefined
+      }, zipName.trim());
+      setExportProgress(100);
 
       setExportDone(true);
       setTimeout(() => {
@@ -250,9 +243,10 @@ export const FotosPage: React.FC = () => {
     };
     window.addEventListener('fotos:export', handleExportEvent);
     return () => window.removeEventListener('fotos:export', handleExportEvent);
-  }, [photos]);
+  }, []);
 
   const lightboxPhoto = lightboxIndex !== null ? photos[lightboxIndex] : null;
+  const lightboxSource = lightboxPhoto ? getPhotoSource(lightboxPhoto) : null;
 
   return (
     <div className={styles.page}>
@@ -262,7 +256,7 @@ export const FotosPage: React.FC = () => {
           <div className={styles.headerIcon}><Camera size={20} weight="duotone" /></div>
           <div>
             <h2 className={styles.title}>Fotos</h2>
-            <p className={styles.subtitle}>Alle Wellen-Fotos</p>
+            <p className={styles.subtitle}>Fotowelle & Fotofragen</p>
           </div>
         </div>
         <span className={styles.photoCount}>{total} Fotos</span>
@@ -270,17 +264,39 @@ export const FotosPage: React.FC = () => {
 
       {/* Filters */}
       <div className={styles.filters}>
+        <div className={styles.sourceToggle}>
+          <button
+            className={`${styles.sourceToggleBtn} ${filterSource === 'all' ? styles.sourceToggleBtnActive : ''}`}
+            onClick={() => setFilterSource('all')}
+          >
+            Alle
+          </button>
+          <button
+            className={`${styles.sourceToggleBtn} ${filterSource === 'fotowelle' ? styles.sourceToggleBtnActive : ''}`}
+            onClick={() => setFilterSource('fotowelle')}
+          >
+            Fotowelle
+          </button>
+          <button
+            className={`${styles.sourceToggleBtn} ${filterSource === 'fotofragen' ? styles.sourceToggleBtnActive : ''}`}
+            onClick={() => setFilterSource('fotofragen')}
+          >
+            Fotofragen
+          </button>
+        </div>
+
         {/* Wave Dropdown */}
         <div className={styles.customDropdown}>
           <button
             className={`${styles.dropdownButton} ${filterWelle ? styles.dropdownActive : ''}`}
+            disabled={filterSource === 'fotofragen'}
             onClick={() => setOpenDropdown(openDropdown === 'welle' ? null : 'welle')}
           >
             <Camera size={14} weight="bold" />
-            <span>{filterWelle ? waves.find(w => w.id === filterWelle)?.name || 'Welle' : 'Alle Wellen'}</span>
+            <span>{filterSource === 'fotofragen' ? 'Wellen (nicht aktiv)' : (filterWelle ? waves.find(w => w.id === filterWelle)?.name || 'Welle' : 'Alle Wellen')}</span>
             <CaretDown size={12} weight="bold" className={`${styles.dropdownCaret} ${openDropdown === 'welle' ? styles.caretOpen : ''}`} />
           </button>
-          {openDropdown === 'welle' && (
+          {openDropdown === 'welle' && filterSource !== 'fotofragen' && (
             <div className={styles.dropdownMenu}>
               <button className={`${styles.dropdownItem} ${!filterWelle ? styles.dropdownItemActive : ''}`} onClick={() => { setFilterWelle(''); setOpenDropdown(null); }}>
                 Alle Wellen
@@ -432,6 +448,14 @@ export const FotosPage: React.FC = () => {
                 <X size={16} weight="bold" />
               </button>
               <div className={styles.lightboxMeta}>
+                {lightboxSource && (
+                  <div>
+                    <p className={styles.lightboxLabel}>Quelle</p>
+                    <div className={`${styles.sourceBadge} ${lightboxSource === 'fotofragen' ? styles.sourceBadgeFotofragen : styles.sourceBadgeFotowelle}`}>
+                      {getSourceLabel(lightboxSource)}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <p className={styles.lightboxLabel}>Gebietsleiter</p>
                   <p className={styles.lightboxValue}>{lightboxPhoto.glName}</p>
@@ -441,10 +465,17 @@ export const FotosPage: React.FC = () => {
                   <p className={styles.lightboxValue}>{lightboxPhoto.marketName} {lightboxPhoto.marketChain && `(${lightboxPhoto.marketChain})`}</p>
                   {lightboxPhoto.marketAddress && <p className={styles.lightboxSubvalue}>{lightboxPhoto.marketAddress}</p>}
                 </div>
-                <div>
-                  <p className={styles.lightboxLabel}>Welle</p>
-                  <p className={styles.lightboxValue}>{lightboxPhoto.welleName}</p>
-                </div>
+                {lightboxSource === 'fotofragen' ? (
+                  <div>
+                    <p className={styles.lightboxLabel}>Fragebogen</p>
+                    <p className={styles.lightboxValue}>{lightboxPhoto.fragebogenName || '—'}</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className={styles.lightboxLabel}>Welle</p>
+                    <p className={styles.lightboxValue}>{lightboxPhoto.welleName || '—'}</p>
+                  </div>
+                )}
                 <div>
                   <p className={styles.lightboxLabel}>Datum</p>
                   <p className={styles.lightboxValue}>{formatDate(lightboxPhoto.createdAt)}</p>
@@ -464,10 +495,12 @@ export const FotosPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <button className={styles.lightboxDelete} onClick={() => handleDelete(lightboxPhoto.id)}>
-                <Trash size={14} weight="regular" style={{ marginRight: '6px' }} />
-                Foto löschen
-              </button>
+              {lightboxSource !== 'fotofragen' && (
+                <button className={styles.lightboxDelete} onClick={() => handleDelete(lightboxPhoto)}>
+                  <Trash size={14} weight="regular" style={{ marginRight: '6px' }} />
+                  Foto löschen
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -502,7 +535,7 @@ export const FotosPage: React.FC = () => {
                 disabled={isExporting}
               />
               <p className={styles.exportHint}>
-                Dateinamen: Tags und Datum werden automatisch vergeben
+                Export erfolgt serverseitig als echte Bilddateien inkl. aktueller Filter.
               </p>
 
               {isExporting && (

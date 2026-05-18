@@ -67,13 +67,19 @@ export interface WelleFotoTag {
 
 export interface WellePhoto {
   id: string;
+  source?: 'fotowelle' | 'fotofragen';
   welleId: string;
   welleName: string;
+  fragebogenId?: string;
+  fragebogenName?: string;
   glId: string;
   glName: string;
   marketId: string;
   marketName: string;
   marketChain: string;
+  marketCity?: string;
+  marketPostalCode?: string;
+  marketAddressLine?: string;
   marketAddress?: string;
   photoUrl: string;
   tags: string[];
@@ -584,8 +590,10 @@ class WellenService {
    */
   async getPhotos(params: {
     welle_id?: string;
+    fragebogen_id?: string;
     gl_id?: string;
     market_id?: string;
+    source?: 'all' | 'fotowelle' | 'fotofragen';
     tag?: string;
     tags?: string;
     start_date?: string;
@@ -605,6 +613,55 @@ class WellenService {
       return await response.json();
     } catch (error) {
       console.error('Error fetching photos:', error);
+      throw error;
+    }
+  }
+
+  async downloadPhotosZip(
+    params: {
+      welle_id?: string;
+      fragebogen_id?: string;
+      gl_id?: string;
+      market_id?: string;
+      source?: 'all' | 'fotowelle' | 'fotofragen';
+      tag?: string;
+      tags?: string;
+      start_date?: string;
+      end_date?: string;
+    },
+    zipName?: string
+  ): Promise<void> {
+    try {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && String(v).trim() !== '') searchParams.set(k, String(v));
+      });
+      if (zipName && zipName.trim()) searchParams.set('zip_name', zipName.trim());
+
+      const response = await fetch(`${this.baseUrl}/photos/export.zip?${searchParams.toString()}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error((errorData as any).error || 'Failed to export photos');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeBaseName = (zipName || `Fotos_${new Date().toISOString().slice(0, 10)}`)
+        .replace(/[^a-zA-Z0-9äöüÄÖÜß\-_ ]/g, '_')
+        .trim();
+      a.href = url;
+      a.download = `${safeBaseName || 'Fotos'}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting photos ZIP:', error);
       throw error;
     }
   }

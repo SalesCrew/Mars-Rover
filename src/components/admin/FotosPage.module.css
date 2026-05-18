@@ -30,6 +30,38 @@
   border: 1px solid rgba(226, 232, 240, 0.6);
 }
 
+.sourceToggle {
+  display: inline-flex;
+  align-items: center;
+  background: white;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.sourceToggleBtn {
+  border: none;
+  background: transparent;
+  color: #64748B;
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sourceToggleBtn:hover {
+  color: #2563EB;
+  background: rgba(59, 130, 246, 0.07);
+}
+
+.sourceToggleBtnActive {
+  color: #1D4ED8;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(37, 99, 235, 0.11));
+}
+
 /* Custom Dropdown */
 .customDropdown {
   position: relative;
@@ -57,6 +89,12 @@
 .dropdownButton:hover {
   border-color: rgba(59, 130, 246, 0.4);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.05);
+}
+
+.dropdownButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .dropdownActive {
@@ -285,6 +323,29 @@
   padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 600;
   background: rgba(100,116,139,0.08); color: #64748B;
   white-space: nowrap; flex-shrink: 0;
+}
+
+.sourceBadge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 3px 9px;
+  margin-bottom: 8px;
+}
+
+.sourceBadgeFotowelle {
+  background: rgba(59,130,246,0.12);
+  color: #1D4ED8;
+}
+
+.sourceBadgeFotofragen {
+  background: rgba(14,165,233,0.13);
+  color: #0369A1;
 }
 
 /* Lightbox */
