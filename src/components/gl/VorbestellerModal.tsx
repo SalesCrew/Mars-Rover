@@ -200,23 +200,46 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
 
   const totalQuantity = Object.values(itemQuantities).reduce((sum, qty) => sum + qty, 0);
 
-  const normalizeProductName = (name: string): string => name.trim().toLowerCase().replace(/\s+/g, ' ');
+  const normalizeProductName = (name: string): string =>
+    name
+      .normalize('NFKD')
+      .replace(/[\u2018\u2019`´]/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+
+  const normalizeVeValue = (value?: string | number | null): string | number | null => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number') return value;
+
+    const trimmed = String(value).trim();
+    if (!trimmed) return null;
+
+    // Products page displays "VE: {content}" — strip prefix here to avoid "VE: VE: 12".
+    const withoutPrefix = trimmed.replace(/^VE\s*:\s*/i, '').trim();
+    return withoutPrefix || null;
+  };
 
   const masterProductVeByName = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, string | number>();
     masterProducts.forEach((product) => {
       const key = normalizeProductName(product.name);
       if (!key) return;
-      if (typeof product.palletSize === 'number' && product.palletSize > 0 && !map.has(key)) {
-        map.set(key, product.palletSize);
+      const veFromContent = normalizeVeValue(product.content);
+      const veFromPalletSize =
+        typeof product.palletSize === 'number' && product.palletSize > 0 ? product.palletSize : null;
+      const resolvedVe = veFromContent ?? veFromPalletSize;
+      if (resolvedVe !== null && !map.has(key)) {
+        map.set(key, resolvedVe);
       }
     });
     return map;
   }, [masterProducts]);
 
   const resolveEinzelproduktVe = (itemName: string, explicitVe?: number | string | null): number | string | null => {
-    if (explicitVe !== null && explicitVe !== undefined && String(explicitVe).trim() !== '') {
-      return explicitVe;
+    const normalizedExplicitVe = normalizeVeValue(explicitVe);
+    if (normalizedExplicitVe !== null) {
+      return normalizedExplicitVe;
     }
     return masterProductVeByName.get(normalizeProductName(itemName)) ?? null;
   };

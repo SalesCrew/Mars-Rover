@@ -5,6 +5,7 @@ import { CustomDatePicker } from './CustomDatePicker';
 import styles from './FotosPage.module.css';
 
 interface GLOption { id: string; name: string; }
+interface FragebogenOption { id: string; name: string; }
 type PhotoSourceFilter = 'all' | 'fotowelle' | 'fotofragen';
 
 const getPhotoSource = (photo: WellePhoto): 'fotowelle' | 'fotofragen' => (
@@ -202,18 +203,118 @@ export const FotosPage: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [zipName, setZipName] = useState('');
   const [exportSource, setExportSource] = useState<PhotoSourceFilter>('all');
+  const [exportWelleId, setExportWelleId] = useState('');
+  const [exportFragebogenId, setExportFragebogenId] = useState('');
+  const [exportGLId, setExportGLId] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportDone, setExportDone] = useState(false);
+  const [openExportDropdown, setOpenExportDropdown] = useState<string | null>(null);
+  const [exportFotowelleGLs, setExportFotowelleGLs] = useState<GLOption[]>([]);
+  const [exportFotofragenGLs, setExportFotofragenGLs] = useState<GLOption[]>([]);
+  const [exportFrageboegen, setExportFrageboegen] = useState<FragebogenOption[]>([]);
+
+  const parseDateValue = (value?: string | null): number => {
+    if (!value) return 0;
+    const ts = new Date(value).getTime();
+    return Number.isNaN(ts) ? 0 : ts;
+  };
+
+  const wavesNewestFirst = useMemo(() => {
+    return [...waves].sort((a, b) => {
+      const aDate = parseDateValue(a.startDate || a.endDate);
+      const bDate = parseDateValue(b.startDate || b.endDate);
+      return bDate - aDate;
+    });
+  }, [waves]);
+
+  const getUniqueGLOptions = (items: WellePhoto[]): GLOption[] => {
+    const glMap = new Map<string, string>();
+    items.forEach((item) => {
+      if (item.glId && item.glName) glMap.set(item.glId, item.glName);
+    });
+    return Array.from(glMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  const getUniqueFragebogenOptions = (items: WellePhoto[]): FragebogenOption[] => {
+    const fragebogenMap = new Map<string, string>();
+    items.forEach((item) => {
+      if (item.fragebogenId && item.fragebogenName) fragebogenMap.set(item.fragebogenId, item.fragebogenName);
+    });
+    return Array.from(fragebogenMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
 
   const openExportModal = () => {
     const today = new Date().toISOString().split('T')[0];
     setZipName(`Fotos_${today}`);
     setExportSource(filterSource);
+    setExportWelleId(filterSource === 'fotofragen' ? '' : filterWelle);
+    setExportFragebogenId('');
+    setExportGLId(filterGL);
+    setOpenExportDropdown(null);
     setExportDone(false);
     setExportProgress(0);
     setShowExportModal(true);
   };
+
+  useEffect(() => {
+    if (!showExportModal) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [fotowelleResult, fotofragenResult] = await Promise.all([
+          wellenService.getPhotos({ source: 'fotowelle', limit: 1000 }),
+          wellenService.getPhotos({ source: 'fotofragen', limit: 1000 })
+        ]);
+        if (cancelled) return;
+        setExportFotowelleGLs(getUniqueGLOptions(fotowelleResult.photos || []));
+        setExportFotofragenGLs(getUniqueGLOptions(fotofragenResult.photos || []));
+        setExportFrageboegen(getUniqueFragebogenOptions(fotofragenResult.photos || []));
+      } catch (e) {
+        console.error('Failed to load export dropdown options:', e);
+        if (cancelled) return;
+        setExportFotowelleGLs([]);
+        setExportFotofragenGLs([]);
+        setExportFrageboegen([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showExportModal]);
+
+  useEffect(() => {
+    if (exportSource !== 'fotowelle') setExportWelleId('');
+    if (exportSource !== 'fotofragen') setExportFragebogenId('');
+  }, [exportSource]);
+
+  const exportGLOptions = useMemo(() => {
+    if (exportSource === 'fotowelle') return exportFotowelleGLs;
+    if (exportSource === 'fotofragen') return exportFotofragenGLs;
+    const glMap = new Map<string, string>();
+    [...exportFotowelleGLs, ...exportFotofragenGLs].forEach((g) => glMap.set(g.id, g.name));
+    return Array.from(glMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [exportSource, exportFotowelleGLs, exportFotofragenGLs]);
+
+  useEffect(() => {
+    if (!openExportDropdown) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`.${styles.exportCustomDropdown}`)) {
+        setOpenExportDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openExportDropdown]);
 
   const handleExportZip = async () => {
     if (photos.length === 0 || !zipName.trim()) return;
@@ -224,8 +325,9 @@ export const FotosPage: React.FC = () => {
       setExportProgress(45);
       await wellenService.downloadPhotosZip({
         source: exportSource,
-        welle_id: exportSource === 'fotofragen' ? undefined : (filterWelle || undefined),
-        gl_id: filterGL || undefined,
+        welle_id: exportSource === 'fotowelle' ? (exportWelleId || undefined) : undefined,
+        fragebogen_id: exportSource === 'fotofragen' ? (exportFragebogenId || undefined) : undefined,
+        gl_id: exportGLId || undefined,
         market_id: filterMarket || undefined,
         tags: filterTags.length > 0 ? filterTags.join(',') : undefined,
         start_date: filterStartDate || undefined,
@@ -558,6 +660,111 @@ export const FotosPage: React.FC = () => {
                 >
                   Fotofragen
                 </button>
+              </div>
+
+              <div className={styles.exportFiltersGrid}>
+                {exportSource === 'fotowelle' && (
+                  <div className={`${styles.customDropdown} ${styles.exportCustomDropdown}`}>
+                    <label className={styles.exportLabel}>Welle</label>
+                    <button
+                      className={`${styles.dropdownButton} ${exportWelleId ? styles.dropdownActive : ''}`}
+                      onClick={() => setOpenExportDropdown(openExportDropdown === 'export-welle' ? null : 'export-welle')}
+                      disabled={isExporting}
+                    >
+                      <span>{exportWelleId ? wavesNewestFirst.find(w => w.id === exportWelleId)?.name || 'Welle' : 'Alle Wellen'}</span>
+                      <CaretDown size={12} weight="bold" className={`${styles.dropdownCaret} ${openExportDropdown === 'export-welle' ? styles.caretOpen : ''}`} />
+                    </button>
+                    {openExportDropdown === 'export-welle' && (
+                      <div className={styles.dropdownMenu}>
+                        <div className={styles.dropdownScroll}>
+                          <button
+                            className={`${styles.dropdownItem} ${!exportWelleId ? styles.dropdownItemActive : ''}`}
+                            onClick={() => { setExportWelleId(''); setOpenExportDropdown(null); }}
+                          >
+                            Alle Wellen
+                          </button>
+                          {wavesNewestFirst.map(w => (
+                            <button
+                              key={w.id}
+                              className={`${styles.dropdownItem} ${exportWelleId === w.id ? styles.dropdownItemActive : ''}`}
+                              onClick={() => { setExportWelleId(w.id); setOpenExportDropdown(null); }}
+                            >
+                              {w.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {exportSource === 'fotofragen' && (
+                  <div className={`${styles.customDropdown} ${styles.exportCustomDropdown}`}>
+                    <label className={styles.exportLabel}>Fragebogen</label>
+                    <button
+                      className={`${styles.dropdownButton} ${exportFragebogenId ? styles.dropdownActive : ''}`}
+                      onClick={() => setOpenExportDropdown(openExportDropdown === 'export-fragebogen' ? null : 'export-fragebogen')}
+                      disabled={isExporting}
+                    >
+                      <span>{exportFragebogenId ? exportFrageboegen.find(f => f.id === exportFragebogenId)?.name || 'Fragebogen' : 'Alle Fragebogen'}</span>
+                      <CaretDown size={12} weight="bold" className={`${styles.dropdownCaret} ${openExportDropdown === 'export-fragebogen' ? styles.caretOpen : ''}`} />
+                    </button>
+                    {openExportDropdown === 'export-fragebogen' && (
+                      <div className={styles.dropdownMenu}>
+                        <div className={styles.dropdownScroll}>
+                          <button
+                            className={`${styles.dropdownItem} ${!exportFragebogenId ? styles.dropdownItemActive : ''}`}
+                            onClick={() => { setExportFragebogenId(''); setOpenExportDropdown(null); }}
+                          >
+                            Alle Fragebogen
+                          </button>
+                          {exportFrageboegen.map(f => (
+                            <button
+                              key={f.id}
+                              className={`${styles.dropdownItem} ${exportFragebogenId === f.id ? styles.dropdownItemActive : ''}`}
+                              onClick={() => { setExportFragebogenId(f.id); setOpenExportDropdown(null); }}
+                            >
+                              {f.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className={`${styles.customDropdown} ${styles.exportCustomDropdown}`}>
+                  <label className={styles.exportLabel}>GL</label>
+                  <button
+                    className={`${styles.dropdownButton} ${exportGLId ? styles.dropdownActive : ''}`}
+                    onClick={() => setOpenExportDropdown(openExportDropdown === 'export-gl' ? null : 'export-gl')}
+                    disabled={isExporting}
+                  >
+                    <span>{exportGLId ? exportGLOptions.find(g => g.id === exportGLId)?.name || 'GL' : 'Alle GLs'}</span>
+                    <CaretDown size={12} weight="bold" className={`${styles.dropdownCaret} ${openExportDropdown === 'export-gl' ? styles.caretOpen : ''}`} />
+                  </button>
+                  {openExportDropdown === 'export-gl' && (
+                    <div className={styles.dropdownMenu}>
+                      <div className={styles.dropdownScroll}>
+                        <button
+                          className={`${styles.dropdownItem} ${!exportGLId ? styles.dropdownItemActive : ''}`}
+                          onClick={() => { setExportGLId(''); setOpenExportDropdown(null); }}
+                        >
+                          Alle GLs
+                        </button>
+                        {exportGLOptions.map(g => (
+                          <button
+                            key={g.id}
+                            className={`${styles.dropdownItem} ${exportGLId === g.id ? styles.dropdownItemActive : ''}`}
+                            onClick={() => { setExportGLId(g.id); setOpenExportDropdown(null); }}
+                          >
+                            {g.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <label className={styles.exportLabel}>ZIP-Ordnername</label>

@@ -433,7 +433,7 @@
   background: white; border-radius: 16px; width: 100%; max-width: 440px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
   animation: exportSlideUp 0.25s ease;
-  overflow: hidden;
+  overflow: visible;
 }
 @keyframes exportSlideUp {
   from { opacity: 0; transform: translateY(16px); }
@@ -469,6 +469,24 @@
   border-radius: 10px;
   padding: 3px;
   margin-bottom: 12px;
+}
+.exportFiltersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.exportCustomDropdown {
+  width: 100%;
+}
+.exportCustomDropdown .dropdownButton {
+  width: 100%;
+  justify-content: space-between;
+}
+.exportCustomDropdown .dropdownMenu {
+  z-index: 10020;
+  width: 100%;
+  max-width: none;
 }
 .exportLabel {
   display: block; font-size: 12px; font-weight: 600; color: #475569;
