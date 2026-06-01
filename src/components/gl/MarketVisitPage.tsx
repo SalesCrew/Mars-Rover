@@ -28,7 +28,7 @@ import type { Market } from '../../types/market-types';
 import { useAuth } from '../../contexts/AuthContext';
 import fragebogenService from '../../services/fragebogenService';
 import { marketService, type VisitCrmContext } from '../../services/marketService';
-import { saveActiveVisit, updateActiveVisit, updatePendingSync, clearActiveVisit, type PersistedVisit } from '../../services/visitPersistence';
+import { saveActiveVisit, updateActiveVisit, updatePendingSync, clearActiveVisit, getPendingSync, type PersistedVisit } from '../../services/visitPersistence';
 import { VisitMiniCrmPanel } from './VisitMiniCrmPanel';
 import styles from './MarketVisitPage.module.css';
 
@@ -178,6 +178,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   // UI states for completion feedback only (not used to block mid-question navigation)
   const [isSavingAnswer, setIsSavingAnswer] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isFinalSyncInFlight, setIsFinalSyncInFlight] = useState(false);
+  const [showFinalSaveErrorModal, setShowFinalSaveErrorModal] = useState(false);
+  const [completionPendingSync, setCompletionPendingSync] = useState(
+    () => !!(resumeData?.pendingSync && Object.values(resumeData.pendingSync).some(Boolean))
+  );
 
   // Determine if there are any questions/modules
   const hasFragebogen = modules.length > 0 && allQuestions.length > 0;
@@ -970,14 +975,19 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
 
       setSaveError(null);
       setIsCompleted(true);
+      const pending = getPendingSync();
+      setCompletionPendingSync(!!(pending && Object.values(pending).some(Boolean)));
 
       if (needsBis && submissionId) {
         try {
           await fragebogenService.zeiterfassung.update(submissionId, { besuchszeit_bis: endTime });
           updateActiveVisit({ besuchszeitBis: endTime, pendingSync: {} });
+          setCompletionPendingSync(false);
         } catch {
           updateActiveVisit({ besuchszeitBis: endTime });
           updatePendingSync({ bis: true });
+          setCompletionPendingSync(true);
+          setShowFinalSaveErrorModal(true);
         }
       }
     }
@@ -1002,29 +1012,93 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     }, 500);
   }, [submissionId]);
 
-  const handleCompleteAndClose = async () => {
-    if (submissionId) {
-      try {
-        await fragebogenService.zeiterfassung.update(submissionId, {
-          besuchszeit_von: zeiterfassung.besuchszeitVon,
-          besuchszeit_bis: zeiterfassung.besuchszeitBis,
-          kommentar: zeiterfassung.kommentar,
-          food_prozent: zeiterfassung.foodProzent
-        });
-        clearActiveVisit();
-      } catch {
-        updateActiveVisit({
-          besuchszeitVon: zeiterfassung.besuchszeitVon,
-          besuchszeitBis: zeiterfassung.besuchszeitBis || null,
-          kommentar: zeiterfassung.kommentar,
-          foodProzent: zeiterfassung.foodProzent
-        });
-        updatePendingSync({ final: true });
+  const persistFinalVisitLocally = useCallback((override: Partial<PersistedVisit> = {}) => {
+    updateActiveVisit({
+      submissionId: submissionId ?? null,
+      besuchszeitVon: zeiterfassung.besuchszeitVon,
+      besuchszeitBis: zeiterfassung.besuchszeitBis || null,
+      kommentar: zeiterfassung.kommentar,
+      foodProzent: zeiterfassung.foodProzent,
+      ...override
+    });
+  }, [submissionId, zeiterfassung.besuchszeitVon, zeiterfassung.besuchszeitBis, zeiterfassung.kommentar, zeiterfassung.foodProzent]);
+
+  const syncFinalVisitData = useCallback(async (): Promise<{ success: boolean; resolvedSubmissionId: string | null }> => {
+    const finalPayload = {
+      besuchszeit_von: zeiterfassung.besuchszeitVon,
+      besuchszeit_bis: zeiterfassung.besuchszeitBis,
+      kommentar: zeiterfassung.kommentar,
+      food_prozent: zeiterfassung.foodProzent
+    };
+
+    let resolvedSubmissionId = submissionId;
+
+    if (!resolvedSubmissionId) {
+      if (!user?.id) {
+        persistFinalVisitLocally({ submissionId: null });
+        updatePendingSync({ create: true, final: true });
+        return { success: false, resolvedSubmissionId: null };
       }
-    } else {
-      clearActiveVisit();
+      try {
+        const result = await fragebogenService.zeiterfassung.submit({
+          gebietsleiter_id: user.id,
+          market_id: market.id,
+          besuchszeit_von: zeiterfassung.besuchszeitVon,
+          besuchszeit_bis: zeiterfassung.besuchszeitBis || undefined
+        });
+        resolvedSubmissionId = result.id;
+        setSubmissionId(result.id);
+        persistFinalVisitLocally({ submissionId: result.id });
+        updatePendingSync({ create: false, von: false, bis: false });
+      } catch {
+        persistFinalVisitLocally({ submissionId: null });
+        updatePendingSync({ create: true, final: true });
+        return { success: false, resolvedSubmissionId: null };
+      }
     }
-    onComplete({ ...answers, zeiterfassung, submissionId, responseIdByFragebogenId });
+
+    if (!resolvedSubmissionId) {
+      persistFinalVisitLocally({ submissionId: null });
+      updatePendingSync({ final: true });
+      return { success: false, resolvedSubmissionId: null };
+    }
+
+    try {
+      await fragebogenService.zeiterfassung.update(resolvedSubmissionId, finalPayload);
+      clearActiveVisit();
+      return { success: true, resolvedSubmissionId };
+    } catch {
+      persistFinalVisitLocally({ submissionId: resolvedSubmissionId });
+      updatePendingSync({ final: true });
+      return { success: false, resolvedSubmissionId };
+    }
+  }, [
+    submissionId,
+    user?.id,
+    market.id,
+    zeiterfassung.besuchszeitVon,
+    zeiterfassung.besuchszeitBis,
+    zeiterfassung.kommentar,
+    zeiterfassung.foodProzent,
+    persistFinalVisitLocally
+  ]);
+
+  const handleCompleteAndClose = async () => {
+    if (isFinalSyncInFlight) return;
+
+    setShowFinalSaveErrorModal(false);
+    setIsFinalSyncInFlight(true);
+    const { success, resolvedSubmissionId } = await syncFinalVisitData();
+    setIsFinalSyncInFlight(false);
+
+    if (!success) {
+      setCompletionPendingSync(true);
+      setShowFinalSaveErrorModal(true);
+      return;
+    }
+
+    setCompletionPendingSync(false);
+    onComplete({ ...answers, zeiterfassung, submissionId: resolvedSubmissionId, responseIdByFragebogenId });
   };
 
   const handleAbortVisit = async () => {
@@ -1646,7 +1720,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
             <Check size={48} weight="bold" />
           </div>
           <h2>Marktbesuch abgeschlossen</h2>
-          <p>Alle Daten wurden erfolgreich gespeichert.</p>
+          <p className={completionPendingSync ? styles.completedWarningText : undefined}>
+            {completionPendingSync
+              ? 'Speicherung noch nicht abgeschlossen. Bitte bei stabiler Internetverbindung erneut speichern.'
+              : 'Alle Daten wurden erfolgreich gespeichert.'}
+          </p>
           
           {/* Summary Section */}
           <div className={styles.completedSummary}>
@@ -1712,9 +1790,42 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
             )}
           </div>
           
-          <button className={styles.closeButton} onClick={handleCompleteAndClose}>
-            Zurück zur Übersicht
+          <button className={styles.closeButton} onClick={handleCompleteAndClose} disabled={isFinalSyncInFlight}>
+            {isFinalSyncInFlight ? 'Speichert…' : completionPendingSync ? 'Erneut speichern' : 'Zurück zur Übersicht'}
           </button>
+          {showFinalSaveErrorModal && (
+            <div className={styles.finalSaveModalOverlay}>
+              <div className={styles.finalSaveModal}>
+                <h3>Speichern fehlgeschlagen</h3>
+                <p>
+                  Deine Internetverbindung ist gerade zu schwach. Geh bitte an einen Ort mit besserem Internet
+                  und versuche das Speichern erneut.
+                </p>
+                <p className={styles.finalSaveDisclaimer}>
+                  Hinweis: Solange der Browser-Tab nicht geschlossen wird, bleiben deine Daten persistent erhalten,
+                  bis das Speichern erfolgreich war.
+                </p>
+                <div className={styles.finalSaveActions}>
+                  <button
+                    type="button"
+                    className={styles.finalSaveSecondary}
+                    onClick={() => setShowFinalSaveErrorModal(false)}
+                    disabled={isFinalSyncInFlight}
+                  >
+                    Später versuchen
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.finalSavePrimary}
+                    onClick={handleCompleteAndClose}
+                    disabled={isFinalSyncInFlight}
+                  >
+                    {isFinalSyncInFlight ? 'Speichert…' : 'Erneut speichern'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
