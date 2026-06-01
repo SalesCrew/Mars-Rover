@@ -999,7 +999,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const monthStr = String(month + 1).padStart(2, '0');
       const exportMonthKey = `${year}-${monthStr}-01`;
-      const DIAETEN_RATE_CUTOVER_MONTH = '2026-06-01';
+      const DIAETEN_RATE_CUTOVER_MONTH = '2026-05-01';
 
       type DiaetenRateSet = {
         taggeld: {
@@ -1027,9 +1027,22 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         ? NEW_DIAETEN_RATES
         : OLD_DIAETEN_RATES;
 
-      const DIAETEN_BREAK_ZUSATZ: Set<string> = new Set([
-        'homeoffice', 'arztbesuch', 'arzt'
+      const DIAETEN_BREAK_ZUSATZ_COMPACT: Set<string> = new Set([
+        'homeoffice',
+        'arztbesuch',
+        'arzt',
+        'buero',
+        'buro'
       ]);
+      const normalizeReasonForMatch = (value?: string | null): { raw: string; compact: string } => {
+        const raw = (value || '').trim().toLowerCase();
+        const compact = raw
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[\s_-]+/g, '')
+          .replace(/[^a-z0-9]/g, '');
+        return { raw, compact };
+      };
 
       const hmToFraction = (hm: string): number => {
         if (!hm) return 0;
@@ -1175,7 +1188,8 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         // 2) Zusatz entries
         zusatzEntries.filter(z => z.gebietsleiter_id === glId).forEach(z => {
           if (!z.entry_date?.startsWith(`${year}-${monthStr}`)) return;
-          const reason = (z.reason || '').toLowerCase();
+          const reasonMatch = normalizeReasonForMatch(z.reason);
+          const reason = reasonMatch.raw;
           const dayNum = parseInt(z.entry_date.split('-')[2], 10);
           const dd = ensureDay(dayNum);
           const hasTimes = !!(z.zeit_von && z.zeit_bis);
@@ -1184,10 +1198,10 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
             dd.endFrac = Math.max(dd.endFrac, hmToFraction(z.zeit_bis));
           }
 
-          // New rule: everything counts for diäten except hard-break reasons.
-          const isEligibleZusatz = !DIAETEN_BREAK_ZUSATZ.has(reason);
-          const isPause = z.is_work_time_deduction || reason === 'unterbrechung';
-          const isBreak = DIAETEN_BREAK_ZUSATZ.has(reason);
+          // Hard breaks always split the block, even when flagged as deduction.
+          const isBreak = DIAETEN_BREAK_ZUSATZ_COMPACT.has(reasonMatch.compact) || reasonMatch.compact.includes('homeoffice');
+          const isPause = !isBreak && (z.is_work_time_deduction || reasonMatch.compact === 'unterbrechung');
+          const isEligibleZusatz = !isBreak && !isPause;
           const reasonLabel = normalizeReasonLabel(reason, z.reason_label);
 
           if (isEligibleZusatz) {
