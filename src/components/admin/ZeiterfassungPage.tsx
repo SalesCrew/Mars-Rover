@@ -1009,12 +1009,6 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         return ((parts[0] || 0) + (parts[1] || 0) / 60) / 24;
       };
 
-      const berechneDiaet = (stunden: number): number => {
-        if (stunden < 6) return 0;
-        const volleUeber6 = Math.floor(stunden - 6);
-        return Math.min(9.77 + volleUeber6 * 4.03, 31.77);
-      };
-
       const jsDateToSerial = (d: Date): number => Math.round(d.getTime() / 86400000 + 25569);
 
       const glMap: Record<string, { firstName: string; lastName: string }> = {};
@@ -1258,7 +1252,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
               const overlapEnd = Math.min(event.endMin, selectedSegment.endMin);
               return overlapEnd > overlapStart ? sum + (overlapEnd - overlapStart) : sum;
             }, 0);
-          const pauseMinutes = realPauseMinutes > 0 ? realPauseMinutes : 30;
+          const pauseMinutes = Math.max(0, realPauseMinutes);
 
           const inSegmentEligible = eligibleEvents.filter((event) =>
             event.endMin > selectedSegment.startMin && event.startMin < selectedSegment.endMin
@@ -1281,14 +1275,26 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
           ...overrides,
         });
 
-        const cell = (r: number, c: number, v: string | number | null | undefined, opts?: { t?: string; z?: string; s?: Record<string, unknown> }) => {
+        const cell = (
+          r: number,
+          c: number,
+          v: string | number | null | undefined,
+          opts?: { t?: string; z?: string; s?: Record<string, unknown>; f?: string }
+        ) => {
           const addr = XLSX.utils.encode_cell({ r, c });
           const tp = opts?.t || (typeof v === 'number' ? 'n' : 's');
-          ws[addr] = {
-            v: v ?? '', t: tp,
+          const nextCell: Record<string, unknown> = {
+            t: tp,
             s: mkStyle(opts?.s || {}),
             ...(opts?.z ? { z: opts.z } : {}),
           };
+          if (opts?.f) {
+            nextCell.f = opts.f;
+            if (v !== undefined && v !== null && v !== '') nextCell.v = v;
+          } else {
+            nextCell.v = v ?? '';
+          }
+          ws[addr] = nextCell as any;
         };
 
         const hdr = (r: number, c: number, v: string, extra?: Record<string, unknown>) => {
@@ -1362,76 +1368,90 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         // ═══════════════════════════════════════════
         // BLOCK 3 — DATA ROWS (rows 13 to 13+daysInMonth-1)
         // ═══════════════════════════════════════════
-        let sumTaggeld = 0, sumFrei = 0, sumPflichtig = 0;
         const purpleFill = { fill: { fgColor: { rgb: CLR_PURPLE } } };
         const greyFill = { fill: { fgColor: { rgb: CLR_DATA_GREY } } };
 
         for (let d = 1; d <= daysInMonth; d++) {
           const row = 12 + d;
+          const excelRow = row + 1;
           cell(row, 0, jsDateToSerial(new Date(year, month, d)), { t: 'n', z: DATE_FMT });
 
           const dd = dayData[d];
-          if (!dd || dd.startFrac >= dd.endFrac) {
-            for (let c = 1; c <= 7; c++) cell(row, c, '');
-            cell(row, 3, '', { s: {} }); cell(row, 4, '', { s: {} });
-            cell(row, 8, '', { s: greyFill }); cell(row, 9, '', { s: purpleFill }); cell(row, 10, ' ', { s: greyFill });
-            cell(row, 11, ''); cell(row, 12, '');
-            cell(row, 13, ''); cell(row, 14, '', { s: {} }); cell(row, 15, 0, { t: 'n', z: NUM2_FMT });
-            continue;
-          }
+          const hasDayData = !!dd && dd.startFrac < dd.endFrac;
 
-          const pFrac = dd.pauseMinutes > 0 ? minutesToFrac(dd.pauseMinutes) : 0;
-          const durFrac = dd.endFrac - dd.startFrac;
-          const grossAbwH = durFrac * 24;
-          const calculableAbwH = Math.max(0, grossAbwH - (dd.pauseMinutes / 60));
-
-          // 6h threshold is checked on total away-time; pause is not paid.
-          const tg = grossAbwH >= 6 ? berechneDiaet(calculableAbwH) : 0;
-          const sf = Math.min(tg, 30);
-          const sp = Math.max(0, +(tg - 30).toFixed(2));
-          sumTaggeld += tg; sumFrei += sf; sumPflichtig += sp;
-
-          cell(row, 1, dd.startFrac, { t: 'n', z: TIME_FMT, s: purpleFill });
-          cell(row, 2, dd.endFrac, { t: 'n', z: TIME_FMT, s: purpleFill });
-          cell(row, 3, pFrac > 0 ? pFrac : '', { t: pFrac > 0 ? 'n' : 's', z: TIME_FMT, s: purpleFill });
-          cell(row, 4, durFrac, { t: 'n', z: TIME_FMT, s: purpleFill });
-          cell(row, 5, Array.from(dd.locations).join('\n'), { s: { alignment: { wrapText: true, vertical: 'top' as const } } });
-          cell(row, 6, Array.from(dd.reasons).join(', '));
+          cell(row, 1, hasDayData ? dd.startFrac : '', { t: hasDayData ? 'n' : 's', z: TIME_FMT, s: purpleFill });
+          cell(row, 2, hasDayData ? dd.endFrac : '', { t: hasDayData ? 'n' : 's', z: TIME_FMT, s: purpleFill });
+          const pauseFraction = hasDayData ? minutesToFrac(dd.pauseMinutes) : 0;
+          cell(row, 3, null, {
+            t: 'n',
+            z: TIME_FMT,
+            s: purpleFill,
+            f: `IF($B${excelRow}="","",IF(${pauseFraction}>0,${pauseFraction},IF(($C${excelRow}-$B${excelRow})>0.25,0.0208333333333333,"")))`
+          });
+          cell(row, 4, null, {
+            t: 'n',
+            z: TIME_FMT,
+            s: purpleFill,
+            f: `IF($C${excelRow}="","",$C${excelRow}-$B${excelRow})`
+          });
+          cell(row, 5, hasDayData ? Array.from(dd.locations).join('\n') : '', { s: { alignment: { wrapText: true, vertical: 'top' as const } } });
+          cell(row, 6, hasDayData ? Array.from(dd.reasons).join(', ') : '');
           cell(row, 7, '');
-          cell(row, 8, tg > 0 ? tg : '', { t: tg > 0 ? 'n' : 's', z: EURO_FMT, s: greyFill });
-          cell(row, 9, tg > 0 ? sf : '', { t: tg > 0 ? 'n' : 's', z: EURO_FMT, s: purpleFill });
-          cell(row, 10, sp > 0 ? sp : '-', { t: sp > 0 ? 'n' : 's', z: sp > 0 ? EURO_FMT : undefined, s: greyFill });
-          cell(row, 11, dd.kmStart != null ? dd.kmStart : '', { t: dd.kmStart != null ? 'n' : 's' });
-          cell(row, 12, dd.kmEnd != null ? dd.kmEnd : '', { t: dd.kmEnd != null ? 'n' : 's' });
+          cell(row, 8, null, {
+            t: 'n',
+            z: EURO_FMT,
+            s: greyFill,
+            f: `IF($B${excelRow}="","",IF((($C${excelRow}-$B${excelRow})*24)>=6,IF(9.77+((ROUNDDOWN(MAX(0,(($C${excelRow}-$B${excelRow})-$D${excelRow})*24)-6,0))*4.03)>31.77,31.77,9.77+((ROUNDDOWN(MAX(0,(($C${excelRow}-$B${excelRow})-$D${excelRow})*24)-6,0))*4.03)),""))`
+          });
+          cell(row, 9, null, {
+            t: 'n',
+            z: EURO_FMT,
+            s: purpleFill,
+            f: `IF($I${excelRow}="","",$I${excelRow}-IF(ISNUMBER($K${excelRow}),$K${excelRow},0))`
+          });
+          cell(row, 10, null, {
+            t: 's',
+            z: EURO_FMT,
+            s: greyFill,
+            f: `IF(ISBLANK($B${excelRow})," ",IF($I${excelRow}>30,$I${excelRow}-30,"-"))`
+          });
+          const kmStart = dd?.kmStart ?? null;
+          const kmEnd = dd?.kmEnd ?? null;
+          cell(row, 11, kmStart != null ? kmStart : '', { t: kmStart != null ? 'n' : 's' });
+          cell(row, 12, kmEnd != null ? kmEnd : '', { t: kmEnd != null ? 'n' : 's' });
           cell(row, 13, '');
-          cell(row, 14, '');
-          cell(row, 15, +calculableAbwH.toFixed(2), { t: 'n', z: NUM2_FMT });
+          cell(row, 14, null, { t: 'n', z: EURO_FMT, f: `IF($A${excelRow}="","",IF($N${excelRow}="","",18.13))` });
+          cell(row, 15, null, { t: 'n', z: NUM2_FMT, f: `IF($E${excelRow}="",0,ROUND(MAX(0,($E${excelRow}-$D${excelRow})*24),2))` });
         }
 
         // ═══════════════════════════════════════════
         // BLOCK 4 — TOTALS ROW
         // ═══════════════════════════════════════════
         const totRow = 13 + daysInMonth;
+        const firstDataExcelRow = 14;
+        const lastDataExcelRow = 13 + daysInMonth;
+        const totalExcelRow = totRow + 1;
         const totStyle = { font: { bold: true, sz: 10, color: { rgb: '000000' } }, fill: { fgColor: { rgb: CLR_TOTAL_BG } } };
         hdr(totRow, 0, 'Gesamt', { ...totStyle });
         for (let c = 1; c <= 7; c++) cell(totRow, c, '', { s: totStyle });
-        cell(totRow, 8, sumTaggeld, { t: 'n', z: EURO_FMT, s: totStyle });
-        cell(totRow, 9, sumFrei, { t: 'n', z: EURO_FMT, s: totStyle });
-        cell(totRow, 10, sumPflichtig, { t: 'n', z: EURO_FMT, s: totStyle });
+        cell(totRow, 8, null, { t: 'n', z: EURO_FMT, s: totStyle, f: `SUM(I${firstDataExcelRow}:I${lastDataExcelRow})` });
+        cell(totRow, 9, null, { t: 'n', z: EURO_FMT, s: totStyle, f: `SUM(J${firstDataExcelRow}:J${lastDataExcelRow})` });
+        cell(totRow, 10, null, { t: 'n', z: EURO_FMT, s: totStyle, f: `SUM(K${firstDataExcelRow}:K${lastDataExcelRow})` });
         for (let c = 11; c <= 13; c++) cell(totRow, c, '', { s: totStyle });
-        cell(totRow, 14, 0, { t: 'n', z: EURO_FMT, s: totStyle });
+        cell(totRow, 14, null, { t: 'n', z: EURO_FMT, s: totStyle, f: `SUM(O${firstDataExcelRow}:O${lastDataExcelRow})` });
         cell(totRow, 15, '', { s: totStyle });
 
         // ═══════════════════════════════════════════
         // BLOCK 5 — FOOTER SUMMARY
         // ═══════════════════════════════════════════
         const fRow = totRow + 2;
+        const footerStartExcelRow = fRow + 1;
         hdr(fRow, 0, 'Gesamtsumme Taggelder Inland:', { border: noBorder });
-        cell(fRow, 14, sumTaggeld, { t: 'n', z: EURO_FMT, s: { font: { bold: true, sz: 11 }, border: noBorder } });
+        cell(fRow, 14, null, { t: 'n', z: EURO_FMT, f: `I${totalExcelRow}`, s: { font: { bold: true, sz: 11 }, border: noBorder } });
         hdr(fRow + 1, 0, 'Gesamtsumme der pauschalen Nächtigungsgelder:', { border: noBorder });
-        cell(fRow + 1, 14, 0, { t: 'n', z: EURO_FMT, s: { border: noBorder } });
+        cell(fRow + 1, 14, null, { t: 'n', z: EURO_FMT, f: `O${totalExcelRow}`, s: { border: noBorder } });
         hdr(fRow + 3, 0, 'Auszahlungsbetrag für Verpflegungsmehraufwendungen mit der nächsten Lohn- & Gehaltsabrechnung:', { border: noBorder });
-        cell(fRow + 3, 14, sumTaggeld, { t: 'n', z: EURO_FMT, s: { font: { bold: true, sz: 12, color: { rgb: '000000' } }, border: noBorder } });
+        cell(fRow + 3, 14, null, { t: 'n', z: EURO_FMT, f: `SUM(O${footerStartExcelRow}:O${footerStartExcelRow + 1})`, s: { font: { bold: true, sz: 12, color: { rgb: '000000' } }, border: noBorder } });
 
         // ═══════════════════════════════════════════
         // BLOCK 6 — SIGNATURE
