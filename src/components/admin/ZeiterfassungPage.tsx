@@ -998,6 +998,34 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       const { month, year } = (e as CustomEvent).detail as { month: number; year: number };
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const monthStr = String(month + 1).padStart(2, '0');
+      const exportMonthKey = `${year}-${monthStr}-01`;
+      const DIAETEN_RATE_CUTOVER_MONTH = '2026-06-01';
+
+      type DiaetenRateSet = {
+        taggeld: {
+          base: number;
+          increment: number;
+          max: number;
+          taxThreshold: number;
+        };
+        overnight: {
+          full: number;
+          reduced: number;
+          flat: number;
+        };
+      };
+
+      const OLD_DIAETEN_RATES: DiaetenRateSet = {
+        taggeld: { base: 9.77, increment: 4.03, max: 31.77, taxThreshold: 30 },
+        overnight: { full: 39.58, reduced: 23.30, flat: 17.70 }
+      };
+      const NEW_DIAETEN_RATES: DiaetenRateSet = {
+        taggeld: { base: 10.01, increment: 4.13, max: 32.53, taxThreshold: 30 },
+        overnight: { full: 40.53, reduced: 23.86, flat: 18.13 }
+      };
+      const activeDiaetenRates = exportMonthKey >= DIAETEN_RATE_CUTOVER_MONTH
+        ? NEW_DIAETEN_RATES
+        : OLD_DIAETEN_RATES;
 
       const DIAETEN_BREAK_ZUSATZ: Set<string> = new Set([
         'homeoffice', 'arztbesuch', 'arzt'
@@ -1008,6 +1036,8 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         const parts = hm.split(':').map(Number);
         return ((parts[0] || 0) + (parts[1] || 0) / 60) / 24;
       };
+      const toFormulaNumber = (value: number): string => value.toFixed(2);
+      const toLegendEuro = (value: number): string => value.toFixed(2).replace('.', ',');
 
       const jsDateToSerial = (d: Date): number => Math.round(d.getTime() / 86400000 + 25569);
 
@@ -1048,6 +1078,16 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       const TIME_FMT = 'HH:MM';
       const EURO_FMT = '#,##0.00" €"';
       const NUM2_FMT = '0.00';
+      const taggeldBaseFormula = toFormulaNumber(activeDiaetenRates.taggeld.base);
+      const taggeldIncrementFormula = toFormulaNumber(activeDiaetenRates.taggeld.increment);
+      const taggeldMaxFormula = toFormulaNumber(activeDiaetenRates.taggeld.max);
+      const taggeldTaxThresholdFormula = toFormulaNumber(activeDiaetenRates.taggeld.taxThreshold);
+      const overnightFlatFormula = toFormulaNumber(activeDiaetenRates.overnight.flat);
+      const legendTaggeldLine = `€ ${toLegendEuro(activeDiaetenRates.taggeld.base)} ab 6h + € ${toLegendEuro(activeDiaetenRates.taggeld.increment)} für jede zusätzliche volle Stunde | max. € ${toLegendEuro(activeDiaetenRates.taggeld.max)} pro Tag`;
+      const legendOvernightDepartureLine = `- Abfahrt bei Hinreise vor 12 Uhr: € ${toLegendEuro(activeDiaetenRates.overnight.full)}/Tag  |  nach 12 Uhr: € ${toLegendEuro(activeDiaetenRates.overnight.reduced)}/Tag`;
+      const legendOvernightMiddayLine = `- Mitteltag (=Übernachtungen vom Vortag & auf den nächsten Tag): € ${toLegendEuro(activeDiaetenRates.overnight.full)}/Tag`;
+      const legendOvernightArrivalLine = `- Ankunft bei Rückreise vor 17 Uhr: € ${toLegendEuro(activeDiaetenRates.overnight.reduced)}/Tag  |  nach 17 Uhr: € ${toLegendEuro(activeDiaetenRates.overnight.full)}/Tag`;
+      const legendOvernightFlatLine = `Wenn Übernachtung nötig, aber nicht vom Dienstnehmer bereit gestellt: € ${toLegendEuro(activeDiaetenRates.overnight.flat)}/Nacht → Spalte "erstattungsfähige Nächtigung"`;
       const MINUTES_PER_DAY = 24 * 60;
       const hmToMinutes = (hm: string): number => {
         const parts = hm.split(':').map(Number);
@@ -1401,7 +1441,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
             t: 'n',
             z: EURO_FMT,
             s: greyFill,
-            f: `IF($B${excelRow}="","",IF((($C${excelRow}-$B${excelRow})*24)>=6,IF(9.77+((ROUNDDOWN(MAX(0,(($C${excelRow}-$B${excelRow})-$D${excelRow})*24)-6,0))*4.03)>31.77,31.77,9.77+((ROUNDDOWN(MAX(0,(($C${excelRow}-$B${excelRow})-$D${excelRow})*24)-6,0))*4.03)),""))`
+            f: `IF($B${excelRow}="","",IF((($C${excelRow}-$B${excelRow})*24)>=6,IF(${taggeldBaseFormula}+((ROUNDDOWN(MAX(0,(($C${excelRow}-$B${excelRow})-$D${excelRow})*24)-6,0))*${taggeldIncrementFormula})>${taggeldMaxFormula},${taggeldMaxFormula},${taggeldBaseFormula}+((ROUNDDOWN(MAX(0,(($C${excelRow}-$B${excelRow})-$D${excelRow})*24)-6,0))*${taggeldIncrementFormula})),""))`
           });
           cell(row, 9, null, {
             t: 'n',
@@ -1413,14 +1453,14 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
             t: 's',
             z: EURO_FMT,
             s: greyFill,
-            f: `IF(ISBLANK($B${excelRow})," ",IF($I${excelRow}>30,$I${excelRow}-30,"-"))`
+            f: `IF(ISBLANK($B${excelRow})," ",IF($I${excelRow}>${taggeldTaxThresholdFormula},$I${excelRow}-${taggeldTaxThresholdFormula},"-"))`
           });
           const kmStart = dd?.kmStart ?? null;
           const kmEnd = dd?.kmEnd ?? null;
           cell(row, 11, kmStart != null ? kmStart : '', { t: kmStart != null ? 'n' : 's' });
           cell(row, 12, kmEnd != null ? kmEnd : '', { t: kmEnd != null ? 'n' : 's' });
           cell(row, 13, '');
-          cell(row, 14, null, { t: 'n', z: EURO_FMT, f: `IF($A${excelRow}="","",IF($N${excelRow}="","",18.13))` });
+          cell(row, 14, null, { t: 'n', z: EURO_FMT, f: `IF($A${excelRow}="","",IF($N${excelRow}="","",${overnightFlatFormula}))` });
           cell(row, 15, null, { t: 'n', z: NUM2_FMT, f: `IF($E${excelRow}="",0,ROUND(MAX(0,($E${excelRow}-$D${excelRow})*24),2))` });
         }
 
@@ -1469,14 +1509,14 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
         hdr(lRow, 0, 'Legende:', { font: { bold: true, sz: 11 }, border: noBorder });
         hdr(lRow, 1, 'Taggeld', { fill: { fgColor: { rgb: CLR_DATA_GREY } }, border: noBorder });
         cell(lRow, 4, 'Ab einer Dienstreise von 6 Stunden (inkl. Fahrtzeit, exkl. Mittagspause) außerhalb der Heimadresse', { s: { border: noBorder } });
-        cell(lRow + 1, 4, '€ 9,77 ab 6h + € 4,03 für jede zusätzliche volle Stunde | max. € 31,77 pro Tag', { s: { border: noBorder } });
+        cell(lRow + 1, 4, legendTaggeldLine, { s: { border: noBorder } });
         hdr(lRow + 2, 1, 'Taggeld bei Nächtigung', { fill: { fgColor: { rgb: CLR_DATA_GREY } }, border: noBorder });
         cell(lRow + 2, 4, 'Ab einer Abwesenheit von 11 Stunden (tagesübergreifend) und wenn eine Nächtigung nötig ist → Spalte "bezahlte Nächtigung"', { s: { border: noBorder } });
-        cell(lRow + 3, 4, '- Abfahrt bei Hinreise vor 12 Uhr: € 39,58/Tag  |  nach 12 Uhr: € 23,30/Tag', { s: { border: noBorder } });
-        cell(lRow + 4, 4, '- Mitteltag (=Übernachtungen vom Vortag & auf den nächsten Tag): € 39,58/Tag', { s: { border: noBorder } });
-        cell(lRow + 5, 4, '- Ankunft bei Rückreise vor 17 Uhr: € 23,30/Tag  |  nach 17 Uhr: € 39,58/Tag', { s: { border: noBorder } });
+        cell(lRow + 3, 4, legendOvernightDepartureLine, { s: { border: noBorder } });
+        cell(lRow + 4, 4, legendOvernightMiddayLine, { s: { border: noBorder } });
+        cell(lRow + 5, 4, legendOvernightArrivalLine, { s: { border: noBorder } });
         hdr(lRow + 6, 1, 'Nächtigungsgeld', { fill: { fgColor: { rgb: CLR_DATA_GREY } }, border: noBorder });
-        cell(lRow + 6, 4, 'Wenn Übernachtung nötig, aber nicht vom Dienstnehmer bereit gestellt: € 17,70/Nacht → Spalte "erstattungsfähige Nächtigung"', { s: { border: noBorder } });
+        cell(lRow + 6, 4, legendOvernightFlatLine, { s: { border: noBorder } });
 
         // ═══════════════════════════════════════════
         // FORMATTING
