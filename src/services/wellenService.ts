@@ -638,28 +638,18 @@ class WellenService {
       });
       if (zipName && zipName.trim()) searchParams.set('zip_name', zipName.trim());
 
-      const response = await fetch(`${this.baseUrl}/photos/export.zip?${searchParams.toString()}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error((errorData as any).error || 'Failed to export photos');
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const url = `${this.baseUrl}/photos/export.zip?${searchParams.toString()}`;
       const a = document.createElement('a');
       const safeBaseName = (zipName || `Fotos_${new Date().toISOString().slice(0, 10)}`)
         .replace(/[^a-zA-Z0-9äöüÄÖÜß\-_ ]/g, '_')
         .trim();
       a.href = url;
       a.download = `${safeBaseName || 'Fotos'}.zip`;
+      a.target = '_blank';
+      a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting photos ZIP:', error);
       throw error;
