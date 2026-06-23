@@ -748,9 +748,15 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const normalizedItemSearchQuery = itemSearchQuery.trim().toLowerCase();
   const normalizedProductSearchQuery = productSearchQuery.trim().toLowerCase();
 
-  const matchesUnifiedItemSearch = (value?: string | null): boolean => {
+  const matchesUnifiedItemSearch = (...values: Array<string | number | null | undefined>): boolean => {
     if (!normalizedItemSearchQuery) return true;
-    return (value || '').toLowerCase().includes(normalizedItemSearchQuery);
+    return values.some(value => String(value ?? '').toLowerCase().includes(normalizedItemSearchQuery));
+  };
+
+  const matchesProductSearch = (product: Product): boolean => {
+    if (!normalizedProductSearchQuery) return true;
+    return [product.name, product.artikelNr]
+      .some(value => String(value ?? '').toLowerCase().includes(normalizedProductSearchQuery));
   };
 
   if (!isOpen) return null;
@@ -1540,8 +1546,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.allProductsList}>
                           {masterProducts
                             .filter(product => 
-                              matchesUnifiedItemSearch(product.name) &&
-                              product.name.toLowerCase().includes(normalizedProductSearchQuery)
+                              matchesUnifiedItemSearch(product.name, product.artikelNr) &&
+                              matchesProductSearch(product)
                             )
                             .map((product) => (
                               <div key={`master-${product.id}`} className={styles.productCard}>
@@ -1610,13 +1616,13 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                     {/* Paletten Section */}
                     {selectedVorbesteller?.paletteItems && selectedVorbesteller.paletteItems.filter(p =>
                       matchesUnifiedItemSearch(p.name) ||
-                      p.products.some(pp => matchesUnifiedItemSearch(pp.name))
+                      p.products.some(pp => matchesUnifiedItemSearch(pp.name, pp.ean))
                     ).length > 0 && (
                       <div className={styles.itemsGroup}>
                         <div className={styles.itemsGroupLabel}>Paletten</div>
                         {selectedVorbesteller.paletteItems.filter(p =>
                           matchesUnifiedItemSearch(p.name) ||
-                          p.products.some(pp => matchesUnifiedItemSearch(pp.name))
+                          p.products.some(pp => matchesUnifiedItemSearch(pp.name, pp.ean))
                         ).map((palette) => (
                           <div key={palette.id} className={styles.paletteContainer}>
                             <div className={styles.paletteHeader}>
@@ -1628,7 +1634,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                 .filter((product) => {
                                   if (!normalizedItemSearchQuery) return true;
                                   if (matchesUnifiedItemSearch(palette.name)) return true;
-                                  return matchesUnifiedItemSearch(product.name);
+                                  return matchesUnifiedItemSearch(product.name, product.ean);
                                 })
                                 .map((product) => {
                                 const productKey = `palette-${palette.id}-${product.id}`;
@@ -1677,13 +1683,13 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                     {/* Schütten Section */}
                     {selectedVorbesteller?.schutteItems && selectedVorbesteller.schutteItems.filter(s =>
                       matchesUnifiedItemSearch(s.name) ||
-                      s.products.some(sp => matchesUnifiedItemSearch(sp.name))
+                      s.products.some(sp => matchesUnifiedItemSearch(sp.name, sp.ean))
                     ).length > 0 && (
                       <div className={styles.itemsGroup}>
                         <div className={styles.itemsGroupLabel}>Schütten</div>
                         {selectedVorbesteller.schutteItems.filter(s =>
                           matchesUnifiedItemSearch(s.name) ||
-                          s.products.some(sp => matchesUnifiedItemSearch(sp.name))
+                          s.products.some(sp => matchesUnifiedItemSearch(sp.name, sp.ean))
                         ).map((schuette) => (
                           <div key={schuette.id} className={styles.paletteContainer}>
                             <div className={styles.paletteHeader}>
@@ -1695,7 +1701,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                 .filter((product) => {
                                   if (!normalizedItemSearchQuery) return true;
                                   if (matchesUnifiedItemSearch(schuette.name)) return true;
-                                  return matchesUnifiedItemSearch(product.name);
+                                  return matchesUnifiedItemSearch(product.name, product.ean);
                                 })
                                 .map((product) => {
                                 const productKey = `schutte-${schuette.id}-${product.id}`;
@@ -2006,4 +2012,3 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     </div>
   );
 };
-
