@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { X, FunnelSimple, MagnifyingGlass, CheckCircle, Storefront, CaretDown, CaretUp } from '@phosphor-icons/react';
+import { X, FunnelSimple, MagnifyingGlass, CheckCircle, Storefront, CaretDown, CaretUp, UploadSimple } from '@phosphor-icons/react';
 import { marketService } from '../../services/marketService';
 import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
 import type { AdminMarket } from '../../types/market-types';
+import { FragebogenMarketImportMapperModal } from './FragebogenMarketImportMapperModal';
 import styles from './WelleMarketSelectorModal.module.css';
 
 type FilterType = 'chain' | 'gebietsleiter' | 'subgroup' | 'status';
@@ -24,6 +25,12 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
   const [markets, setMarkets] = useState<AdminMarket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [tempSelectedIds, setTempSelectedIds] = useState<string[]>(selectedMarketIds);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importSummary, setImportSummary] = useState<{
+    matched: number;
+    unmatched: number;
+    excluded: number;
+  } | null>(null);
   const [openFilter, setOpenFilter] = useState<FilterType | null>(null);
   const [searchTerms, setSearchTerms] = useState<Record<FilterType, string>>({
     chain: '',
@@ -64,6 +71,13 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
     };
     if (isOpen) {
       loadMarkets();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsImportModalOpen(false);
+      setImportSummary(null);
     }
   }, [isOpen]);
 
@@ -160,6 +174,7 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
   if (!isOpen) return null;
 
   return ReactDOM.createPortal(
+    <>
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
@@ -167,10 +182,32 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
             <Storefront size={24} weight="bold" />
             <h3 className={styles.modalTitle}>Märkte auswählen</h3>
           </div>
-          <button className={styles.modalClose} onClick={onClose}>
-            <X size={20} weight="bold" />
-          </button>
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              className={styles.importMarketsButton}
+              onClick={() => { setIsImportModalOpen(true); setImportSummary(null); }}
+              title="Märkte aus Excel importieren"
+            >
+              <UploadSimple size={15} weight="bold" />
+              <span>Import aus Excel</span>
+            </button>
+            <button className={styles.modalClose} onClick={onClose}>
+              <X size={20} weight="bold" />
+            </button>
+          </div>
         </div>
+
+        {importSummary && (
+          <div className={styles.importSummaryBadge}>
+            <CheckCircle size={14} weight="fill" />
+            <span>
+              {importSummary.matched} Märkte importiert
+              {importSummary.unmatched > 0 && ` · ${importSummary.unmatched} nicht gefunden`}
+              {importSummary.excluded > 0 && ` · ${importSummary.excluded} gefiltert`}
+            </span>
+          </div>
+        )}
 
         <div className={styles.filterBar}>
           <div className={styles.filterGroup}>
@@ -436,7 +473,25 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
           </button>
         </div>
       </div>
-    </div>,
+
+    </div>
+
+    {isImportModalOpen && (
+      <FragebogenMarketImportMapperModal
+        availableMarkets={markets}
+        onConfirm={(res) => {
+          setTempSelectedIds(res.matchedMarketIds);
+          setImportSummary({
+            matched: res.matchedMarketIds.length,
+            unmatched: res.unmatchedInternalIds.length,
+            excluded: res.excludedByFormat,
+          });
+          setIsImportModalOpen(false);
+        }}
+        onCancel={() => setIsImportModalOpen(false)}
+      />
+    )}
+    </>,
     document.body
   );
 };
