@@ -16,6 +16,7 @@ interface FragebogenMarketImportMapperModalProps {
   availableMarkets: AdminMarket[];
   onConfirm: (result: FragebogenMarketImportResult) => void;
   onCancel: () => void;
+  requireFoodPsStoreFormat?: boolean;
 }
 
 const colLetterLabel = (idx: number): string => {
@@ -33,6 +34,7 @@ export const FragebogenMarketImportMapperModal: React.FC<FragebogenMarketImportM
   availableMarkets,
   onConfirm,
   onCancel,
+  requireFoodPsStoreFormat = true,
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string[][]>([]);
@@ -42,6 +44,7 @@ export const FragebogenMarketImportMapperModal: React.FC<FragebogenMarketImportM
     foodPsStoreFormatColumn: '',
     foodPsStoreFormatValue: '',
     skipHeaderRow: true,
+    requireFoodPsStoreFormat,
   });
   const [isParsing, setIsParsing] = useState(false);
   const [result, setResult] = useState<FragebogenMarketImportResult | null>(null);
@@ -62,8 +65,13 @@ export const FragebogenMarketImportMapperModal: React.FC<FragebogenMarketImportM
 
   const isValid =
     mapping.interneIdColumn.trim() !== '' &&
-    mapping.foodPsStoreFormatColumn.trim() !== '' &&
-    mapping.foodPsStoreFormatValue.trim() !== '';
+    (
+      !requireFoodPsStoreFormat ||
+      (
+        mapping.foodPsStoreFormatColumn.trim() !== '' &&
+        mapping.foodPsStoreFormatValue.trim() !== ''
+      )
+    );
 
   const reasonLabels: Record<FragebogenImportUnmatchedReason, string> = {
     empty_internal_id: 'Interne ID fehlt',
@@ -355,6 +363,8 @@ export const FragebogenMarketImportMapperModal: React.FC<FragebogenMarketImportM
                     />
                   </div>
 
+                  {requireFoodPsStoreFormat && (
+                    <>
                   {/* Food PS Store Format column */}
                   <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>
@@ -384,6 +394,8 @@ export const FragebogenMarketImportMapperModal: React.FC<FragebogenMarketImportM
                       placeholder="z.B. Supermarket"
                     />
                   </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Skip header row */}

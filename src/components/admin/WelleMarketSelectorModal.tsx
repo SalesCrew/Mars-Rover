@@ -479,6 +479,7 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
     {isImportModalOpen && (
       <FragebogenMarketImportMapperModal
         availableMarkets={markets}
+        requireFoodPsStoreFormat={false}
         onConfirm={(res) => {
           setTempSelectedIds(res.matchedMarketIds);
           setImportSummary({

@@ -6,6 +6,7 @@ export interface FragebogenMarketImportMapping {
   foodPsStoreFormatColumn: string;
   foodPsStoreFormatValue: string;
   skipHeaderRow: boolean;
+  requireFoodPsStoreFormat?: boolean;
 }
 
 export interface FragebogenMarketImportResult {
@@ -92,8 +93,9 @@ export const parseFragebogenMarketMatches = async (
         const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
         const idIdx = columnLetterToIndex(mapping.interneIdColumn);
-        const formatIdx = columnLetterToIndex(mapping.foodPsStoreFormatColumn);
-        const matchValue = mapping.foodPsStoreFormatValue.trim().toLowerCase();
+        const requireFoodPsStoreFormat = mapping.requireFoodPsStoreFormat !== false;
+        const formatIdx = requireFoodPsStoreFormat ? columnLetterToIndex(mapping.foodPsStoreFormatColumn) : -1;
+        const matchValue = requireFoodPsStoreFormat ? mapping.foodPsStoreFormatValue.trim().toLowerCase() : '';
 
         // ── Pre-parse validation ────────────────────────────────────────────
         if (idIdx < 0) {
@@ -102,13 +104,13 @@ export const parseFragebogenMarketMatches = async (
             'Bitte einen gültigen Spaltenbuchstaben eingeben (z.B. A, B, C…).'
           );
         }
-        if (formatIdx < 0) {
+        if (requireFoodPsStoreFormat && formatIdx < 0) {
           throw new Error(
             `Ungültige Spalte für "Food PS Store Format": "${mapping.foodPsStoreFormatColumn}". ` +
             'Bitte einen gültigen Spaltenbuchstaben eingeben.'
           );
         }
-        if (!matchValue) {
+        if (requireFoodPsStoreFormat && !matchValue) {
           throw new Error('Bitte einen Wert für "Food PS Store Format" eingeben.');
         }
         // ───────────────────────────────────────────────────────────────────
@@ -148,7 +150,7 @@ export const parseFragebogenMarketMatches = async (
           totalDataRows++;
 
           const rawId = idIdx >= 0 && row[idIdx] != null ? String(row[idIdx]).trim() : '';
-          const rawFormat = formatIdx >= 0 && row[formatIdx] != null
+          const rawFormat = requireFoodPsStoreFormat && formatIdx >= 0 && row[formatIdx] != null
             ? String(row[formatIdx]).trim().toLowerCase()
             : '';
 
@@ -164,7 +166,7 @@ export const parseFragebogenMarketMatches = async (
             continue;
           }
 
-          if (rawFormat !== matchValue) {
+          if (requireFoodPsStoreFormat && rawFormat !== matchValue) {
             excludedByFormat++;
             reasonSummary.excluded_by_store_format++;
             unmatchedRows.push({
