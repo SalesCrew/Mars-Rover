@@ -62,6 +62,43 @@ const normalizePhotoUrls = (value: any): string[] => {
   return [];
 };
 
+const isDirectPhotoUrl = (value: string): boolean =>
+  /^(https?:|data:|blob:)/i.test(value) && !value.includes('/fragebogen-response-images/');
+
+const FragebogenPhotoImage = ({ value, alt, className }: { value: string; alt: string; className: string }) => {
+  const [src, setSrc] = useState(value);
+
+  useEffect(() => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      setSrc('');
+      return;
+    }
+    if (isDirectPhotoUrl(trimmed)) {
+      setSrc(trimmed);
+      return;
+    }
+
+    let cancelled = false;
+    setSrc('');
+    fragebogenService.responses
+      .resolvePhotoUrl(trimmed)
+      .then((resolved) => {
+        if (!cancelled) setSrc(resolved.url || trimmed);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc('');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [value]);
+
+  if (!src) return null;
+  return <img src={src} alt={alt} className={className} />;
+};
+
 const buildDraftFromRun = (run: GLHistoryRun): DraftMap => {
   const next: DraftMap = {};
   (run.answers || []).forEach((answer: any) => {
@@ -671,7 +708,12 @@ const FragebogenHistorySection: React.FC = () => {
             </button>
             {urls.length > 0
               ? urls.map((url, index) => (
-                  <img key={`${url}-${index}`} src={url} alt={`Antwort Foto ${index + 1}`} className={styles.fbPhotoPreview} />
+                  <FragebogenPhotoImage
+                    key={`${url}-${index}`}
+                    value={url}
+                    alt={`Antwort Foto ${index + 1}`}
+                    className={styles.fbPhotoPreview}
+                  />
                 ))
               : <span className={styles.fbMuted}>Kein Foto</span>}
           </div>
@@ -815,7 +857,12 @@ const FragebogenHistorySection: React.FC = () => {
                                         ) : questionContext.question.type === 'photo_upload' && normalizePhotoUrls(value).length > 0 ? (
                                           <div className={styles.fbPhotoWrap}>
                                             {normalizePhotoUrls(value).map((url, index) => (
-                                              <img key={`${url}-${index}`} src={url} alt={`Antwort Foto ${index + 1}`} className={styles.fbPhotoPreview} />
+                                              <FragebogenPhotoImage
+                                                key={`${url}-${index}`}
+                                                value={url}
+                                                alt={`Antwort Foto ${index + 1}`}
+                                                className={styles.fbPhotoPreview}
+                                              />
                                             ))}
                                           </div>
                                         ) : (

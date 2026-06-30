@@ -1,8 +1,8 @@
 -- ============================================
 -- USER AUTHENTICATION AND AUTHORIZATION SCHEMA
 -- ============================================
--- This schema supports multi-user access with strict data isolation
--- GLs can ONLY see their own data, Admins can see everything
+-- Legacy reference schema. Supabase Auth is the source of truth for passwords
+-- and sessions in the current app; do not seed users or password hashes here.
 
 -- Drop existing table if needed (for development)
 -- DROP TABLE IF EXISTS users CASCADE;
@@ -11,22 +11,22 @@
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   username VARCHAR(100) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL, -- bcrypt hash
+  password_hash VARCHAR(255) NOT NULL, -- legacy bcrypt hash column
   email VARCHAR(255) UNIQUE NOT NULL,
   role VARCHAR(20) NOT NULL CHECK (role IN ('gl', 'admin')),
-  
+
   -- Personal Information
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
   avatar_url TEXT,
-  
+
   -- GL-specific field (NULL for admins)
   gebietsleiter_id VARCHAR(50), -- Links to markets.gebietsleiter_id
-  
+
   -- Account Status
   is_active BOOLEAN DEFAULT true,
   last_login TIMESTAMP WITH TIME ZONE,
-  
+
   -- Timestamps
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -56,7 +56,6 @@ CREATE TRIGGER users_updated_at_trigger
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
--- This ensures GLs can ONLY access their own data
 
 -- Enable RLS on users table
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -67,7 +66,7 @@ CREATE POLICY users_select_own
   FOR SELECT
   USING (
     id = current_setting('app.current_user_id')::UUID
-    OR 
+    OR
     (SELECT role FROM users WHERE id = current_setting('app.current_user_id')::UUID) = 'admin'
   );
 
@@ -77,7 +76,7 @@ CREATE POLICY users_update_own
   FOR UPDATE
   USING (
     id = current_setting('app.current_user_id')::UUID
-    OR 
+    OR
     (SELECT role FROM users WHERE id = current_setting('app.current_user_id')::UUID) = 'admin'
   );
 
@@ -98,65 +97,21 @@ CREATE POLICY users_delete_admin_only
   );
 
 -- ============================================
--- SAMPLE DATA (FOR TESTING)
+-- USER SEEDING
 -- ============================================
--- Note: Password is 'password123' for all test users (bcrypt hash)
--- In production, you would create users through the API with properly hashed passwords
-
--- Sample Admin User
--- Username: admin
--- Password: password123
-INSERT INTO users (username, password_hash, email, role, first_name, last_name, is_active)
-VALUES (
-  'admin',
-  '$2b$10$rKJ5Z3Z5Z5Z5Z5Z5Z5Z5Z.eK5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Zu', -- placeholder, will be properly hashed via API
-  'admin@marsrover.com',
-  'admin',
-  'Admin',
-  'User',
-  true
-) ON CONFLICT (username) DO NOTHING;
-
--- Sample GL User 1
--- Username: gl_mueller
--- Password: password123
-INSERT INTO users (username, password_hash, email, role, first_name, last_name, gebietsleiter_id, is_active)
-VALUES (
-  'gl_mueller',
-  '$2b$10$rKJ5Z3Z5Z5Z5Z5Z5Z5Z5Z.eK5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Zu', -- placeholder
-  'mueller@marsrover.com',
-  'gl',
-  'Thomas',
-  'Müller',
-  'GL001', -- This should match a gebietsleiter_id in the markets table
-  true
-) ON CONFLICT (username) DO NOTHING;
-
--- Sample GL User 2
--- Username: gl_schmidt
--- Password: password123
-INSERT INTO users (username, password_hash, email, role, first_name, last_name, gebietsleiter_id, is_active)
-VALUES (
-  'gl_schmidt',
-  '$2b$10$rKJ5Z3Z5Z5Z5Z5Z5Z5Z5Z.eK5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Zu', -- placeholder
-  'schmidt@marsrover.com',
-  'gl',
-  'Anna',
-  'Schmidt',
-  'GL002', -- Different GL
-  true
-) ON CONFLICT (username) DO NOTHING;
+-- Do not seed users, password hashes, or test credentials from SQL files.
+-- Users must be created through Supabase Auth and authenticated backend admin APIs.
 
 -- ============================================
 -- ADDITIONAL SECURITY CONSIDERATIONS
 -- ============================================
 
--- Ensure markets table respects GL data isolation
--- This will be enforced in the backend API layer by filtering queries
--- based on the authenticated user's gebietsleiter_id
+-- Ensure markets table respects GL data isolation.
+-- This is enforced in the backend API layer by filtering queries based on the
+-- authenticated user's gebietsleiter_id.
 
 -- Comments for future reference:
 COMMENT ON TABLE users IS 'User accounts with role-based access control. GLs are linked to specific markets via gebietsleiter_id.';
 COMMENT ON COLUMN users.gebietsleiter_id IS 'Links GL users to markets. NULL for admin users. Must match markets.gebietsleiter_id.';
 COMMENT ON COLUMN users.role IS 'User role: gl (Gebietsleiter) or admin. Determines data access permissions.';
-COMMENT ON COLUMN users.password_hash IS 'bcrypt hashed password. NEVER store plain text passwords.';
+COMMENT ON COLUMN users.password_hash IS 'Legacy bcrypt hash column. Current app passwords are managed by Supabase Auth.';

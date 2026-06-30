@@ -1,11 +1,13 @@
 # Frontend Environment Setup
 
-Create a `.env` file in the project root with:
+The frontend talks only to the MarsPets+ backend API.
+
+Create a `.env` file in the project root:
 
 ```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-public-key-here
+VITE_API_URL=http://localhost:3001/api
 ```
 
-Get these from Supabase Dashboard → Settings → API
-- Use the **anon/public** key (NOT service_role)
+For production, set `VITE_API_URL` to the deployed backend API base URL.
+
+Do not put Supabase URL, anon keys, or service-role keys in the frontend environment.

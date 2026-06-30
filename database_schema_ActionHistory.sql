@@ -57,11 +57,8 @@ EXECUTE FUNCTION update_action_history_updated_at();
 -- Add Row Level Security (RLS) policies if needed
 ALTER TABLE action_history ENABLE ROW LEVEL SECURITY;
 
--- Policy: Allow all operations for authenticated users (adjust as needed)
-CREATE POLICY "Allow all operations for authenticated users" 
-ON action_history 
-FOR ALL 
-USING (true);
+-- Do not add broad authenticated policies here.
+-- Use backend/sql/dsgvo_rls_hardening.sql for the reviewed production RLS/grant model.
 
 -- Comments for documentation
 COMMENT ON TABLE action_history IS 'Stores all GL assignment actions (assign, swap, remove) for auditing and history tracking';

@@ -1,5 +1,5 @@
-import * as XLSX from 'xlsx';
 import type { Product } from '../types/product-types';
+import { readExcelRows, readExcelSheetNames as loadExcelSheetNames } from './excelReader';
 
 export type ProductImportType = 'pets-standard' | 'pets-display' | 'food-standard' | 'food-display';
 
@@ -7,38 +7,12 @@ export const parseProductFile = async (
   file: File,
   importType: ProductImportType
 ): Promise<Product[]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        
-        // Get the first sheet
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // Convert to array of arrays (rows with columns)
-        const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, {
-          header: 1,
-          defval: ''
-        });
-
-        // Process the data based on import type
-        const products = processProductImportData(rawData, importType);
-        resolve(products);
-      } catch (error) {
-        reject(new Error(`Fehler beim Verarbeiten der Datei: ${error}`));
-      }
-    };
-
-    reader.onerror = () => {
-      reject(new Error('Fehler beim Lesen der Datei'));
-    };
-
-    reader.readAsBinaryString(file);
-  });
+  try {
+    const rawData = await readExcelRows(file);
+    return processProductImportData(rawData, importType);
+  } catch (error) {
+    throw new Error(`Fehler beim Verarbeiten der Datei: ${error}`);
+  }
 };
 
 const processProductImportData = (
@@ -288,50 +262,18 @@ const resolveMultiColumnValue = (row: any[], indices: number[]): string => {
 };
 
 export const readExcelSheetNames = (file: File): Promise<string[]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const workbook = XLSX.read(e.target?.result, { type: 'binary' });
-        resolve(workbook.SheetNames);
-      } catch (err) {
-        reject(new Error(`Fehler beim Lesen der Tabellenblätter: ${err}`));
-      }
-    };
-    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
-    reader.readAsBinaryString(file);
-  });
+  return loadExcelSheetNames(file);
 };
 
 export const readExcelPreview = async (file: File, maxRows = 50, sheetName?: string): Promise<string[][]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheet = workbook.Sheets[sheetName ?? workbook.SheetNames[0]];
-        const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
-        // If the sheet range starts past column A, prepend empty columns so
-        // preview column letters match the real Excel column letters exactly.
-        const ref = sheet['!ref'];
-        const startCol = ref ? XLSX.utils.decode_range(ref).s.c : 0;
-        const padded = startCol > 0
-          ? raw.map(row => [...Array(startCol).fill(''), ...row])
-          : raw;
-
-        const preview = padded.slice(0, maxRows).map(row =>
-          row.map((cell: any) => (cell == null ? '' : String(cell)))
-        );
-        resolve(preview);
-      } catch (err) {
-        reject(new Error(`Fehler beim Lesen der Vorschau: ${err}`));
-      }
-    };
-    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
-    reader.readAsBinaryString(file);
-  });
+  try {
+    const raw = await readExcelRows(file, sheetName);
+    return raw.slice(0, maxRows).map(row =>
+      row.map((cell: any) => (cell == null ? '' : String(cell)))
+    );
+  } catch (err) {
+    throw new Error(`Fehler beim Lesen der Vorschau: ${err}`);
+  }
 };
 
 export const parseProductFileWithMapping = async (
@@ -340,21 +282,8 @@ export const parseProductFileWithMapping = async (
   mapping: ColumnMapping,
   sheetName?: string
 ): Promise<Product[]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheet = workbook.Sheets[sheetName ?? workbook.SheetNames[0]];
-        const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
-        // Align column indices with real Excel columns (same as preview fix)
-        const ref = sheet['!ref'];
-        const sheetStartCol = ref ? XLSX.utils.decode_range(ref).s.c : 0;
-        const rows: any[][] = sheetStartCol > 0
-          ? rawData.map(row => [...Array(sheetStartCol).fill(''), ...row])
-          : rawData;
+  try {
+        const rows: any[][] = await readExcelRows(file, sheetName);
 
         const nameIndices = parseMultiColumnLetters(mapping.name);
         const weightIdx = columnLetterToIndex(mapping.weight);
@@ -400,14 +329,10 @@ export const parseProductFileWithMapping = async (
           });
         }
 
-        resolve(products);
+        return products;
       } catch (err) {
-        reject(new Error(`Fehler beim Verarbeiten der Datei: ${err}`));
+        throw new Error(`Fehler beim Verarbeiten der Datei: ${err}`);
       }
-    };
-    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
-    reader.readAsBinaryString(file);
-  });
 };
 
 export const validateProductImportFile = (file: File): { valid: boolean; error?: string } => {

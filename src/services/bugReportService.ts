@@ -6,6 +6,7 @@ export interface BugReport {
   gebietsleiter_name: string | null;
   description: string;
   screenshot_url: string | null;
+  screenshot_path?: string | null;
   page_url: string | null;
   user_agent: string | null;
   status: 'new' | 'reviewed' | 'fixed' | 'wont_fix';

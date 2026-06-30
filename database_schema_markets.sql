@@ -98,16 +98,8 @@ EXECUTE FUNCTION update_updated_at_column();
 -- ============================================
 ALTER TABLE markets ENABLE ROW LEVEL SECURITY;
 
--- Create policy to allow all operations for authenticated users
--- You can customize these policies based on your security needs
-CREATE POLICY "Allow all operations for authenticated users" ON markets
-  FOR ALL
-  USING (auth.role() = 'authenticated');
-
--- Optional: Allow service role full access
-CREATE POLICY "Allow all operations for service role" ON markets
-  FOR ALL
-  USING (auth.role() = 'service_role');
+-- Do not add broad authenticated policies here.
+-- Use backend/sql/dsgvo_rls_hardening.sql for the reviewed production RLS/grant model.
 
 -- ============================================
 -- Sample data (optional - for testing)

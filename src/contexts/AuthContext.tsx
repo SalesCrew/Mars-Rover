@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../services/authService';
+import {
+  ACCESS_TOKEN_STORAGE_KEY,
+  REFRESH_TOKEN_STORAGE_KEY,
+  clearStoredSession,
+  storeSessionTokens,
+} from '../services/apiFetch';
 import type { AuthUser, LoginCredentials } from '../types/auth-types';
 
 const USER_STORAGE_KEY = 'mars_rover_user';
@@ -38,9 +44,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         // Try to restore user from localStorage
         const storedUser = localStorage.getItem(USER_STORAGE_KEY);
-        if (storedUser) {
+        const hasRealSession = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
+          && localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+
+        if (storedUser && hasRealSession) {
           const parsedUser = JSON.parse(storedUser) as AuthUser;
           setUser(parsedUser);
+        } else if (storedUser) {
+          localStorage.removeItem(USER_STORAGE_KEY);
+          clearStoredSession();
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -60,7 +72,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authService.login(credentials);
       // Store user in localStorage for persistence
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.user));
-      localStorage.setItem('token', response.user.id);
+      storeSessionTokens(response);
       setUser(response.user);
     } catch (error) {
       setUser(null);
@@ -73,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     await authService.logout();
     localStorage.removeItem(USER_STORAGE_KEY);
+    clearStoredSession();
     setUser(null);
   };
 
@@ -88,6 +101,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logout();
     }
   };
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      localStorage.removeItem(USER_STORAGE_KEY);
+      clearStoredSession();
+      setUser(null);
+    };
+
+    window.addEventListener('mars-rover-auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('mars-rover-auth-expired', handleAuthExpired);
+  }, []);
 
   const value: AuthContextType = {
     user,

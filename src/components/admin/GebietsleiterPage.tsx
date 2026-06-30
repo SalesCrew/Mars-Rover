@@ -137,7 +137,7 @@ Das Mars Rover Team`;
 
         if (uploadRes.ok) {
           const data = await uploadRes.json();
-          uploadedUrl = data.url;
+          uploadedUrl = data.path || data.url;
         }
       }
 
@@ -153,8 +153,7 @@ Das Mars Rover Team`;
         isTest: formData.isTest,
       });
       
-      // TODO: Wire up Outlook API to send email
-      console.log('Sending email:', emailText);
+      // TODO: Wire up Outlook API to send email.
       
       // Reload list
       await loadGebietsleiter();
@@ -488,4 +487,3 @@ Das Mars Rover Team`;
     </div>
   );
 };
-

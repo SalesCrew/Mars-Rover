@@ -127,22 +127,8 @@ ALTER TABLE vorverkauf_wellen_markets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vorverkauf_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vorverkauf_submission_products ENABLE ROW LEVEL SECURITY;
 
--- Policies for service role (full access)
-DROP POLICY IF EXISTS "Service role has full access to vorverkauf_wellen" ON vorverkauf_wellen;
-CREATE POLICY "Service role has full access to vorverkauf_wellen" ON vorverkauf_wellen
-    FOR ALL USING (true);
-
-DROP POLICY IF EXISTS "Service role has full access to vorverkauf_wellen_markets" ON vorverkauf_wellen_markets;
-CREATE POLICY "Service role has full access to vorverkauf_wellen_markets" ON vorverkauf_wellen_markets
-    FOR ALL USING (true);
-
-DROP POLICY IF EXISTS "Service role has full access to vorverkauf_submissions" ON vorverkauf_submissions;
-CREATE POLICY "Service role has full access to vorverkauf_submissions" ON vorverkauf_submissions
-    FOR ALL USING (true);
-
-DROP POLICY IF EXISTS "Service role has full access to vorverkauf_submission_products" ON vorverkauf_submission_products;
-CREATE POLICY "Service role has full access to vorverkauf_submission_products" ON vorverkauf_submission_products
-    FOR ALL USING (true);
+-- Do not add broad service-role or authenticated policies here.
+-- Use backend/sql/dsgvo_rls_hardening.sql for the reviewed production RLS/grant model.
 
 -- ============================================================================
 -- VIEWS FOR EASIER QUERYING

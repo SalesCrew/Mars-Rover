@@ -4,6 +4,7 @@ import { readMarketExcelPreview, parseMarketFileWithMapping } from '../../utils/
 import type { MarketColumnMapping } from '../../utils/marketImporter';
 import type { AdminMarket } from '../../types/market-types';
 import { API_BASE_URL } from '../../config/database';
+import { readExcelRows } from '../../utils/excelReader';
 import styles from './ExcelColumnMapper.module.css';
 
 interface MarketExcelColumnMapperProps {
@@ -77,36 +78,19 @@ export const MarketExcelColumnMapper: React.FC<MarketExcelColumnMapperProps> = (
   const handleMarsFilOnlyImport = async () => {
     setIsImporting(true);
     try {
-      const workbook = await import('xlsx');
-      const reader = new FileReader();
-      const entries = await new Promise<Array<{ id: string; mars_fil: string }>>((resolve, reject) => {
-        reader.onload = (e) => {
-          try {
-            const data = e.target?.result;
-            const wb = workbook.read(data, { type: 'binary' });
-            const sheet = wb.Sheets[wb.SheetNames[0]];
-            const rawData: any[][] = workbook.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      const rawData = await readExcelRows(file);
+      const idIdx = columnLetterToIndex(mapping.marketId);
+      const filIdx = columnLetterToIndex(mapping.marsFil);
+      const startRow = mapping.skipHeaderRow ? 1 : 0;
+      const entries: Array<{ id: string; mars_fil: string }> = [];
 
-            const idIdx = columnLetterToIndex(mapping.marketId);
-            const filIdx = columnLetterToIndex(mapping.marsFil);
-            const startRow = mapping.skipHeaderRow ? 1 : 0;
-            const result: Array<{ id: string; mars_fil: string }> = [];
-
-            for (let i = startRow; i < rawData.length; i++) {
-              const row = rawData[i];
-              if (!row || row.length === 0) continue;
-              const id = idIdx >= 0 && row[idIdx] != null ? String(row[idIdx]).trim() : '';
-              const fil = filIdx >= 0 && row[filIdx] != null ? String(row[filIdx]).trim() : '';
-              if (id && fil) result.push({ id, mars_fil: fil });
-            }
-            resolve(result);
-          } catch (err) {
-            reject(err);
-          }
-        };
-        reader.onerror = () => reject(new Error('Fehler beim Lesen'));
-        reader.readAsBinaryString(file);
-      });
+      for (let i = startRow; i < rawData.length; i++) {
+        const row = rawData[i];
+        if (!row || row.length === 0) continue;
+        const id = idIdx >= 0 && row[idIdx] != null ? String(row[idIdx]).trim() : '';
+        const fil = filIdx >= 0 && row[filIdx] != null ? String(row[filIdx]).trim() : '';
+        if (id && fil) entries.push({ id, mars_fil: fil });
+      }
 
       if (entries.length === 0) {
         setResult({ success: false, message: 'Keine gültigen Einträge gefunden. Bitte Spalten prüfen.' });

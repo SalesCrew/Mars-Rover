@@ -29,39 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_gebietsleiter_created_at ON gebietsleiter(created
 -- Enable Row Level Security
 ALTER TABLE gebietsleiter ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies before creating (to avoid "already exists" errors)
-DROP POLICY IF EXISTS "Allow authenticated users to read gebietsleiter" ON gebietsleiter;
-DROP POLICY IF EXISTS "Allow authenticated users to insert gebietsleiter" ON gebietsleiter;
-DROP POLICY IF EXISTS "Allow authenticated users to update gebietsleiter" ON gebietsleiter;
-DROP POLICY IF EXISTS "Allow authenticated users to delete gebietsleiter" ON gebietsleiter;
-
--- Create policy to allow authenticated users to read all gebietsleiter
-CREATE POLICY "Allow authenticated users to read gebietsleiter"
-    ON gebietsleiter
-    FOR SELECT
-    TO authenticated
-    USING (true);
-
--- Create policy to allow authenticated users to insert gebietsleiter
-CREATE POLICY "Allow authenticated users to insert gebietsleiter"
-    ON gebietsleiter
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (true);
-
--- Create policy to allow authenticated users to update gebietsleiter
-CREATE POLICY "Allow authenticated users to update gebietsleiter"
-    ON gebietsleiter
-    FOR UPDATE
-    TO authenticated
-    USING (true);
-
--- Create policy to allow authenticated users to delete gebietsleiter
-CREATE POLICY "Allow authenticated users to delete gebietsleiter"
-    ON gebietsleiter
-    FOR DELETE
-    TO authenticated
-    USING (true);
+-- Do not add broad authenticated GL profile policies here.
+-- Use backend/sql/dsgvo_rls_hardening.sql for the reviewed production RLS/grant model.
 
 -- Function to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_gebietsleiter_updated_at()

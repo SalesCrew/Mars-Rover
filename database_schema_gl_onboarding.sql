@@ -16,12 +16,10 @@ ALTER TABLE gl_onboarding_reads ENABLE ROW LEVEL SECURITY;
 
 -- Policy: GLs can read their own onboarding status
 CREATE POLICY "GLs can view their own onboarding reads" ON gl_onboarding_reads
-  FOR SELECT USING (true);
+  FOR SELECT USING (auth.uid()::text = gl_id::text);
 
 -- Policy: GLs can insert their own onboarding reads
 CREATE POLICY "GLs can insert their own onboarding reads" ON gl_onboarding_reads
-  FOR INSERT WITH CHECK (true);
+  FOR INSERT WITH CHECK (auth.uid()::text = gl_id::text);
 
--- Policy: Admins can do everything
-CREATE POLICY "Admins have full access to onboarding reads" ON gl_onboarding_reads
-  FOR ALL USING (true);
+-- Admin access is handled by the backend service-role API and the reviewed DSGVO hardening SQL.

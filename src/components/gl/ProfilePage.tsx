@@ -105,7 +105,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
 
   const handleSave = () => {
     // TODO: Save to backend/state management
-    console.log('Saving profile data:', editedData);
     // Update the profile object (in real app, call API)
     Object.assign(profile, editedData);
     setIsEditing(false);
@@ -578,4 +577,3 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
     </div>
   );
 };
-

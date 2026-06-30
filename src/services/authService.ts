@@ -1,11 +1,12 @@
 import { API_BASE_URL } from '../config/database';
-import type { AuthUser, LoginCredentials } from '../types/auth-types';
+import { ACCESS_TOKEN_STORAGE_KEY, clearStoredSession } from './apiFetch';
+import type { AuthResponse, AuthUser, LoginCredentials } from '../types/auth-types';
 
 class AuthService {
   /**
    * Login with username and password
    */
-  async login(credentials: LoginCredentials): Promise<{ user: AuthUser }> {
+  async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
@@ -29,9 +30,7 @@ class AuthService {
   async getCurrentUser(): Promise<AuthUser | null> {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
+        headers: {},
       });
 
       if (!response.ok) {
@@ -50,14 +49,23 @@ class AuthService {
    * Logout
    */
   async logout(): Promise<void> {
-    localStorage.removeItem('token');
+    try {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } finally {
+      clearStoredSession();
+    }
   }
 
   /**
    * Check if authenticated
    */
   async isAuthenticated(): Promise<boolean> {
-    return !!localStorage.getItem('token');
+    return !!localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
   }
 
   // ============================================================================
@@ -97,7 +105,7 @@ class AuthService {
     lastName: string;
     email: string;
     password: string;
-  }): Promise<{ id: string; email: string; password: string }> {
+  }): Promise<{ id: string; email: string }> {
     const response = await fetch(`${API_BASE_URL}/auth/create-admin`, {
       method: 'POST',
       headers: {

@@ -757,7 +757,7 @@ export const responsesApi = {
     response_id: string;
     question_id: string;
     filename?: string;
-  }): Promise<{ url: string; path: string; content_type: string; size: number }> {
+  }): Promise<{ url: string; path: string; preview_url?: string; content_type: string; size: number }> {
     const res = await fetch(`${FRAGEBOGEN_API}/responses/upload-photo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -766,6 +766,22 @@ export const responsesApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error((err as any).error || `Foto konnte nicht hochgeladen werden (${res.status})`);
+    }
+    return res.json();
+  },
+
+  /**
+   * Resolve a stored photo path/public URL to a renderable, short-lived URL.
+   */
+  async resolvePhotoUrl(value: string): Promise<{ url: string; path?: string }> {
+    const res = await fetch(`${FRAGEBOGEN_API}/responses/photo-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err as any).error || `Foto URL konnte nicht geladen werden (${res.status})`);
     }
     return res.json();
   },

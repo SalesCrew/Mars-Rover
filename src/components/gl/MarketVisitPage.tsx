@@ -76,6 +76,43 @@ interface Question {
   };
 }
 
+const isDirectPhotoUrl = (value: string): boolean =>
+  /^(https?:|data:|blob:)/i.test(value) && !value.includes('/fragebogen-response-images/');
+
+const FragebogenPhotoImage = ({ value, alt, className }: { value: string; alt: string; className: string }) => {
+  const [src, setSrc] = useState(value);
+
+  useEffect(() => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      setSrc('');
+      return;
+    }
+    if (isDirectPhotoUrl(trimmed)) {
+      setSrc(trimmed);
+      return;
+    }
+
+    let cancelled = false;
+    setSrc('');
+    fragebogenService.responses
+      .resolvePhotoUrl(trimmed)
+      .then((resolved) => {
+        if (!cancelled) setSrc(resolved.url || trimmed);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc('');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [value]);
+
+  if (!src) return null;
+  return <img src={src} alt={alt} className={className} />;
+};
+
 interface ModuleRule {
   id?: string;
   trigger_local_id: string;
@@ -1406,7 +1443,12 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
               <>
                 <div className={styles.photoPreviewGrid}>
                   {photoAnswerUrls.map((url, index) => (
-                    <img key={`${url}-${index}`} src={url} alt={`Hochgeladenes Foto ${index + 1}`} className={styles.photoPreview} />
+                    <FragebogenPhotoImage
+                      key={`${url}-${index}`}
+                      value={url}
+                      alt={`Hochgeladenes Foto ${index + 1}`}
+                      className={styles.photoPreview}
+                    />
                   ))}
                 </div>
                 <span className={styles.photoConfirm}>

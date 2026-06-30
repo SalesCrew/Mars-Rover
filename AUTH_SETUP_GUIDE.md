@@ -1,227 +1,87 @@
 # Authentication Setup Guide
 
-## ✅ What's Been Implemented
+MarsPets+ uses Supabase Auth for identities and a Node/Express backend for all app data access.
 
-### Backend
-- ✅ JWT-based authentication
-- ✅ User roles (GL, Admin)
-- ✅ Password hashing with bcrypt
-- ✅ Auth middleware for protected routes
-- ✅ API endpoints: `/api/auth/login`, `/api/auth/register`, `/api/auth/me`
+## Current Model
 
-### Frontend
-- ✅ Auth context for global state
-- ✅ Login page with real authentication
-- ✅ Role-based routing (GL → Dashboard, Admin → AdminPanel)
-- ✅ Protected routes
-- ✅ Token management
+- Frontend calls the backend API through `VITE_API_URL`.
+- Frontend does not use a Supabase client, anon key, or service-role key.
+- Backend stores `SUPABASE_SERVICE_KEY` or the legacy/common alias `SUPABASE_SERVICE_ROLE_KEY` only in `backend/.env` / production environment variables.
+- Backend verifies Supabase access tokens with `supabase.auth.getUser()`.
+- Backend loads the matching row from `public.users` to get the app role (`admin` or `gl`).
+- Backend routes enforce admin/self/GL ownership checks before using the service-role database client.
+- Database RLS is defense in depth for accidental direct Data API exposure.
 
-### Database
-- ✅ Users table with RLS (Row Level Security)
-- ✅ Data isolation (GLs can ONLY see their own data)
+## Required Environment
 
----
+Backend `backend/.env`:
 
-## 🚀 Setup Steps
+```env
+PORT=3001
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key-here
+# SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+CORS_ORIGINS=http://localhost:5173,https://mars-rover-mu.vercel.app
+FRONTEND_URL=https://mars-rover-mu.vercel.app
+```
 
-### 1. Install Backend Dependencies
+Frontend `.env`:
+
+```env
+VITE_API_URL=http://localhost:3001/api
+```
+
+Production frontend should set `VITE_API_URL` to the deployed backend API URL.
+
+Do not add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, or any service-role key to the frontend environment.
+
+## Setup
+
+1. Install backend dependencies:
+
 ```bash
 cd backend
 npm install
 ```
 
-This will install:
-- `jsonwebtoken` - For JWT tokens
-- `@types/jsonwebtoken` - TypeScript types
-
-### 2. Run SQL Schema
-Open Supabase SQL Editor and run the file:
-```
-database_schema_users.sql
-```
-
-This creates the `users` table with proper security policies.
-
-### 3. Create Initial Users
-
-#### Option A: Use the API (Recommended)
-The `/api/auth/register` endpoint is open for initial setup. You can use it to create users:
+2. Install frontend dependencies:
 
 ```bash
-# Start the backend
+npm install
+```
+
+3. Start backend:
+
+```bash
 cd backend
 npm run dev
 ```
 
-Then use a tool like Postman or curl:
+4. Start frontend:
 
 ```bash
-# Create Admin User
-curl -X POST http://localhost:3001/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "password": "your-secure-password",
-    "email": "admin@marsrover.com",
-    "role": "admin",
-    "firstName": "Admin",
-    "lastName": "User"
-  }'
-
-# Create GL User
-curl -X POST http://localhost:3001/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "gl_mueller",
-    "password": "your-secure-password",
-    "email": "mueller@marsrover.com",
-    "role": "gl",
-    "firstName": "Thomas",
-    "lastName": "Müller",
-    "gebietsleiter_id": "GL001"
-  }'
-```
-
-#### Option B: Generate Password Hash Manually
-```bash
-cd backend
-npx tsx src/utils/hashPassword.ts your-password-here
-```
-
-Copy the hash and manually INSERT into the users table via Supabase SQL Editor.
-
-### 4. Set JWT Secret (Important for Production!)
-In your backend `.env` file (create one if it doesn't exist):
-
-```env
-JWT_SECRET=your-super-secret-key-change-this-in-production
-```
-
-⚠️ **CRITICAL**: Change this to a strong, random secret in production!
-
-### 5. Start Everything
-```bash
-# Terminal 1 - Backend
-cd backend
-npm run dev
-
-# Terminal 2 - Frontend
 npm run dev
 ```
 
----
+## User Creation
 
-## 🔐 Test Login
+Admins create GL/admin users through the admin UI or protected backend auth routes. The backend creates the Supabase Auth user and the matching `public.users` profile.
 
-### Admin Account (after creation):
-- **Username**: `admin`
-- **Password**: (whatever you set)
-- **Access**: Full admin panel
+Direct `/api/auth/register`, `/api/auth/create-admin`, `/api/auth/admins`, and admin deletion routes require an authenticated admin token.
 
-### GL Account (after creation):
-- **Username**: `gl_mueller`
-- **Password**: (whatever you set)
-- **Access**: GL Dashboard with ONLY their markets
+For GL users, the `public.users.gebietsleiter_id` must point to the corresponding `public.gebietsleiter.id`.
 
----
+## Route Security
 
-## 🛡️ Data Isolation
+- `/api/auth/login` and `/api/auth/refresh` are public but rate-limited.
+- `/api/auth/me` and `/api/auth/logout` require a valid Supabase access token.
+- All business routes under `/api` require authentication.
+- Admin-only route groups are mounted behind `requireAdmin`.
+- GL write/read routes use the authenticated GL id from the token/profile, not a trusted client-supplied id.
+- GL users intentionally retain access to all market master data because markets are not treated as sensitive in this app.
 
-### How it Works:
-1. **GLs can ONLY see their own data**:
-   - Markets where `gebietsleiter_id` matches their user account
-   - Their own profile information
-   - Their own visit history
+## Database Security
 
-2. **Admins can see everything**:
-   - All markets
-   - All GLs
-   - All data
+Use `backend/sql/dsgvo_rls_hardening.sql` as the reviewed RLS/grants hardening script. Do not run it directly on production without a backup and a short maintenance window.
 
-3. **Enforcement**:
-   - Database level: Row Level Security (RLS) policies
-   - API level: Middleware checks user role
-   - Frontend level: Routes based on user role
-
----
-
-## 📝 Next Steps (For You to Do)
-
-### 1. **Run the SQL Schema** ✋
-   - Open Supabase SQL Editor
-   - Copy/paste `database_schema_users.sql`
-   - Execute it
-
-### 2. **Install Dependencies** ✋
-   ```bash
-   cd backend
-   npm install
-   ```
-
-### 3. **Create Users** ✋
-   - Use the register endpoint OR
-   - Generate password hashes and insert manually
-
-### 4. **Test Login** ✋
-   - Try logging in with your created users
-   - Verify admin sees AdminPanel
-   - Verify GL sees Dashboard
-
-### 5. **Add JWT_SECRET to .env** ✋
-   ```bash
-   cd backend
-   echo "JWT_SECRET=your-random-secret-here" >> .env
-   ```
-
----
-
-## ⚠️ Important Notes
-
-### Multi-User Data Isolation
-- Each GL has a unique `gebietsleiter_id`
-- This links them to specific markets in the `markets` table
-- When a GL logs in, they can ONLY access markets with their `gebietsleiter_id`
-- This is enforced at multiple levels (DB, API, Frontend)
-
-### Security Best Practices
-- ✅ Passwords are hashed with bcrypt (never stored as plain text)
-- ✅ JWT tokens expire after 24 hours
-- ✅ Row Level Security on database
-- ✅ Middleware protection on API routes
-
-### Future TODOs
-- Add password reset functionality
-- Add email verification
-- Add session management
-- Implement refresh tokens
-- Add rate limiting on login endpoint
-- Add audit logging for login attempts
-
----
-
-## 🐛 Troubleshooting
-
-### "Invalid token" error
-- Token might be expired (24h lifetime)
-- Clear localStorage and login again
-
-### "User not found" error
-- Make sure you created the user via register endpoint
-- Check Supabase to verify user exists
-
-### CORS errors
-- Backend must be running on `http://localhost:3001`
-- Frontend must be running on `http://localhost:5173` (or your Vite port)
-
----
-
-## 📞 What to Tell Me When You're Done
-
-Once you've completed the setup steps above, let me know:
-1. ✅ SQL schema ran successfully
-2. ✅ Users created
-3. ✅ Can login as admin
-4. ✅ Can login as GL
-5. Any errors or issues you encountered
-
-Then we can move on to connecting the existing API routes (markets, products, etc.) to respect user permissions!
+The backend service role bypasses RLS, so route-level authorization remains mandatory even after RLS is enabled.

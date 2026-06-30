@@ -15,8 +15,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@phosphor-icons/react": "^2.1.10",
-    "@supabase/supabase-js": "^2.87.1",
     "@tanstack/react-virtual": "^3.13.13",
+    "exceljs": "^4.4.0",
     "gsap": "^3.14.2",
     "jszip": "^3.10.1",
     "motion": "^12.23.24",
@@ -24,7 +24,6 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-spinners": "^0.17.0",
-    "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
@@ -32,7 +31,6 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
-    "@types/xlsx": "^0.0.35",
     "@vitejs/plugin-react": "^5.1.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",

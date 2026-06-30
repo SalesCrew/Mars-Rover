@@ -48,13 +48,13 @@ CREATE INDEX IF NOT EXISTS idx_wellen_photos_created ON wellen_photos(created_at
 ALTER TABLE wellen_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE wellen_photo_tags ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "GLs can view photos" ON wellen_photos FOR SELECT USING (true);
+CREATE POLICY "GLs can view own photos" ON wellen_photos FOR SELECT USING (gebietsleiter_id = auth.uid());
 CREATE POLICY "GLs can insert own photos" ON wellen_photos FOR INSERT WITH CHECK (gebietsleiter_id = auth.uid());
 CREATE POLICY "Admins full access photos" ON wellen_photos FOR ALL USING (
   EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
 );
 
-CREATE POLICY "Anyone can view photo tags" ON wellen_photo_tags FOR SELECT USING (true);
+-- Photo tags are handled through authenticated backend routes and the reviewed DSGVO hardening SQL.
 CREATE POLICY "Admins full access photo tags" ON wellen_photo_tags FOR ALL USING (
   EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
 );

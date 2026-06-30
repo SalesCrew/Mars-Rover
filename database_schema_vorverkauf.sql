@@ -38,12 +38,8 @@ CREATE INDEX IF NOT EXISTS idx_vorverkauf_items_entry ON vorverkauf_items(vorver
 ALTER TABLE vorverkauf_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vorverkauf_items ENABLE ROW LEVEL SECURITY;
 
--- Policies for service role (full access)
-CREATE POLICY "Service role has full access to vorverkauf_entries" ON vorverkauf_entries
-    FOR ALL USING (true);
-
-CREATE POLICY "Service role has full access to vorverkauf_items" ON vorverkauf_items
-    FOR ALL USING (true);
+-- Do not add broad service-role or authenticated policies here.
+-- Use backend/sql/dsgvo_rls_hardening.sql for the reviewed production RLS/grant model.
 
 -- ============================================================================
 -- MIGRATION: Update reason constraint for Produktersatz (run this if table already exists)

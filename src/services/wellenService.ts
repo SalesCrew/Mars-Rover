@@ -507,7 +507,7 @@ class WellenService {
   /**
    * Upload a delivery verification photo for submissions
    */
-  async uploadDeliveryPhoto(submissionIds: string[], photoBase64: string): Promise<{ success: boolean; photoUrl: string; updatedCount: number }> {
+  async uploadDeliveryPhoto(submissionIds: string[], photoBase64: string): Promise<{ success: boolean; photoUrl: string; photoPath?: string; updatedCount: number }> {
     try {
       const response = await fetch(`${this.baseUrl}/upload-delivery-photo`, {
         method: 'POST',
@@ -639,17 +639,24 @@ class WellenService {
       if (zipName && zipName.trim()) searchParams.set('zip_name', zipName.trim());
 
       const url = `${this.baseUrl}/photos/export.zip?${searchParams.toString()}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to export photos ZIP: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const safeBaseName = (zipName || `Fotos_${new Date().toISOString().slice(0, 10)}`)
         .replace(/[^a-zA-Z0-9äöüÄÖÜß\-_ ]/g, '_')
         .trim();
-      a.href = url;
+      a.href = objectUrl;
       a.download = `${safeBaseName || 'Fotos'}.zip`;
-      a.target = '_blank';
-      a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
     } catch (error) {
       console.error('Error exporting photos ZIP:', error);
       throw error;

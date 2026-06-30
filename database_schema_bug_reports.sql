@@ -25,15 +25,14 @@ ALTER TABLE bug_reports ENABLE ROW LEVEL SECURITY;
 -- Policies
 DROP POLICY IF EXISTS "GLs can insert bug reports" ON bug_reports;
 CREATE POLICY "GLs can insert bug reports" ON bug_reports
-    FOR INSERT WITH CHECK (true);
+    FOR INSERT WITH CHECK (auth.uid() = gebietsleiter_id);
 
 DROP POLICY IF EXISTS "GLs can view own bug reports" ON bug_reports;
 CREATE POLICY "GLs can view own bug reports" ON bug_reports
     FOR SELECT USING (auth.uid() = gebietsleiter_id);
 
-DROP POLICY IF EXISTS "Service role has full access to bug reports" ON bug_reports;
-CREATE POLICY "Service role has full access to bug reports" ON bug_reports
-    FOR ALL USING (true);
+-- Do not add broad service-role or authenticated policies here.
+-- Use backend/sql/dsgvo_rls_hardening.sql for the reviewed production RLS/grant model.
 
 -- Function to update updated_at
 CREATE OR REPLACE FUNCTION update_bug_reports_updated_at()

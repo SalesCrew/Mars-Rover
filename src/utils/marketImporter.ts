@@ -1,5 +1,5 @@
-import * as XLSX from 'xlsx';
 import type { AdminMarket } from '../types/market-types';
+import { readExcelRows } from './excelReader';
 
 export interface MarketColumnMapping {
   marketId: string;       // required
@@ -31,39 +31,22 @@ const columnLetterToIndex = (letter: string): number => {
 };
 
 export const readMarketExcelPreview = async (file: File, maxRows = 6): Promise<string[][]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        const preview = raw.slice(0, maxRows).map(row =>
-          row.map((cell: any) => (cell == null ? '' : String(cell)))
-        );
-        resolve(preview);
-      } catch (err) {
-        reject(new Error(`Fehler beim Lesen der Vorschau: ${err}`));
-      }
-    };
-    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
-    reader.readAsBinaryString(file);
-  });
+  try {
+    const raw = await readExcelRows(file);
+    return raw.slice(0, maxRows).map(row =>
+      row.map((cell: any) => (cell == null ? '' : String(cell)))
+    );
+  } catch (err) {
+    throw new Error(`Fehler beim Lesen der Vorschau: ${err}`);
+  }
 };
 
 export const parseMarketFileWithMapping = async (
   file: File,
   mapping: MarketColumnMapping
 ): Promise<AdminMarket[]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  try {
+        const rawData: any[][] = await readExcelRows(file);
 
         const idx = (col: string) => col.trim() ? columnLetterToIndex(col) : -1;
         const idIdx       = idx(mapping.marketId);
@@ -122,49 +105,19 @@ export const parseMarketFileWithMapping = async (
           });
         }
 
-        resolve(markets);
+        return markets;
       } catch (error) {
-        reject(new Error(`Fehler beim Verarbeiten der Datei: ${error}`));
+        throw new Error(`Fehler beim Verarbeiten der Datei: ${error}`);
       }
-    };
-    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
-    reader.readAsBinaryString(file);
-  });
 };
 
 export const parseMarketFile = async (file: File): Promise<AdminMarket[]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        
-        // Get the first sheet
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // Convert to array of arrays (rows with columns)
-        const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, {
-          header: 1,
-          defval: ''
-        });
-
-        // Process the data
-        const markets = processImportData(rawData);
-        resolve(markets);
-      } catch (error) {
-        reject(new Error(`Fehler beim Verarbeiten der Datei: ${error}`));
-      }
-    };
-
-    reader.onerror = () => {
-      reject(new Error('Fehler beim Lesen der Datei'));
-    };
-
-    reader.readAsBinaryString(file);
-  });
+  try {
+    const rawData = await readExcelRows(file);
+    return processImportData(rawData);
+  } catch (error) {
+    throw new Error(`Fehler beim Verarbeiten der Datei: ${error}`);
+  }
 };
 
 const processImportData = (rawData: any[][]): AdminMarket[] => {
@@ -325,4 +278,3 @@ export const validateImportFile = (file: File): { valid: boolean; error?: string
 
   return { valid: true };
 };
-

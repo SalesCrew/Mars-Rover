@@ -1,5 +1,5 @@
-import * as XLSX from 'xlsx';
 import type { AdminMarket } from '../types/market-types';
+import { readExcelRows } from './excelReader';
 
 export interface FragebogenMarketImportMapping {
   interneIdColumn: string;
@@ -57,25 +57,14 @@ export const readFragebogenMarketExcelPreview = async (
   file: File,
   maxRows = 6,
 ): Promise<string[][]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        const preview = raw.slice(0, maxRows).map(row =>
-          row.map((cell: any) => (cell == null ? '' : String(cell)))
-        );
-        resolve(preview);
-      } catch (err) {
-        reject(new Error(`Fehler beim Lesen der Vorschau: ${err}`));
-      }
-    };
-    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
-    reader.readAsBinaryString(file);
-  });
+  try {
+    const raw = await readExcelRows(file);
+    return raw.slice(0, maxRows).map(row =>
+      row.map((cell: any) => (cell == null ? '' : String(cell)))
+    );
+  } catch (err) {
+    throw new Error(`Fehler beim Lesen der Vorschau: ${err}`);
+  }
 };
 
 export const parseFragebogenMarketMatches = async (
@@ -83,14 +72,8 @@ export const parseFragebogenMarketMatches = async (
   mapping: FragebogenMarketImportMapping,
   availableMarkets: AdminMarket[],
 ): Promise<FragebogenMarketImportResult> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  try {
+        const rawData: any[][] = await readExcelRows(file);
 
         const idIdx = columnLetterToIndex(mapping.interneIdColumn);
         const requireFoodPsStoreFormat = mapping.requireFoodPsStoreFormat !== false;
@@ -246,7 +229,7 @@ export const parseFragebogenMarketMatches = async (
           }
         }
 
-        resolve({
+        return {
           matchedMarketIds,
           matchedInternalIds,
           unmatchedInternalIds,
@@ -255,12 +238,8 @@ export const parseFragebogenMarketMatches = async (
           matchedRows,
           unmatchedRows,
           reasonSummary,
-        });
+        };
       } catch (err) {
-        reject(err instanceof Error ? err : new Error(`Fehler beim Verarbeiten der Datei: ${err}`));
+        throw err instanceof Error ? err : new Error(`Fehler beim Verarbeiten der Datei: ${err}`);
       }
-    };
-    reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'));
-    reader.readAsBinaryString(file);
-  });
 };
