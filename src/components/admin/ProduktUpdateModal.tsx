@@ -16,11 +16,37 @@ interface ProduktUpdateModalProps {
   onClose: () => void;
 }
 
+interface ProductUpdateBatch {
+  id: string;
+  status: 'draft' | 'scheduled' | 'processing' | 'applied' | 'cancelled' | 'failed';
+  scheduledFor: string | null;
+  createdAt: string;
+  updatedAt: string;
+  appliedAt: string | null;
+  inserted: number | null;
+  softDeleted: number | null;
+  error: string | null;
+  productCount: number;
+}
+
+const toDateTimeLocalValue = (date: Date): string => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
+const formatDateTime = (value: string): string =>
+  new Intl.DateTimeFormat('de-AT', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+
 export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, onClose }) => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [batch, setBatch] = useState<ProductUpdateBatch | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Drop zone state
@@ -46,6 +72,7 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
   const [showApplyConfirm, setShowApplyConfirm] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [applyResult, setApplyResult] = useState<{ inserted: number; softDeleted: number } | null>(null);
+  const [scheduleValue, setScheduleValue] = useState(() => toDateTimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)));
 
   // Pagination for performance
   const [currentPage, setCurrentPage] = useState(0);
@@ -77,9 +104,20 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(PRODUCTS_UPDATE_URL);
-      if (!res.ok) throw new Error('Fehler beim Laden');
-      setProducts(await res.json());
+      const [productsRes, batchRes] = await Promise.all([
+        fetch(PRODUCTS_UPDATE_URL),
+        fetch(`${PRODUCTS_UPDATE_URL}/batch`),
+      ]);
+      if (!productsRes.ok || !batchRes.ok) throw new Error('Fehler beim Laden');
+      const loadedProducts = await productsRes.json();
+      const loadedBatch = await batchRes.json();
+      setProducts(loadedProducts);
+      setBatch(loadedBatch);
+      if (loadedBatch?.scheduledFor) {
+        setScheduleValue(toDateTimeLocalValue(new Date(loadedBatch.scheduledFor)));
+      } else {
+        setScheduleValue(prev => prev || toDateTimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)));
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -215,6 +253,7 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
       const res = await fetch(PRODUCTS_UPDATE_URL, { method: 'DELETE' });
       if (!res.ok) throw new Error('Fehler beim Löschen');
       setProducts([]);
+      await loadProducts();
       setCurrentPage(0); // Reset pagination after clearing
     } catch (e: any) {
       setError(e.message);
@@ -227,7 +266,9 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
     setProducts(prev => prev.filter(p => p.id !== id));
     setCurrentPage(0);
     try {
-      await fetch(`${PRODUCTS_UPDATE_URL}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const res = await fetch(`${PRODUCTS_UPDATE_URL}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Fehler beim LÃ¶schen');
+      await loadProducts();
     } catch {
       loadProducts();
     }
@@ -259,6 +300,8 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
       const result = await res.json();
       setApplyResult(result);
       setProducts([]);
+      setBatch(null);
+      setScheduleValue(toDateTimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)));
       setCurrentPage(0);
       setSearchQuery('');
       // Bust the frontend product cache so all modals get the new list
@@ -272,6 +315,53 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
     }
   };
 
+  const handleSchedule = async () => {
+    if (!scheduleValue) {
+      setError('Bitte Datum und Uhrzeit auswÃ¤hlen');
+      return;
+    }
+
+    const scheduledDate = new Date(scheduleValue);
+    if (Number.isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now()) {
+      setError('Der Wechselzeitpunkt muss in der Zukunft liegen');
+      return;
+    }
+
+    setIsScheduling(true);
+    setError(null);
+    try {
+      const res = await fetch(`${PRODUCTS_UPDATE_URL}/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledFor: scheduledDate.toISOString() }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Planung fehlgeschlagen');
+      }
+      setBatch(await res.json());
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const handleCancelSchedule = async () => {
+    setIsScheduling(true);
+    setError(null);
+    try {
+      const res = await fetch(`${PRODUCTS_UPDATE_URL}/schedule`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Zeitplan konnte nicht entfernt werden');
+      setBatch(await res.json());
+      setScheduleValue(toDateTimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)));
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
   const getDeptColor = useCallback((dept: string) => dept === 'pets' ? '#10B981' : '#F59E0B', []);
   const getDeptLabel = useCallback((dept: string) => dept === 'pets' ? 'Tiernahrung' : 'Lebensmittel', []);
   const getTypeLabel = useCallback((t: string) => {
@@ -281,6 +371,8 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
 
   const deptColor = dropZoneDept === 'pets' ? '#10B981' : '#F59E0B';
   const deptLabel = dropZoneDept === 'pets' ? 'Tiernahrung' : 'Lebensmittel';
+  const scheduleMin = toDateTimeLocalValue(new Date(Date.now() + 60 * 1000));
+  const isBatchScheduled = batch?.status === 'scheduled' && Boolean(batch.scheduledFor);
 
   if (!isOpen) return null;
 
@@ -393,6 +485,47 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
                 <X size={14} weight="bold" />
               </button>
             )}
+          </div>
+        )}
+
+        {products.length > 0 && (
+          <div className={styles.schedulePanel}>
+            <div className={styles.scheduleSummary}>
+              <span className={`${styles.scheduleStatus} ${isBatchScheduled ? styles.scheduleStatusScheduled : ''}`}>
+                {isBatchScheduled ? 'Geplant' : 'Entwurf'}
+              </span>
+              <span className={styles.scheduleText}>
+                {isBatchScheduled && batch?.scheduledFor
+                  ? `Wechsel am ${formatDateTime(batch.scheduledFor)}`
+                  : 'Noch kein Wechselzeitpunkt gesetzt'}
+              </span>
+            </div>
+            <div className={styles.scheduleControls}>
+              <input
+                type="datetime-local"
+                className={styles.scheduleInput}
+                min={scheduleMin}
+                value={scheduleValue}
+                onChange={(e) => setScheduleValue(e.target.value)}
+                disabled={isScheduling || isApplying}
+              />
+              <button
+                className={styles.scheduleBtn}
+                onClick={handleSchedule}
+                disabled={isScheduling || isApplying}
+              >
+                {isScheduling ? 'Speichert...' : isBatchScheduled ? 'Zeitplan Ã¤ndern' : 'Wechsel planen'}
+              </button>
+              {isBatchScheduled && (
+                <button
+                  className={styles.scheduleCancelBtn}
+                  onClick={handleCancelSchedule}
+                  disabled={isScheduling || isApplying}
+                >
+                  Zeitplan lÃ¶schen
+                </button>
+              )}
+            </div>
           </div>
         )}
 
