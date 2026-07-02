@@ -130,6 +130,36 @@
   border-color: rgba(203, 213, 225, 1);
 }
 
+.productUpdateButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 12px 16px;
+  background: #2563EB;
+  border: 1px solid #1D4ED8;
+  border-radius: 12px;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.22);
+}
+
+.productUpdateButton:hover {
+  background: #1D4ED8;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
+}
+
+.productUpdateButton:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
 .sortButton svg:first-child {
   color: var(--color-primary, #3b82f6);
 }
@@ -1054,6 +1084,10 @@
   .searchStats {
     width: 100%;
     justify-content: center;
+  }
+
+  .productUpdateButton {
+    width: 100%;
   }
 
   .listHeader,

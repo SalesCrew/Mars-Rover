@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { FunnelSimple, X, MagnifyingGlass, Package, CaretDown, SortAscending, SortDescending } from '@phosphor-icons/react';
+import { FunnelSimple, X, MagnifyingGlass, Package, CaretDown, SortAscending, SortDescending, UploadSimple } from '@phosphor-icons/react';
 import { getAllProducts, deleteProduct, updateProduct } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
 import { ProduktUpdateModal } from './ProduktUpdateModal';
@@ -470,6 +470,15 @@ export const ProductsPage: React.FC = () => {
               </div>
             )}
           </div>
+          <button
+            type="button"
+            className={styles.productUpdateButton}
+            onClick={() => setShowUpdateModal(true)}
+            title="Neue Produktliste vormerken oder übernehmen"
+          >
+            <UploadSimple size={18} weight="bold" />
+            <span>Produkt-Update</span>
+          </button>
           <div className={styles.searchStats}>
             <Package size={18} weight="regular" />
             <span>{filteredProducts.length} Produkte</span>
