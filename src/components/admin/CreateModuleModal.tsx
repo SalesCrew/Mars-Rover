@@ -70,6 +70,8 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
             numericConstraints: q.numeric_constraints,
             sliderConfig: q.slider_config,
             instruction: q.instruction,
+            distributionsziel: q.distributionsziel === true,
+            qualitaetsziel: q.qualitaetsziel === true,
           }));
           setAllDatabaseQuestions(transformed);
         } catch (error) {
@@ -1031,6 +1033,33 @@ const SortableQuestionCard: React.FC<SortableQuestionCardProps> = ({
               </label>
             </div>
 
+            {question.type === 'yesno' && (
+              <div className={styles.exportTargetToggles}>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={question.distributionsziel === true}
+                    onChange={(e) => onUpdate(question.id, {
+                      distributionsziel: e.target.checked,
+                      qualitaetsziel: e.target.checked ? false : question.qualitaetsziel
+                    })}
+                  />
+                  <span>Distributionsziel</span>
+                </label>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={question.qualitaetsziel === true}
+                    onChange={(e) => onUpdate(question.id, {
+                      qualitaetsziel: e.target.checked,
+                      distributionsziel: e.target.checked ? false : question.distributionsziel
+                    })}
+                  />
+                  <span>Qualitätsziel</span>
+                </label>
+              </div>
+            )}
+
             {/* Image attachments */}
             <div className={styles.imageAttachRow}>
               {(question.images || []).map((url, idx) => (
@@ -1761,4 +1790,3 @@ const ConditionalLogicEditor: React.FC<ConditionalLogicEditorProps> = ({
     </div>
   );
 };
-

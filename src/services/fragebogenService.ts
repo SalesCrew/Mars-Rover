@@ -68,6 +68,8 @@ export interface Question {
   question_text: string;
   instruction?: string;
   is_template: boolean;
+  distributionsziel?: boolean;
+  qualitaetsziel?: boolean;
   /** Array of {id, label} objects for single_choice / multiple_choice */
   options?: QuestionOption[];
   likert_scale?: LikertScale;
@@ -913,6 +915,7 @@ export const exportApi = {
     fragebogenIds: string[];
     questionIds: string[];
     chains?: string[];
+    targetFilter?: 'all' | 'distribution' | 'quality';
   }): Promise<void> {
     const response = await fetch(`${FRAGEBOGEN_API}/fragebogen/distribution-export.xlsx`, {
       method: 'POST',
@@ -920,7 +923,8 @@ export const exportApi = {
       body: JSON.stringify({
         fragebogen_ids: payload.fragebogenIds,
         question_ids: payload.questionIds,
-        chains: payload.chains || []
+        chains: payload.chains || [],
+        target_filter: payload.targetFilter || 'all'
       })
     });
 

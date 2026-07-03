@@ -956,6 +956,17 @@
   cursor: pointer;
 }
 
+.exportTargetToggles {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 10px 12px;
+  background: rgba(37, 99, 235, 0.04);
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 10px;
+}
+
 /* Options Editor */
 .optionsEditor,
 .likertEditor,

@@ -265,6 +265,16 @@
   border-radius: 6px;
 }
 
+.exportTargetBadge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1D4ED8;
+  padding: 4px 8px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 6px;
+}
+
 .questionBody {
   display: flex;
   flex-direction: column;
@@ -286,6 +296,32 @@
   color: #3B82F6;
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+.exportTargetControls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px 12px;
+  background: rgba(37, 99, 235, 0.04);
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 10px;
+}
+
+.exportTargetControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1E293B;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.exportTargetControl input {
+  width: 16px;
+  height: 16px;
 }
 
 .questionOptions {
@@ -467,4 +503,3 @@
     justify-content: center;
   }
 }
-

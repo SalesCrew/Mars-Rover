@@ -20,6 +20,8 @@ interface QuestionData {
   type: 'text' | 'textarea' | 'multiple_choice' | 'checkbox' | 'rating' | 'yesno' | 'slider' | 'image' | 'open_numeric' | 'dropdown' | 'single_choice' | 'likert' | 'photo_upload' | 'matrix' | 'open_text' | 'barcode_scanner';
   questionText: string;
   instruction?: string;
+  distributionsziel?: boolean;
+  qualitaetsziel?: boolean;
   required: boolean;
   order: number;
   options?: { id: string; label: string }[];
@@ -70,6 +72,7 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [module, setModule] = useState<Module>(initialModule);
+  const [savingTargetQuestionId, setSavingTargetQuestionId] = useState<string | null>(null);
 
   // Load full module data with questions
   useEffect(() => {
@@ -125,6 +128,8 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
             type: mq.question?.type || 'open_text',
             questionText: mq.question?.question_text || '',
             instruction: mq.question?.instruction,
+            distributionsziel: mq.question?.distributionsziel === true,
+            qualitaetsziel: mq.question?.qualitaetsziel === true,
             required: mq.required || false,
             order: mq.order_index || 0,
             options: mq.question?.options,
@@ -158,6 +163,36 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
       case 'rating': return 'Bewertung';
       case 'yesno': return 'Ja/Nein';
       default: return type;
+    }
+  };
+
+  const handleTargetToggle = async (
+    question: QuestionData,
+    target: 'distribution' | 'quality',
+    checked: boolean
+  ) => {
+    setSavingTargetQuestionId(question.id);
+    const updates = target === 'distribution'
+      ? {
+          distributionsziel: checked,
+          qualitaetsziel: checked ? false : question.qualitaetsziel === true,
+        }
+      : {
+          qualitaetsziel: checked,
+          distributionsziel: checked ? false : question.distributionsziel === true,
+        };
+
+    try {
+      await fragebogenService.questions.update(question.id, updates);
+      setModule(prev => ({
+        ...prev,
+        questions: prev.questions.map(q => q.id === question.id ? { ...q, ...updates } : q)
+      }));
+    } catch (error) {
+      console.error('Failed to update question export target:', error);
+      alert('Export-Ziel konnte nicht gespeichert werden.');
+    } finally {
+      setSavingTargetQuestionId(null);
     }
   };
 
@@ -218,6 +253,12 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
                     {question.required && (
                       <span className={styles.requiredBadge}>Pflichtfrage</span>
                     )}
+                    {question.distributionsziel && (
+                      <span className={styles.exportTargetBadge}>Distributionsziel</span>
+                    )}
+                    {question.qualitaetsziel && (
+                      <span className={styles.exportTargetBadge}>Qualitätsziel</span>
+                    )}
                   </div>
                 </div>
 
@@ -226,6 +267,29 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
                     <Question size={16} weight="fill" />
                     {question.questionText}
                   </p>
+
+                  {question.type === 'yesno' && (
+                    <div className={styles.exportTargetControls}>
+                      <label className={styles.exportTargetControl}>
+                        <input
+                          type="checkbox"
+                          checked={question.distributionsziel === true}
+                          disabled={savingTargetQuestionId === question.id}
+                          onChange={(e) => handleTargetToggle(question, 'distribution', e.target.checked)}
+                        />
+                        <span>Distributionsziel</span>
+                      </label>
+                      <label className={styles.exportTargetControl}>
+                        <input
+                          type="checkbox"
+                          checked={question.qualitaetsziel === true}
+                          disabled={savingTargetQuestionId === question.id}
+                          onChange={(e) => handleTargetToggle(question, 'quality', e.target.checked)}
+                        />
+                        <span>Qualitätsziel</span>
+                      </label>
+                    </div>
+                  )}
 
                   {question.options && question.options.length > 0 && (
                     <div className={styles.questionOptions}>
@@ -302,4 +366,3 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
     </div>
   );
 };
-

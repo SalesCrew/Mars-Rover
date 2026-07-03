@@ -5,6 +5,8 @@ import styles from './FragebogenDistributionExportModal.module.css';
 export interface DistributionQuestionOption {
   id: string;
   label: string;
+  distributionsziel?: boolean;
+  qualitaetsziel?: boolean;
 }
 
 export interface DistributionFragebogenOption {
@@ -18,6 +20,7 @@ interface DistributionExportSelection {
   fragebogenIds: string[];
   questionIds: string[];
   chains: string[];
+  targetFilter: 'all' | 'distribution' | 'quality';
 }
 
 interface FragebogenDistributionExportModalProps {
@@ -40,6 +43,7 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
   const [selectedFragebogenIds, setSelectedFragebogenIds] = useState<string[]>([]);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
   const [selectedChains, setSelectedChains] = useState<string[]>([]);
+  const [targetFilter, setTargetFilter] = useState<'all' | 'distribution' | 'quality'>('all');
   const [error, setError] = useState<string | null>(null);
 
   const selectedFragebogen = useMemo(
@@ -54,8 +58,15 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
         if (!map.has(q.id)) map.set(q.id, q);
       });
     });
-    return Array.from(map.values());
-  }, [selectedFragebogen]);
+    const questions = Array.from(map.values());
+    if (targetFilter === 'distribution') {
+      return questions.filter(q => q.distributionsziel === true);
+    }
+    if (targetFilter === 'quality') {
+      return questions.filter(q => q.qualitaetsziel === true);
+    }
+    return questions;
+  }, [selectedFragebogen, targetFilter]);
 
   const availableChains = useMemo(() => {
     const set = new Set<string>();
@@ -130,7 +141,8 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
     await onExport({
       fragebogenIds: selectedFragebogenIds,
       questionIds: validQuestionIds,
-      chains: validChains
+      chains: validChains,
+      targetFilter
     });
   };
 
@@ -187,6 +199,32 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
               >
                 {allQuestionsSelected ? <CheckSquare size={16} weight="fill" /> : <Square size={16} weight="regular" />}
                 {allQuestionsSelected ? 'Alle abwählen' : 'Alle auswählen'}
+              </button>
+            </div>
+            <div className={styles.targetFilter}>
+              <button
+                type="button"
+                className={`${styles.targetFilterButton} ${targetFilter === 'all' ? styles.targetFilterButtonActive : ''}`}
+                onClick={() => setTargetFilter('all')}
+                disabled={isExporting}
+              >
+                Alle
+              </button>
+              <button
+                type="button"
+                className={`${styles.targetFilterButton} ${targetFilter === 'distribution' ? styles.targetFilterButtonActive : ''}`}
+                onClick={() => setTargetFilter('distribution')}
+                disabled={isExporting}
+              >
+                Distributionsziel
+              </button>
+              <button
+                type="button"
+                className={`${styles.targetFilterButton} ${targetFilter === 'quality' ? styles.targetFilterButtonActive : ''}`}
+                onClick={() => setTargetFilter('quality')}
+                disabled={isExporting}
+              >
+                Qualitätsziel
               </button>
             </div>
             <div className={styles.checkList}>

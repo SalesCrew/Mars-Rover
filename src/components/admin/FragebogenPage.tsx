@@ -8,7 +8,7 @@ import { QUESTION_TYPES } from './questionTypes';
 import fragebogenService from '../../services/fragebogenService';
 import type { Module as ApiModule, Question as ApiQuestion } from '../../services/fragebogenService';
 import { adminMarkets } from '../../data/adminMarketsData';
-import { FragebogenDistributionExportModal, type DistributionFragebogenOption } from './FragebogenDistributionExportModal';
+import { FragebogenDistributionExportModal, type DistributionFragebogenOption, type DistributionQuestionOption } from './FragebogenDistributionExportModal';
 import styles from './FragebogenPage.module.css';
 
 export type QuestionType = 
@@ -45,6 +45,8 @@ export interface QuestionInterface {
   instruction?: string;  // For photo_upload
   required: boolean;
   order: number;
+  distributionsziel?: boolean;
+  qualitaetsziel?: boolean;
   
   // For single/multiple choice: array of {id, label} objects
   options?: QuestionOption[];
@@ -136,6 +138,8 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
     question_text: q.questionText,
     instruction: q.instruction,
     is_template: false,
+    distributionsziel: q.distributionsziel === true,
+    qualitaetsziel: q.qualitaetsziel === true,
     options: q.options,
     likert_scale: q.likertScale as any,
     matrix_config: q.matrixRows && q.matrixColumns
@@ -158,7 +162,7 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
   const [isDistributionExportModalOpen, setIsDistributionExportModalOpen] = useState(false);
   const [isDistributionExporting, setIsDistributionExporting] = useState(false);
   const [isLoadingDistributionItems, setIsLoadingDistributionItems] = useState(false);
-  const [distributionQuestionsByFragebogenId, setDistributionQuestionsByFragebogenId] = useState<Record<string, Array<{ id: string; label: string }>>>({});
+  const [distributionQuestionsByFragebogenId, setDistributionQuestionsByFragebogenId] = useState<Record<string, DistributionQuestionOption[]>>({});
 
   // Load data from API on mount
   useEffect(() => {
@@ -179,12 +183,14 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
           name: m.name,
           description: m.description,
           questionCount: m.question_count || 0,
-          questions: (m.questions || []).map((mq: { question: { id: string; type: string; question_text: string; instruction?: string; options?: any[]; likert_scale?: any; matrix_config?: any; numeric_constraints?: any; slider_config?: any; images?: string[] }; required: boolean; order_index: number }) => ({
+          questions: (m.questions || []).map((mq: { question: { id: string; type: string; question_text: string; instruction?: string; distributionsziel?: boolean; qualitaetsziel?: boolean; options?: any[]; likert_scale?: any; matrix_config?: any; numeric_constraints?: any; slider_config?: any; images?: string[] }; required: boolean; order_index: number }) => ({
             id: mq.question.id,
             moduleId: m.id,
             type: mq.question.type as QuestionType,
             questionText: mq.question.question_text,
             instruction: mq.question.instruction,
+            distributionsziel: mq.question.distributionsziel === true,
+            qualitaetsziel: mq.question.qualitaetsziel === true,
             required: mq.required,
             order: mq.order_index,
             options: mq.question.options,
@@ -250,7 +256,7 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
           new Set(fragebogenList.flatMap(f => f.moduleIds || []))
         );
 
-        const questionsByModuleId: Record<string, Array<{ id: string; label: string }>> = {};
+        const questionsByModuleId: Record<string, DistributionQuestionOption[]> = {};
 
         await Promise.all(uniqueModuleIds.map(async moduleId => {
           try {
@@ -260,7 +266,9 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
               .filter((q: any) => q && q.type === 'yesno')
               .map((q: any) => ({
                 id: q.id,
-                label: q.question_text || 'Unbenanntes Item'
+                label: q.question_text || 'Unbenanntes Item',
+                distributionsziel: q.distributionsziel === true,
+                qualitaetsziel: q.qualitaetsziel === true
               }));
             questionsByModuleId[moduleId] = yesNoQuestions;
           } catch (err) {
@@ -269,9 +277,9 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
           }
         }));
 
-        const nextByFragebogen: Record<string, Array<{ id: string; label: string }>> = {};
+        const nextByFragebogen: Record<string, DistributionQuestionOption[]> = {};
         fragebogenList.forEach(fragebogen => {
-          const merged = new Map<string, { id: string; label: string }>();
+          const merged = new Map<string, DistributionQuestionOption>();
           (fragebogen.moduleIds || []).forEach(moduleId => {
             (questionsByModuleId[moduleId] || []).forEach(q => merged.set(q.id, q));
           });
@@ -594,6 +602,8 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
           type: mq.question?.type as QuestionType || 'open_text',
           questionText: mq.question?.question_text || '',
           instruction: mq.question?.instruction,
+          distributionsziel: mq.question?.distributionsziel === true,
+          qualitaetsziel: mq.question?.qualitaetsziel === true,
           required: mq.required || false,
           order: mq.order_index || 0,
           options: mq.question?.options,
@@ -760,6 +770,8 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
             type: mq.question?.type as QuestionType || 'open_text',
             questionText: mq.question?.question_text || '',
             instruction: mq.question?.instruction,
+            distributionsziel: mq.question?.distributionsziel === true,
+            qualitaetsziel: mq.question?.qualitaetsziel === true,
             required: mq.required || false,
             order: mq.order_index || idx,
             options: mq.question?.options,
@@ -834,6 +846,8 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
             question_text: question.question_text,
             instruction: question.instruction,
             is_template: false,
+            distributionsziel: question.distributionsziel === true,
+            qualitaetsziel: question.qualitaetsziel === true,
             options: question.options,
             likert_scale: question.likert_scale,
             matrix_config: question.matrix_config,
@@ -931,6 +945,8 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
           type: mq.question?.type as QuestionType || 'open_text',
           questionText: mq.question?.question_text || '',
           instruction: mq.question?.instruction,
+          distributionsziel: mq.question?.distributionsziel === true,
+          qualitaetsziel: mq.question?.qualitaetsziel === true,
           required: mq.required || false,
           order: mq.order_index || 0,
           options: mq.question?.options,
@@ -1117,6 +1133,7 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
     fragebogenIds: string[];
     questionIds: string[];
     chains: string[];
+    targetFilter: 'all' | 'distribution' | 'quality';
   }) => {
     try {
       setIsDistributionExporting(true);
@@ -1785,6 +1802,8 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                 type: q.type as QuestionType,
                 questionText: q.questionText,
                 instruction: q.instruction,
+                distributionsziel: q.distributionsziel === true,
+                qualitaetsziel: q.qualitaetsziel === true,
                 required: q.required,
                 order: q.order,
                 options: q.options,
@@ -2101,4 +2120,3 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
     </div>
   );
 };
-
