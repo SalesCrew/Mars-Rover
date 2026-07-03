@@ -261,15 +261,19 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
         await Promise.all(uniqueModuleIds.map(async moduleId => {
           try {
             const fullModule = await fragebogenService.modules.getById(moduleId);
+            const isPerfectStoreModule = String(fullModule.name || '').toLowerCase().includes('perfect store');
             const yesNoQuestions = (fullModule.questions || [])
-              .map((mq: any) => mq?.question)
-              .filter((q: any) => q && q.type === 'yesno')
-              .map((q: any) => ({
-                id: q.id,
-                label: q.question_text || 'Unbenanntes Item',
-                distributionsziel: q.distributionsziel === true,
-                qualitaetsziel: q.qualitaetsziel === true
-              }));
+              .filter((mq: any) => mq?.question && mq.question.type === 'yesno')
+              .map((mq: any) => {
+                const q = mq.question;
+                const orderIndex = Number(mq.order_index || 0);
+                return {
+                  id: q.id,
+                  label: q.question_text || 'Unbenanntes Item',
+                  distributionsziel: q.distributionsziel === true || (isPerfectStoreModule && orderIndex >= 1 && orderIndex <= 10),
+                  qualitaetsziel: q.qualitaetsziel === true || (isPerfectStoreModule && orderIndex >= 11 && orderIndex <= 12)
+                };
+              });
             questionsByModuleId[moduleId] = yesNoQuestions;
           } catch (err) {
             console.error(`Failed to load module for distribution export: ${moduleId}`, err);
@@ -281,7 +285,17 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
         fragebogenList.forEach(fragebogen => {
           const merged = new Map<string, DistributionQuestionOption>();
           (fragebogen.moduleIds || []).forEach(moduleId => {
-            (questionsByModuleId[moduleId] || []).forEach(q => merged.set(q.id, q));
+            (questionsByModuleId[moduleId] || []).forEach(q => {
+              const existing = merged.get(q.id);
+              merged.set(q.id, existing
+                ? {
+                    ...existing,
+                    distributionsziel: existing.distributionsziel === true || q.distributionsziel === true,
+                    qualitaetsziel: existing.qualitaetsziel === true || q.qualitaetsziel === true
+                  }
+                : q
+              );
+            });
           });
           nextByFragebogen[fragebogen.id] = Array.from(merged.values());
         });
