@@ -12,6 +12,7 @@ interface NavItem {
   id: NavigationTab;
   label: string;
   icon: React.ReactNode;
+  isNew?: boolean;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
@@ -62,6 +63,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
     },
     {
       id: 'fragebogen',
+      isNew: true,
       label: 'Fragebögen',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -122,6 +124,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
               aria-current={isActive ? 'page' : undefined}
             >
               {item.icon}
+              {item.isNew && <span className={styles.newBadge}>Neu</span>}
             </button>
           );
         })}
