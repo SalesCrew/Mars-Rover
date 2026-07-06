@@ -22,6 +22,7 @@ import { DayTrackingModal } from './DayTrackingModal';
 import { dayTrackingService, type DayTrackingStatus } from '../../services/dayTrackingService';
 import { StatisticsContent } from './StatisticsContent';
 import { VorbestellerHistoryPage } from './VorbestellerHistoryPage';
+import { FragebogenAmpelPage } from './FragebogenAmpelPage';
 import { ProfilePage } from './ProfilePage';
 import { AdminPanel } from '../admin/AdminPanel';
 import { BugReportModal } from './BugReportModal';
@@ -53,7 +54,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<NavigationTab>(() => {
     const saved = sessionStorage.getItem('gl_active_tab');
-    if (saved && ['dashboard', 'statistics', 'vorbesteller', 'profile'].includes(saved)) {
+    if (saved && ['dashboard', 'statistics', 'fragebogen', 'vorbesteller', 'profile'].includes(saved)) {
       return saved as NavigationTab;
     }
     return 'dashboard';
@@ -902,6 +903,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             <StatisticsContent />
           )}
 
+          {activeTab === 'fragebogen' && (
+            <FragebogenAmpelPage glId={user?.id || ''} />
+          )}
+
           {activeTab === 'vorbesteller' && (
             <VorbestellerHistoryPage />
           )}
@@ -1084,4 +1089,3 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     </div>
   );
 };
-

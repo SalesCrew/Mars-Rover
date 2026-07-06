@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, PencilSimple, Stack, Question, Storefront, Check, MagnifyingGlass, Funnel, Archive, CheckCircle, Eye, DownloadSimple, SpinnerGap } from '@phosphor-icons/react';
 import { FragebogenPreviewModal } from './FragebogenPreviewModal';
-import fragebogenService from '../../services/fragebogenService';
+import fragebogenService, { type FragebogenMarketStatusRow } from '../../services/fragebogenService';
 import { marketService } from '../../services/marketService';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './FragebogenDetailModal.module.css';
@@ -43,12 +43,13 @@ interface FragebogenDetailModalProps {
   fragebogen: Fragebogen;
   modules: Module[];
   onClose: () => void;
-  onUpdateMarkets?: (marketIds: string[]) => void; // Callback to save market changes
+  onUpdateMarkets?: (marketIds: string[]) => void | Promise<void>; // Callback to save market changes
   onArchive?: (fragebogenId: string) => void; // Callback to archive fragebogen
   onEdit?: (fragebogen: Fragebogen) => void; // Callback to open edit modal
 }
 
 type FilterType = 'chain' | 'plz' | 'adresse' | 'gebietsleiter' | 'subgroup' | 'status';
+type DetailTab = 'questions' | 'markets';
 
 export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({ 
   fragebogen, 
@@ -59,6 +60,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
   onEdit
 }) => {
   const [activeModuleId, setActiveModuleId] = useState<string | null>(initialModules[0]?.id || null);
+  const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>('questions');
   const moduleRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
@@ -151,6 +153,11 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
   const [markets, setMarkets] = useState<AdminMarket[]>([]);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
   const [marketsError, setMarketsError] = useState<string | null>(null);
+  const [marketStatusRows, setMarketStatusRows] = useState<FragebogenMarketStatusRow[]>([]);
+  const [isLoadingMarketStatus, setIsLoadingMarketStatus] = useState(false);
+  const [marketStatusError, setMarketStatusError] = useState<string | null>(null);
+  const [marketStatusSearch, setMarketStatusSearch] = useState('');
+  const [marketStatusRefreshKey, setMarketStatusRefreshKey] = useState(0);
   const [marketSearchTerm, setMarketSearchTerm] = useState('');
   const [openFilter, setOpenFilter] = useState<FilterType | null>(null);
   const [searchTerms, setSearchTerms] = useState<Record<FilterType, string>>({
@@ -210,6 +217,36 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
     };
   }, [isMarketSelectorOpen]);
 
+  useEffect(() => {
+    if (activeDetailTab !== 'markets') return;
+    let isCancelled = false;
+
+    const loadMarketStatus = async () => {
+      setIsLoadingMarketStatus(true);
+      setMarketStatusError(null);
+      try {
+        const overview = await fragebogenService.fragebogen.getMarketStatus(fragebogen.id);
+        if (isCancelled) return;
+        setMarketStatusRows(overview.markets || []);
+      } catch (error) {
+        console.error('Failed to load fragebogen market status:', error);
+        if (isCancelled) return;
+        setMarketStatusRows([]);
+        setMarketStatusError('Marktstatus konnte nicht geladen werden.');
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingMarketStatus(false);
+        }
+      }
+    };
+
+    loadMarketStatus();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeDetailTab, fragebogen.id, marketStatusRefreshKey]);
+
   // Helper functions
   const getChainGradient = (chain: string) => {
     const gradients: Record<string, string> = {
@@ -264,11 +301,12 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
     }));
   };
 
-  const handleSaveMarkets = () => {
+  const handleSaveMarkets = async () => {
     if (onUpdateMarkets) {
-      onUpdateMarkets(selectedMarkets);
+      await onUpdateMarkets(selectedMarkets);
     }
     setIsMarketSelectorOpen(false);
+    setMarketStatusRefreshKey(prev => prev + 1);
   };
 
   const handleCancelMarketSelection = () => {
@@ -393,6 +431,41 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
 
   const statusConfig = getStatusConfig();
 
+  const formatCompletedAt = (value?: string | null): string => {
+    if (!value) return '';
+    return new Intl.DateTimeFormat('de-AT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(value));
+  };
+
+  const filteredMarketStatusRows = useMemo(() => {
+    const term = marketStatusSearch.trim().toLowerCase();
+    if (!term) return marketStatusRows;
+    return marketStatusRows.filter((market) => [
+      market.id,
+      market.internalId,
+      market.name,
+      market.chain,
+      market.address,
+      market.postalCode,
+      market.city,
+      market.gebietsleiterName
+    ].some((value) => String(value || '').toLowerCase().includes(term)));
+  }, [marketStatusRows, marketStatusSearch]);
+
+  const marketStatusSummary = useMemo(() => {
+    const completed = marketStatusRows.filter((market) => market.completed).length;
+    return {
+      total: marketStatusRows.length,
+      completed,
+      open: Math.max(marketStatusRows.length - completed, 0)
+    };
+  }, [marketStatusRows]);
+
   const getQuestionTypeLabel = (type: Question['type']) => {
     switch (type) {
       case 'text': return 'Kurztext';
@@ -514,6 +587,13 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
             </button>
           </div>
           <div className={styles.headerRight}>
+            <button 
+              className={styles.marketSelectorButton}
+              onClick={() => setIsMarketSelectorOpen(true)}
+            >
+              <Storefront size={16} weight="fill" />
+              <span>{selectedMarkets.length} {selectedMarkets.length === 1 ? 'Markt' : 'Märkte'}</span>
+            </button>
             <button
               className={styles.exportButton}
               onClick={handleExport}
@@ -546,7 +626,27 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
           </div>
         </div>
 
+        <div className={styles.detailTabs}>
+          <button
+            className={`${styles.detailTab} ${activeDetailTab === 'questions' ? styles.detailTabActive : ''}`}
+            onClick={() => setActiveDetailTab('questions')}
+            type="button"
+          >
+            <Question size={15} weight="fill" />
+            <span>Fragen</span>
+          </button>
+          <button
+            className={`${styles.detailTab} ${activeDetailTab === 'markets' ? styles.detailTabActive : ''}`}
+            onClick={() => setActiveDetailTab('markets')}
+            type="button"
+          >
+            <Storefront size={15} weight="fill" />
+            <span>Märkte</span>
+          </button>
+        </div>
+
         {/* Module Navigation */}
+        {activeDetailTab === 'questions' && (
         <div className={styles.moduleNav}>
           <div className={styles.moduleNavScroller}>
             {initialModules.map(module => (
@@ -561,10 +661,11 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
             ))}
           </div>
         </div>
+        )}
 
         {/* Questions Content */}
         <div className={styles.modalContent} ref={scrollContainerRef}>
-          {modulesWithQuestions.map((module, _moduleIndex) => (
+          {activeDetailTab === 'questions' ? modulesWithQuestions.map((module, _moduleIndex) => (
             <div 
               key={module.id} 
               className={styles.moduleSection}
@@ -618,7 +719,59 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                 ))}
               </div>
             </div>
-          ))}
+          )) : (
+            <div className={styles.marketStatusContent}>
+              <div className={styles.marketStatusToolbar}>
+                <div className={styles.marketStatusSummary}>
+                  <span><strong>{marketStatusSummary.completed}</strong> erledigt</span>
+                  <span><strong>{marketStatusSummary.open}</strong> offen</span>
+                  <span><strong>{marketStatusSummary.total}</strong> Märkte</span>
+                </div>
+                <div className={styles.marketStatusSearch}>
+                  <MagnifyingGlass size={16} weight="bold" />
+                  <input
+                    value={marketStatusSearch}
+                    onChange={(event) => setMarketStatusSearch(event.target.value)}
+                    placeholder="Markt suchen"
+                  />
+                </div>
+              </div>
+
+              {isLoadingMarketStatus ? (
+                <div className={styles.marketStatusState}>
+                  <SpinnerGap size={28} weight="bold" className={styles.exportSpinner} />
+                  <span>Marktstatus wird geladen...</span>
+                </div>
+              ) : filteredMarketStatusRows.length === 0 ? (
+                <div className={styles.marketStatusState}>
+                  <Storefront size={32} weight="regular" />
+                  <span>{marketStatusError || 'Keine Märkte gefunden'}</span>
+                </div>
+              ) : (
+                <div className={styles.marketStatusList}>
+                  {filteredMarketStatusRows.map((market) => (
+                    <div key={market.id} className={styles.marketStatusRow}>
+                      <span
+                        className={`${styles.marketStatusDot} ${market.completed ? styles.marketStatusDone : styles.marketStatusOpen}`}
+                        title={market.completed ? 'Erledigt' : 'Offen'}
+                      />
+                      <span className={styles.marketStatusChain}>{market.chain || 'Markt'}</span>
+                      <div className={styles.marketStatusMain}>
+                        <strong>{market.internalId ? `${market.internalId} · ` : ''}{market.name}</strong>
+                        <small>{[market.address, market.postalCode, market.city].filter(Boolean).join(', ')}</small>
+                      </div>
+                      <span className={styles.marketStatusGl}>{market.gebietsleiterName || 'Kein GL'}</span>
+                      <span className={styles.marketStatusLabel}>
+                        {market.completed
+                          ? (market.completedAt ? formatCompletedAt(market.completedAt) : 'Erledigt')
+                          : 'Offen'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -1016,4 +1169,3 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
     </div>
   );
 };
-

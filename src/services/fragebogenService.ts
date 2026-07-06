@@ -155,6 +155,73 @@ export interface Response {
   answers?: ResponseAnswer[];
 }
 
+export interface FragebogenStatusOption {
+  id: string;
+  name: string;
+  description?: string;
+  startDate: string;
+  endDate: string;
+  status: 'active' | 'scheduled' | 'inactive';
+}
+
+export interface GLFragebogenMarketStatus {
+  fragebogenId: string;
+  fragebogenName: string;
+  completed: boolean;
+  completedAt?: string | null;
+  responseId?: string | null;
+}
+
+export interface GLFragebogenStatusMarket {
+  id: string;
+  internalId: string;
+  name: string;
+  chain: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  statuses: GLFragebogenMarketStatus[];
+}
+
+export interface GLFragebogenStatusOverview {
+  fragebogen: FragebogenStatusOption[];
+  markets: GLFragebogenStatusMarket[];
+  summary: {
+    totalMarkets: number;
+    totalAssignments: number;
+    completedAssignments: number;
+    openAssignments: number;
+  };
+}
+
+export interface FragebogenMarketStatusRow {
+  id: string;
+  internalId: string;
+  name: string;
+  chain: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  gebietsleiterId: string;
+  gebietsleiterName: string;
+  isActive: boolean;
+  completed: boolean;
+  completedAt?: string | null;
+  completedBy?: string;
+  responseId?: string | null;
+  responseCount: number;
+}
+
+export interface FragebogenMarketStatusOverview {
+  fragebogen: FragebogenStatusOption;
+  markets: FragebogenMarketStatusRow[];
+  summary: {
+    totalMarkets: number;
+    completedMarkets: number;
+    openMarkets: number;
+  };
+}
+
 export interface GLHistoryQuestion {
   id: string;
   module_id: string;
@@ -604,6 +671,24 @@ export const fragebogenApi = {
   async getStats(id: string): Promise<any> {
     const response = await fetch(`${FRAGEBOGEN_API}/fragebogen/stats/${id}`);
     if (!response.ok) throw new Error('Failed to fetch fragebogen stats');
+    return response.json();
+  },
+
+  /**
+   * Get the batched GL Ampelsystem overview.
+   */
+  async getGlStatus(glId: string): Promise<GLFragebogenStatusOverview> {
+    const response = await fetch(`${FRAGEBOGEN_API}/fragebogen/status/gl/${encodeURIComponent(glId)}`);
+    if (!response.ok) throw new Error('Failed to fetch fragebogen status overview');
+    return response.json();
+  },
+
+  /**
+   * Get market completion status for one Fragebogen in the admin detail view.
+   */
+  async getMarketStatus(id: string): Promise<FragebogenMarketStatusOverview> {
+    const response = await fetch(`${FRAGEBOGEN_API}/fragebogen/${encodeURIComponent(id)}/market-status`);
+    if (!response.ok) throw new Error('Failed to fetch fragebogen market status');
     return response.json();
   },
 

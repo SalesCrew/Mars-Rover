@@ -61,6 +61,19 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
       ),
     },
     {
+      id: 'fragebogen',
+      label: 'Fragebögen',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="5" y="3" width="14" height="18" rx="2" strokeLinejoin="round"/>
+          <path d="M9 8H15" strokeLinecap="round"/>
+          <path d="M9 12H15" strokeLinecap="round"/>
+          <path d="M9 16H12" strokeLinecap="round"/>
+          <circle cx="16" cy="16" r="2" fill="currentColor" stroke="none"/>
+        </svg>
+      ),
+    },
+    {
       id: 'vorbesteller',
       label: 'Vorbesteller',
       icon: (
@@ -86,7 +99,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
 
   useEffect(() => {
     const index = navItems.findIndex(item => item.id === activeTab);
-    setActiveIndex(index);
+    setActiveIndex(index >= 0 ? index : 0);
   }, [activeTab]);
 
   return (
@@ -116,4 +129,3 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
     </nav>
   );
 };
-

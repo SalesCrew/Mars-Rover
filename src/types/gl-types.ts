@@ -51,7 +51,7 @@ export interface GLDashboard {
   performanceMetrics?: PerformanceMetrics;
 }
 
-export type NavigationTab = 'dashboard' | 'statistics' | 'vorbesteller' | 'profile';
+export type NavigationTab = 'dashboard' | 'statistics' | 'fragebogen' | 'vorbesteller' | 'profile';
 
 // Chain Statistics Types
 export interface ChainStats {
