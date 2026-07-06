@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, CircleNotch, ClipboardText, MagnifyingGlass, Storefront, WarningCircle } from '@phosphor-icons/react';
+import { CheckCircle, CircleNotch, ClipboardText, MagnifyingGlass, Storefront, WarningCircle, X } from '@phosphor-icons/react';
 import fragebogenService, {
   type GLFragebogenStatusMarket,
   type GLFragebogenMarketStatus,
@@ -26,6 +26,31 @@ const getMarketLabel = (market: GLFragebogenStatusMarket): string => {
   return `${internalId}${market.name || market.id}`;
 };
 
+const getChainGradient = (chain: string): string => {
+  const upperChain = chain.toUpperCase();
+  const chainColors: Record<string, string> = {
+    'BILLA+': 'linear-gradient(135deg, #FED304 0%, #EAB308 100%)',
+    'BILLA PLUS': 'linear-gradient(135deg, #FED304 0%, #EAB308 100%)',
+    'BILLA+ PRIVAT': 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
+    'BILLA PLUS PRIVAT': 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
+    'BILLA PRIVAT': 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+    'BILLA': 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+    'SPAR': 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+    'EUROSPAR': 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)',
+    'INTERSPAR': 'linear-gradient(135deg, #B91C1C 0%, #991B1B 100%)',
+    'SPAR GOURMET': 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+    'HOFER': 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+    'MERKUR': 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+    'ADEG': 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+    'FUTTERHAUS': 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
+    'HAGEBAU': 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
+    'ZOOFACHHANDEL': 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
+    'PENNY': 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+    'NETTO': 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
+  };
+  return chainColors[upperChain] || 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)';
+};
+
 const getSelectedStatus = (
   market: GLFragebogenStatusMarket,
   selectedFragebogenId: string
@@ -35,6 +60,7 @@ const getSelectedStatus = (
 export const FragebogenAmpelPage: React.FC<FragebogenAmpelPageProps> = ({ glId }) => {
   const [selectedFragebogenId, setSelectedFragebogenId] = useState<'all' | string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMarket, setSelectedMarket] = useState<GLFragebogenStatusMarket | null>(null);
   const [fragebogen, setFragebogen] = useState<FragebogenStatusOption[]>([]);
   const [markets, setMarkets] = useState<GLFragebogenStatusMarket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -148,6 +174,12 @@ export const FragebogenAmpelPage: React.FC<FragebogenAmpelPageProps> = ({ glId }
     return { total: assigned.length, completed, open: Math.max(assigned.length - completed, 0), markets: assigned.length };
   }, [markets, selectedFragebogenId]);
 
+  const selectedMarketStats = useMemo(() => {
+    if (!selectedMarket) return { completed: 0, open: 0 };
+    const completed = selectedMarket.statuses.filter((status) => status.completed).length;
+    return { completed, open: Math.max(selectedMarket.statuses.length - completed, 0) };
+  }, [selectedMarket]);
+
   if (isLoading) {
     return (
       <div className={styles.stateCard}>
@@ -240,9 +272,23 @@ export const FragebogenAmpelPage: React.FC<FragebogenAmpelPageProps> = ({ glId }
               : getSelectedStatus(market, selectedFragebogenId);
 
             return (
-              <article key={market.id} className={styles.marketRow}>
+              <article
+                key={market.id}
+                className={styles.marketRow}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedMarket(market)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedMarket(market);
+                  }
+                }}
+              >
                 <div className={styles.marketMain}>
-                  <span className={styles.chainPill}>{market.chain || 'Markt'}</span>
+                  <span className={styles.chainPill} style={{ background: getChainGradient(market.chain || '') }}>
+                    {market.chain || 'Markt'}
+                  </span>
                   <div className={styles.marketText}>
                     <h2>{getMarketLabel(market)}</h2>
                     <p>{[market.address, market.postalCode, market.city].filter(Boolean).join(', ')}</p>
@@ -283,6 +329,61 @@ export const FragebogenAmpelPage: React.FC<FragebogenAmpelPageProps> = ({ glId }
           })
         )}
       </section>
+
+      {selectedMarket && (
+        <div className={styles.modalBackdrop} onClick={() => setSelectedMarket(null)}>
+          <div
+            className={styles.detailModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="fragebogen-market-status-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.detailHeader}>
+              <div className={styles.detailTitleGroup}>
+                <span className={styles.chainPill} style={{ background: getChainGradient(selectedMarket.chain || '') }}>
+                  {selectedMarket.chain || 'Markt'}
+                </span>
+                <div>
+                  <h2 id="fragebogen-market-status-title">{getMarketLabel(selectedMarket)}</h2>
+                  <p>{[selectedMarket.address, selectedMarket.postalCode, selectedMarket.city].filter(Boolean).join(', ')}</p>
+                </div>
+              </div>
+              <button className={styles.closeButton} type="button" onClick={() => setSelectedMarket(null)} aria-label="Schliessen">
+                <X size={18} weight="bold" />
+              </button>
+            </div>
+
+            <div className={styles.detailSummary}>
+              <span>{selectedMarket.statuses.length} Fragebogen</span>
+              <span>{selectedMarketStats.completed} erledigt</span>
+              <span>{selectedMarketStats.open} offen</span>
+            </div>
+
+            <div className={styles.detailStatusList}>
+              {selectedMarket.statuses.length > 0 ? (
+                selectedMarket.statuses.map((status) => (
+                  <div key={status.fragebogenId} className={styles.detailStatusRow}>
+                    <span
+                      className={`${styles.statusDot} ${status.completed ? styles.statusDone : styles.statusOpen}`}
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <strong>{status.fragebogenName}</strong>
+                      <small>{status.completed && status.completedAt ? `Abgeschlossen ${formatDateTime(status.completedAt)}` : 'Noch offen'}</small>
+                    </div>
+                    <span className={`${styles.detailStatusBadge} ${status.completed ? styles.detailStatusDone : styles.detailStatusOpen}`}>
+                      {status.completed ? 'Erledigt' : 'Offen'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className={styles.detailEmpty}>Keine aktiven Fragebogen fuer diesen Markt.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {currentStats.total > 0 && currentStats.open === 0 && (
         <div className={styles.completeHint}>
