@@ -2,15 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Play, House, Car, Clock, MapPin, Timer, Check, Warning, ArrowRight, Gauge } from '@phosphor-icons/react';
 import styles from './DayTrackingModal.module.css';
 
-type ModalMode = 'start' | 'end' | 'force_close' | 'km_pending';
+type ModalMode = 'start' | 'end' | 'force_close' | 'km_pending' | 'close_previous';
 
 interface DayTrackingModalProps {
   isOpen: boolean;
   onClose: () => void;
   mode: ModalMode;
   onStartDay: (skipFahrzeit: boolean, kmStandStart?: string) => void;
-  onEndDay: (endTime: string, kmStandEnd?: string) => void;
+  onEndDay: (endTime: string, kmStandEnd?: string, kmStandStart?: string) => void;
   onSubmitKmStand?: (km: string) => void;
+  requiresStartKmBeforeEnd?: boolean;
+  blockingDate?: string | null;
   summary?: {
     totalFahrzeit: string;
     totalBesuchszeit: string;
@@ -131,6 +133,8 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
   onStartDay,
   onEndDay,
   onSubmitKmStand,
+  requiresStartKmBeforeEnd = false,
+  blockingDate,
   summary,
 }) => {
   const [endTime, setEndTime] = useState('');
@@ -138,9 +142,11 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
   const [currentTime, setCurrentTime] = useState('');
   const [endStep, setEndStep] = useState<'confirm' | 'manual'>('confirm');
   const [startStep, setStartStep] = useState<'options' | 'km'>('options');
+  const [endStartKmStep, setEndStartKmStep] = useState(false);
   const [endKmStep, setEndKmStep] = useState(false);
   const [pendingSkipFahrzeit, setPendingSkipFahrzeit] = useState(false);
   const [pendingEndTime, setPendingEndTime] = useState('');
+  const [pendingStartKm, setPendingStartKm] = useState('');
   const [kmStand, setKmStand] = useState('');
   const kmInputRef = useRef<HTMLInputElement>(null);
 
@@ -161,10 +167,12 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
     if (isOpen) {
       setKmStand('');
       setStartStep('options');
+      setEndStartKmStep(false);
       setEndKmStep(false);
       setPendingSkipFahrzeit(false);
       setPendingEndTime('');
-      if (mode === 'end' || mode === 'force_close') {
+      setPendingStartKm('');
+      if (mode === 'end' || mode === 'force_close' || mode === 'close_previous') {
         const now = new Date();
         setEndTime(
           `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
@@ -177,10 +185,10 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
   }, [isOpen, mode]);
 
   useEffect(() => {
-    if ((startStep === 'km' || endKmStep) && kmInputRef.current) {
+    if ((startStep === 'km' || endStartKmStep || endKmStep) && kmInputRef.current) {
       kmInputRef.current.focus();
     }
-  }, [startStep, endKmStep]);
+  }, [startStep, endStartKmStep, endKmStep]);
 
   if (!isOpen) return null;
 
@@ -197,11 +205,22 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
   const handleEndTimeConfirmed = (time: string) => {
     setPendingEndTime(time);
     setKmStand('');
+    if (requiresStartKmBeforeEnd) {
+      setEndStartKmStep(true);
+    } else {
+      setEndKmStep(true);
+    }
+  };
+
+  const handleEndConfirmStartKm = () => {
+    setPendingStartKm(kmStand);
+    setKmStand('');
+    setEndStartKmStep(false);
     setEndKmStep(true);
   };
 
   const handleEndConfirmKm = () => {
-    onEndDay(pendingEndTime, kmStand || undefined);
+    onEndDay(pendingEndTime, kmStand || undefined, pendingStartKm || undefined);
   };
 
   const handleEndDay = () => {
@@ -218,12 +237,62 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
     setEndTime(formatTimeInput(e.target.value));
   };
 
-  const canClose = mode !== 'force_close';
+  const canClose = mode !== 'force_close' && mode !== 'close_previous';
   const isEndTimeValid = endTime.match(/^\d{2}:\d{2}$/);
+
+  const renderStartKmBeforeEndStep = () => (
+    <div className={styles.kmStandSection}>
+      <div className={styles.kmStandIcon}>
+        <Gauge size={40} weight="duotone" />
+      </div>
+      <span className={styles.kmStandTitle}>Start-KM nachtragen</span>
+      <span className={styles.kmStandDesc}>
+        {blockingDate
+          ? `Der Tag vom ${blockingDate} kann erst mit Start-KM abgeschlossen werden.`
+          : 'Der Tag kann erst mit Start-KM abgeschlossen werden.'}
+      </span>
+      <input
+        ref={kmInputRef}
+        type="text"
+        inputMode="decimal"
+        className={styles.kmStandInput}
+        value={kmStand}
+        onChange={handleKmInputChange}
+        placeholder="z.B. 45320"
+      />
+      <button className={styles.kmStandConfirm} onClick={handleEndConfirmStartKm} disabled={!kmStand}>
+        <Check size={18} weight="bold" />
+        Weiter
+      </button>
+    </div>
+  );
+
+  const renderEndKmStep = (description: string, buttonText: string) => (
+    <div className={styles.kmStandSection}>
+      <div className={styles.kmStandIconEnd}>
+        <Gauge size={40} weight="duotone" />
+      </div>
+      <span className={styles.kmStandTitle}>End-KM eingeben</span>
+      <span className={styles.kmStandDesc}>{description}</span>
+      <input
+        ref={kmInputRef}
+        type="text"
+        inputMode="decimal"
+        className={styles.kmStandInput}
+        value={kmStand}
+        onChange={handleKmInputChange}
+        placeholder="z.B. 45480"
+      />
+      <button className={styles.kmStandConfirmEnd} onClick={handleEndConfirmKm} disabled={!kmStand}>
+        <Check size={18} weight="bold" />
+        {buttonText}
+      </button>
+    </div>
+  );
 
   return (
     <div className={styles.overlay}>
-      <div className={`${styles.modal} ${mode === 'force_close' ? styles.forceClose : ''}`}>
+      <div className={`${styles.modal} ${mode === 'force_close' || mode === 'close_previous' ? styles.forceClose : ''}`}>
         {/* Header */}
         <div className={styles.header}>
           <h2 className={styles.title}>
@@ -231,6 +300,7 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
             {mode === 'end' && 'Tag beenden'}
             {mode === 'force_close' && 'Zeiterfassung beenden'}
             {mode === 'km_pending' && 'KM-Stand nachtragen'}
+            {mode === 'close_previous' && 'Offenen Tag abschliessen'}
           </h2>
           {canClose && (
             <button className={styles.closeButton} onClick={onClose} aria-label="Schließen">
@@ -312,27 +382,8 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
           {/* End Mode */}
           {mode === 'end' && (
             <>
-              {endKmStep ? (
-                <div className={styles.kmStandSection}>
-                  <div className={styles.kmStandIconEnd}>
-                    <Gauge size={40} weight="duotone" />
-                  </div>
-                  <span className={styles.kmStandTitle}>KM-Stand eingeben</span>
-                  <span className={styles.kmStandDesc}>Aktueller Kilometerstand nach der Heimfahrt</span>
-                  <input
-                    ref={kmInputRef}
-                    type="text"
-                    inputMode="decimal"
-                    className={styles.kmStandInput}
-                    value={kmStand}
-                    onChange={handleKmInputChange}
-                    placeholder="z.B. 45480"
-                  />
-                  <button className={styles.kmStandConfirmEnd} onClick={handleEndConfirmKm} disabled={!kmStand}>
-                    <Check size={18} weight="bold" />
-                    Tag beenden
-                  </button>
-                </div>
+              {endStartKmStep ? renderStartKmBeforeEndStep() : endKmStep ? (
+                renderEndKmStep('Aktueller Kilometerstand nach der Heimfahrt', 'Tag beenden')
               ) : (
                 <>
                   {/* Step 1: Confirm current time */}
@@ -434,9 +485,9 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
           )}
 
           {/* Force Close Mode */}
-          {mode === 'force_close' && (
+          {(mode === 'force_close' || mode === 'close_previous') && (
             <>
-              {endKmStep ? (
+              {endStartKmStep ? renderStartKmBeforeEndStep() : endKmStep ? (
                 <div className={styles.kmStandSection}>
                   <div className={styles.kmStandIconEnd}>
                     <Gauge size={40} weight="duotone" />

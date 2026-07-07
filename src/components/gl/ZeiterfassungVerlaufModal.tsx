@@ -326,6 +326,23 @@ const formatTimeShort = (t: string | null | undefined): string => {
   return `${parts[0]}:${parts[1]}`;
 };
 
+const parseKmInput = (value: string): number | null => {
+  const raw = value.trim().replace(/\s/g, '');
+  if (!raw) return null;
+
+  let normalized = raw;
+  if (normalized.includes(',') && normalized.includes('.')) {
+    normalized = normalized.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(normalized)) {
+    normalized = normalized.replace(/\./g, '');
+  } else {
+    normalized = normalized.replace(',', '.');
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
 export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps> = ({
   isOpen,
   onClose,
@@ -759,30 +776,40 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
     
     setSavingDayTime(true);
     try {
-      const updatePayload = editingDayTime.field === 'start'
-        ? { day_start_time: editDayTimeValue }
-        : { day_end_time: editDayTimeValue };
-      
-      await dayTrackingService.updateDayTimes(user.id, editingDayTime.date, updatePayload);
+      const currentTracking = dayTrackingMap[editingDayTime.date];
+      const kmNum = parseKmInput(editKmValue);
+      const isKmMissing = editingDayTime.field === 'start'
+        ? currentTracking?.km_stand_start == null
+        : currentTracking?.km_stand_end == null;
 
-      const kmNum = editKmValue !== '' ? parseFloat(editKmValue.replace(',', '.')) : NaN;
-      if (!isNaN(kmNum)) {
-        await dayTrackingService.updateDayKm(user.id, editingDayTime.date,
-          editingDayTime.field === 'start' ? { km_stand_start: kmNum } : { km_stand_end: kmNum }
-        );
+      if (isKmMissing && kmNum === null) {
+        alert('Bitte KM-Stand eingeben');
+        return;
       }
+
+      if (editKmValue.trim() !== '' && kmNum === null) {
+        alert('Bitte einen gueltigen KM-Stand eingeben');
+        return;
+      }
+
+      const updatePayload = editingDayTime.field === 'start'
+        ? {
+            day_start_time: editDayTimeValue,
+            ...(kmNum !== null ? { km_stand_start: kmNum } : {})
+          }
+        : {
+            day_end_time: editDayTimeValue,
+            ...(kmNum !== null ? { km_stand_end: kmNum } : {})
+          };
+      
+      const updatedDay = await dayTrackingService.updateDayTimes(user.id, editingDayTime.date, updatePayload);
       
       // Update local state
       setDayTrackingMap(prev => ({
         ...prev,
         [editingDayTime.date]: {
           ...prev[editingDayTime.date],
-          ...(editingDayTime.field === 'start'
-            ? { day_start_time: editDayTimeValue }
-            : { day_end_time: editDayTimeValue }),
-          ...(!isNaN(kmNum)
-            ? (editingDayTime.field === 'start' ? { km_stand_start: kmNum } : { km_stand_end: kmNum })
-            : {}),
+          ...updatedDay,
         }
       }));
       

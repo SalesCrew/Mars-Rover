@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { BonusHeroCard } from './BonusHeroCard';
 import { QuickActionsBar } from './QuickActionsBar';
 import { MarketFrequencyAlerts } from './MarketFrequencyAlerts';
@@ -19,7 +19,7 @@ import { ZusatzZeiterfassungModal } from './ZusatzZeiterfassungModal';
 import { ZeiterfassungVerlaufModal } from './ZeiterfassungVerlaufModal';
 import { DayTrackingButton } from './DayTrackingButton';
 import { DayTrackingModal } from './DayTrackingModal';
-import { dayTrackingService, type DayTrackingStatus } from '../../services/dayTrackingService';
+import { dayTrackingService, type DayTracking, type DayTrackingStatus } from '../../services/dayTrackingService';
 import { StatisticsContent } from './StatisticsContent';
 import { VorbestellerHistoryPage } from './VorbestellerHistoryPage';
 import { FragebogenAmpelPage } from './FragebogenAmpelPage';
@@ -51,6 +51,8 @@ interface DashboardProps {
   data: GLDashboard;
 }
 
+type DayTrackingModalMode = 'start' | 'end' | 'force_close' | 'km_pending' | 'close_previous';
+
 export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<NavigationTab>(() => {
     const saved = sessionStorage.getItem('gl_active_tab');
@@ -77,7 +79,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   // Day tracking state
   const [isDayTrackingModalOpen, setIsDayTrackingModalOpen] = useState(false);
   const [dayTrackingStatus, setDayTrackingStatus] = useState<DayTrackingStatus>('not_started');
-  const [dayTrackingModalMode, setDayTrackingModalMode] = useState<'start' | 'end' | 'force_close' | 'km_pending'>('start');
+  const [dayTrackingModalMode, setDayTrackingModalMode] = useState<DayTrackingModalMode>('start');
+  const [currentDayTracking, setCurrentDayTracking] = useState<DayTracking | null>(null);
+  const [pendingClosureDay, setPendingClosureDay] = useState<DayTracking | null>(null);
   const [daySummary, setDaySummary] = useState<{
     totalFahrzeit: string;
     totalBesuchszeit: string;
@@ -289,14 +293,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     return () => window.removeEventListener('online', syncPending);
   }, [user?.id]);
 
+  const openPendingClosureIfNeeded = useCallback(async (glId: string): Promise<boolean> => {
+    const pendingDay = await dayTrackingService.getPendingClosure(glId);
+    if (!pendingDay) {
+      setPendingClosureDay(null);
+      return false;
+    }
+
+    setPendingClosureDay(pendingDay);
+    setCurrentDayTracking(null);
+    setDayTrackingStatus('active');
+    try {
+      const summary = await dayTrackingService.getDaySummary(glId, pendingDay.tracking_date);
+      setDaySummary({
+        totalFahrzeit: dayTrackingService.formatInterval(summary.totalFahrzeit),
+        totalBesuchszeit: dayTrackingService.formatInterval(summary.totalBesuchszeit),
+        marketsVisited: summary.marketsVisited
+      });
+    } catch (summaryError) {
+      console.error('Error loading pending day summary:', summaryError);
+    }
+    setDayTrackingModalMode('close_previous');
+    setIsDayTrackingModalOpen(true);
+    return true;
+  }, []);
+
   // Load day tracking status on mount
   useEffect(() => {
     const loadDayTrackingStatus = async () => {
       if (!user?.id) return;
       
       try {
+        const openedPendingClosure = await openPendingClosureIfNeeded(user.id);
+        if (openedPendingClosure) {
+          return;
+        }
+
+        setPendingClosureDay(null);
         const status = await dayTrackingService.getStatus(user.id);
         if (status) {
+          setCurrentDayTracking(status);
           setDayTrackingStatus(status.status as DayTrackingStatus);
           // If day is active, prepare summary for end modal
           if (status.status === 'active') {
@@ -313,16 +349,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             }
           }
         } else {
+          setCurrentDayTracking(null);
           setDayTrackingStatus('not_started');
         }
       } catch (error) {
         console.error('Error loading day tracking status:', error);
+        setCurrentDayTracking(null);
         setDayTrackingStatus('not_started');
       }
     };
     
     loadDayTrackingStatus();
-  }, [user?.id]);
+  }, [user?.id, openPendingClosureIfNeeded]);
 
   // Check for 9 PM force close
   useEffect(() => {
@@ -343,6 +381,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   }, [dayTrackingStatus]);
 
   const handleDayTrackingClick = async () => {
+    if (pendingClosureDay) {
+      setDayTrackingModalMode('close_previous');
+      setIsDayTrackingModalOpen(true);
+      return;
+    }
+
     if (dayTrackingStatus === 'active') {
       // Show end modal
       if (user?.id) {
@@ -375,7 +419,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     try {
       const now = new Date();
       const startTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      await dayTrackingService.startDay(user.id, { skipFahrzeit, startTime, kmStandStart });
+      const startedDay = await dayTrackingService.startDay(user.id, { skipFahrzeit, startTime, kmStandStart });
+      setCurrentDayTracking(startedDay);
+      setPendingClosureDay(null);
       setDayTrackingStatus('active');
       setIsDayTrackingModalOpen(false);
       // If KM was skipped, the km_pending reminder will show on next reload automatically
@@ -389,7 +435,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const handleSubmitPendingKm = async (km: string) => {
     if (!user?.id) return;
     try {
-      await dayTrackingService.updateKmStandStart(user.id, km);
+      const updatedDay = await dayTrackingService.updateKmStandStart(user.id, km);
+      setCurrentDayTracking(updatedDay);
       setIsDayTrackingModalOpen(false);
     } catch (error) {
       console.error('Error submitting pending KM stand:', error);
@@ -397,17 +444,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     }
   };
 
-  const handleEndDay = async (endTime: string, kmStandEnd?: string) => {
+  const handleEndDay = async (endTime: string, kmStandEnd?: string, kmStandStart?: string) => {
     if (!user?.id) return;
     
     try {
-      await dayTrackingService.endDay(user.id, { 
+      const closingPreviousDay = dayTrackingModalMode === 'close_previous';
+      const endedDay = await dayTrackingService.endDay(user.id, { 
         endTime, 
-        forceClose: dayTrackingModalMode === 'force_close',
+        forceClose: dayTrackingModalMode === 'force_close' || closingPreviousDay,
+        date: closingPreviousDay ? pendingClosureDay?.tracking_date : undefined,
+        kmStandStart,
         kmStandEnd
       });
-      setDayTrackingStatus('completed');
       setIsDayTrackingModalOpen(false);
+      setPendingClosureDay(null);
+
+      if (closingPreviousDay) {
+        const openedNextPendingClosure = await openPendingClosureIfNeeded(user.id);
+        if (openedNextPendingClosure) {
+          return;
+        }
+
+        const todayStatus = await dayTrackingService.getStatus(user.id);
+        setCurrentDayTracking(todayStatus);
+        setDayTrackingStatus((todayStatus?.status as DayTrackingStatus) || 'not_started');
+      } else {
+        setCurrentDayTracking(endedDay);
+        setDayTrackingStatus('completed');
+      }
     } catch (error) {
       console.error('Error ending day:', error);
       alert('Fehler beim Beenden des Tages');
@@ -1047,7 +1111,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         isOpen={isDayTrackingModalOpen}
         onClose={() => {
           // Only allow closing if not force close mode
-          if (dayTrackingModalMode !== 'force_close') {
+          if (dayTrackingModalMode !== 'force_close' && dayTrackingModalMode !== 'close_previous') {
             setIsDayTrackingModalOpen(false);
           }
         }}
@@ -1055,6 +1119,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         onStartDay={handleStartDay}
         onEndDay={handleEndDay}
         onSubmitKmStand={handleSubmitPendingKm}
+        requiresStartKmBeforeEnd={
+          dayTrackingModalMode === 'close_previous'
+            ? pendingClosureDay?.km_stand_start == null
+            : currentDayTracking?.km_stand_start == null
+        }
+        blockingDate={pendingClosureDay?.tracking_date}
         summary={daySummary}
       />
 

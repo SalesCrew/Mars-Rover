@@ -25,6 +25,7 @@ export interface DayTracking {
   total_arbeitszeit: string | null;
   markets_visited: number;
   km_stand_start: number | null;
+  km_stand_start_deferred?: boolean;
   km_stand_end: number | null;
   status: DayTrackingStatus;
   created_at: string;
@@ -64,6 +65,8 @@ export interface StartDayRequest {
 export interface EndDayRequest {
   endTime: string;
   forceClose?: boolean;
+  date?: string;
+  kmStandStart?: string;
   kmStandEnd?: string;
 }
 
@@ -126,6 +129,8 @@ class DayTrackingService {
           gebietsleiter_id: glId,
           end_time: options.endTime,
           force_close: options.forceClose || false,
+          tracking_date: options.date,
+          km_stand_start: options.kmStandStart,
           km_stand_end: options.kmStandEnd,
         }),
       });
@@ -166,6 +171,34 @@ class DayTrackingService {
       return response.json();
     } catch (error) {
       console.error('Error getting day status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the oldest still-active day before today. Starting a newer day must wait
+   * until this record is closed with both KM stands.
+   */
+  async getPendingClosure(glId: string): Promise<DayTracking | null> {
+    try {
+      const response = await fetch(`${DAY_TRACKING_API}/pending-closure/${glId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get pending day closure');
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Error getting pending day closure:', error);
       throw error;
     }
   }
@@ -254,7 +287,7 @@ class DayTrackingService {
   /**
    * Update day tracking times (day_start_time or day_end_time)
    */
-  async updateDayTimes(glId: string, date: string, times: { day_start_time?: string; day_end_time?: string }): Promise<DayTracking> {
+  async updateDayTimes(glId: string, date: string, times: { day_start_time?: string; day_end_time?: string; km_stand_start?: number; km_stand_end?: number }): Promise<DayTracking> {
     try {
       const response = await fetch(`${DAY_TRACKING_API}/update-times`, {
         method: 'PATCH',
@@ -304,7 +337,7 @@ class DayTrackingService {
   /**
    * Update km_stand_start on today's active day tracking record
    */
-  async updateKmStandStart(glId: string, kmStandStart: string): Promise<void> {
+  async updateKmStandStart(glId: string, kmStandStart: string): Promise<DayTracking> {
     try {
       const response = await fetch(`${DAY_TRACKING_API}/update-km-start`, {
         method: 'PATCH',
@@ -321,6 +354,7 @@ class DayTrackingService {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to update km_stand_start');
       }
+      return response.json();
     } catch (error) {
       console.error('Error updating km_stand_start:', error);
       throw error;
