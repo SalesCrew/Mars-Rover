@@ -2116,6 +2116,82 @@
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
+.veModeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  border-radius: var(--radius-md);
+}
+
+.veModeText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.veModeTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.veModeDescription {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.veModeToggle {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--color-stroke);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-secondary);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.veModeToggleActive {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.veModeKnob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: white;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.veModeToggleActive .veModeKnob {
+  transform: translateX(18px);
+  background: #10B981;
+}
+
+.veModeItemCard {
+  background: rgba(16, 185, 129, 0.07);
+  border-color: rgba(16, 185, 129, 0.26);
+  box-shadow: inset 3px 0 0 rgba(16, 185, 129, 0.42);
+}
+
+.veModeItemCard:hover {
+  border-color: rgba(16, 185, 129, 0.42);
+  box-shadow: inset 3px 0 0 rgba(16, 185, 129, 0.52), 0 2px 8px rgba(16, 185, 129, 0.12);
+}
+
 .itemInfo {
   flex: 1;
   display: flex;
@@ -2331,6 +2407,17 @@
 
 .productCard:hover {
   border-color: rgba(139, 92, 246, 0.3);
+}
+
+.productCard.veModeItemCard {
+  background: rgba(16, 185, 129, 0.07);
+  border-color: rgba(16, 185, 129, 0.26);
+  box-shadow: inset 3px 0 0 rgba(16, 185, 129, 0.42);
+}
+
+.productCard.veModeItemCard:hover {
+  border-color: rgba(16, 185, 129, 0.42);
+  box-shadow: inset 3px 0 0 rgba(16, 185, 129, 0.52), 0 2px 8px rgba(16, 185, 129, 0.12);
 }
 
 .productInfo {
