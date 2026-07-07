@@ -338,6 +338,12 @@
   color: var(--color-text-secondary);
 }
 
+.articleNumber {
+  margin-left: var(--space-xs);
+  opacity: 0.62;
+  white-space: nowrap;
+}
+
 .productPriceInfo {
   display: flex;
   align-items: center;
@@ -1582,4 +1588,3 @@
 .completed .productInfo {
   opacity: 0.6;
 }
-

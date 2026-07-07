@@ -3,6 +3,7 @@ import { FunnelSimple, X, MagnifyingGlass, Package, CaretDown, SortAscending, So
 import { getAllProducts, deleteProduct, updateProduct } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
 import { ProduktUpdateModal } from './ProduktUpdateModal';
+import { getProductArticleLabel } from '../../utils/productArticle';
 import styles from './ProductsPage.module.css';
 
 type FilterType = 'department' | 'productType' | 'weight' | 'price';
@@ -751,7 +752,14 @@ export const ProductsPage: React.FC = () => {
               >
                 {/* Name */}
                 <div className={styles.productCell}>
-                  <span className={styles.productName}>{product.name}</span>
+                  <span className={styles.productName}>
+                    {product.name}
+                    {getProductArticleLabel(product) && (
+                      <span className={styles.articleNumber}>
+                        {getProductArticleLabel(product)}
+                      </span>
+                    )}
+                  </span>
                 </div>
 
                 {/* Department */}

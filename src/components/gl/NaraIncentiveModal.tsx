@@ -9,6 +9,7 @@ import { getAllProducts } from '../../services/productService';
 import { naraIncentiveService } from '../../services/naraIncentiveService';
 import type { Market } from '../../types/market-types';
 import type { Product, ProductWithQuantity } from '../../types/product-types';
+import { getProductArticleLabel, productMatchesSearch } from '../../utils/productArticle';
 import styles from './NaraIncentiveModal.module.css';
 
 interface NaraIncentiveModalProps {
@@ -94,15 +95,8 @@ export const NaraIncentiveModal: React.FC<NaraIncentiveModalProps> = ({ isOpen, 
   const selectedMarket = useMemo(() => allMarkets.find(m => m.id === selectedMarketId) || null, [allMarkets, selectedMarketId]);
 
   const filteredProducts = useMemo(() => {
-    const q = productSearch.toLowerCase().trim();
     let list = allProducts.filter(p => p.productType === 'standard');
-    if (q) {
-      list = list.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        (p.weight || '').toLowerCase().includes(q) ||
-        (p.sku || '').toLowerCase().includes(q)
-      );
-    }
+    list = list.filter(p => productMatchesSearch(p, productSearch, [p.weight, p.sku]));
     return list;
   }, [allProducts, productSearch]);
 
@@ -308,6 +302,11 @@ export const NaraIncentiveModal: React.FC<NaraIncentiveModalProps> = ({ isOpen, 
                             <div className={styles.bundleProductName}>{p.product.name}</div>
                             <div className={styles.bundleProductMeta}>
                               {p.product.weight || p.product.content || '-'}
+                              {getProductArticleLabel(p.product) && (
+                                <span className={styles.articleNumber}>
+                                  {getProductArticleLabel(p.product)}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className={styles.quantityControls}>
@@ -381,6 +380,11 @@ export const NaraIncentiveModal: React.FC<NaraIncentiveModalProps> = ({ isOpen, 
                               <div className={styles.catalogItemMeta}>
                                 {product.weight || product.content || '-'}
                                 {product.palletSize ? ` · ${product.palletSize} Stk` : ''}
+                                {getProductArticleLabel(product) && (
+                                  <span className={styles.articleNumber}>
+                                    {getProductArticleLabel(product)}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className={styles.catalogItemRight}>
@@ -456,6 +460,11 @@ export const NaraIncentiveModal: React.FC<NaraIncentiveModalProps> = ({ isOpen, 
                   </div>
                   <div className={styles.successDetailText}>
                     {p.quantity}x {p.product.name}
+                    {getProductArticleLabel(p.product) && (
+                      <span className={styles.articleNumber}>
+                        {getProductArticleLabel(p.product)}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}

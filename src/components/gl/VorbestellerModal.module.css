@@ -2355,6 +2355,12 @@
   color: var(--color-text-tertiary);
 }
 
+.articleNumber {
+  margin-left: var(--space-xs);
+  opacity: 0.62;
+  white-space: nowrap;
+}
+
 .departmentBadge {
   display: inline-flex;
   align-items: center;

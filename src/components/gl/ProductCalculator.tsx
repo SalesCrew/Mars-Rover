@@ -11,6 +11,7 @@ import { RingLoader } from 'react-spinners';
 import { ExchangeSuccessModal } from './ExchangeSuccessModal';
 import { MarketVisitChoiceModal } from './MarketVisitChoiceModal';
 import { VorbestellerDeliveryPhotoModal } from './VorbestellerDeliveryPhotoModal';
+import { getProductArticleLabel, productMatchesSearch } from '../../utils/productArticle';
 import styles from './ProductCalculator.module.css';
 
 // Check if a date is within 3 weeks (21 days) from now
@@ -125,25 +126,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
 
   // Filter products based on search query
   const filteredRemovedProducts = useMemo(() => {
-    const query = removedSearchQuery.toLowerCase().trim();
-    if (!query) return allProductsWithArchived;
-    
-    return allProductsWithArchived.filter(p => 
-      p.name.toLowerCase().includes(query) ||
-      p.department.toLowerCase().includes(query) ||
-      (p.sku && p.sku.toLowerCase().includes(query))
-    );
+    return allProductsWithArchived.filter(p => productMatchesSearch(p, removedSearchQuery, [p.department, p.sku]));
   }, [removedSearchQuery, allProductsWithArchived]);
 
   const filteredAvailableProducts = useMemo(() => {
-    const query = availableSearchQuery.toLowerCase().trim();
-    if (!query) return allProducts;
-    
-    return allProducts.filter(p => 
-      p.name.toLowerCase().includes(query) ||
-      p.department.toLowerCase().includes(query) ||
-      (p.sku && p.sku.toLowerCase().includes(query))
-    );
+    return allProducts.filter(p => productMatchesSearch(p, availableSearchQuery, [p.department, p.sku]));
   }, [availableSearchQuery, allProducts]);
 
   const groupedRemovedProducts = useMemo(() => {
@@ -168,14 +155,7 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
 
   // Filter products for custom card dropdown
   const filteredCustomProducts = useMemo(() => {
-    const query = customSearchQuery.toLowerCase().trim();
-    if (!query) return allProducts;
-    
-    return allProducts.filter(p => 
-      p.name.toLowerCase().includes(query) ||
-      p.department.toLowerCase().includes(query) ||
-      (p.sku && p.sku.toLowerCase().includes(query))
-    );
+    return allProducts.filter(p => productMatchesSearch(p, customSearchQuery, [p.department, p.sku]));
   }, [customSearchQuery, allProducts]);
 
   const groupedCustomProducts = useMemo(() => {
@@ -1024,6 +1004,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                   </div>
                                   <div className={styles.productDetails}>
                                     {product.weight || product.content || '-'}
+                                    {getProductArticleLabel(product) && (
+                                      <span className={styles.articleNumber}>
+                                        {getProductArticleLabel(product)}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className={styles.productPriceInfo}>
@@ -1056,6 +1041,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                           <div className={styles.productCardMeta}>
                             {p.product.weight || p.product.content || '-'}
                             {p.product.content && ` · VE: ${p.product.content}`}
+                            {getProductArticleLabel(p.product) && (
+                              <span className={styles.articleNumber}>
+                                {getProductArticleLabel(p.product)}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className={styles.quantityControls}>
@@ -1156,6 +1146,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                   <div className={styles.productName}>{product.name}</div>
                                   <div className={styles.productDetails}>
                                     {product.weight || product.content || '-'}
+                                    {getProductArticleLabel(product) && (
+                                      <span className={styles.articleNumber}>
+                                        {getProductArticleLabel(product)}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className={styles.productPriceInfo}>
@@ -1183,6 +1178,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                           <div className={styles.productCardMeta}>
                             {p.product.weight || p.product.content || '-'}
                             {p.product.content && ` · VE: ${p.product.content}`}
+                            {getProductArticleLabel(p.product) && (
+                              <span className={styles.articleNumber}>
+                                {getProductArticleLabel(p.product)}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className={styles.quantityControls}>
@@ -1324,6 +1324,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                             <div className={styles.productDetails}>
                                               {product.weight || '-'}
                                               {product.content && ` · VE: ${product.content}`}
+                                              {getProductArticleLabel(product) && (
+                                                <span className={styles.articleNumber}>
+                                                  {getProductArticleLabel(product)}
+                                                </span>
+                                              )}
                                             </div>
                                           </div>
                                           <div className={styles.productPriceInfo}>
@@ -1351,6 +1356,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                   <div className={styles.customProductName}>{p.product.name}</div>
                                   <div className={styles.customProductMeta}>
                                     {p.product.weight || p.product.content || '-'}
+                                    {getProductArticleLabel(p.product) && (
+                                      <span className={styles.articleNumber}>
+                                        {getProductArticleLabel(p.product)}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className={styles.quantityControls}>
@@ -1427,6 +1437,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                 <div className={styles.suggestionProductMeta}>
                                   {p.product.weight || p.product.content || '-'}
                                   {p.product.content && ` · VE: ${p.product.content}`}
+                                  {getProductArticleLabel(p.product) && (
+                                    <span className={styles.articleNumber}>
+                                      {getProductArticleLabel(p.product)}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               <div className={styles.suggestionProductPrice}>
@@ -1491,6 +1506,11 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                                 <div className={styles.suggestionProductMeta}>
                                   {p.product.weight || p.product.content || '-'}
                                   {p.product.content && ` · VE: ${p.product.content}`}
+                                  {getProductArticleLabel(p.product) && (
+                                    <span className={styles.articleNumber}>
+                                      {getProductArticleLabel(p.product)}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               <div className={styles.suggestionProductPrice}>
@@ -1799,7 +1819,14 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                     {removedProducts.map(p => (
                       <div key={p.product.id} className={styles.exchangeProductItem}>
                         <span className={styles.exchangeQuantity}>{p.quantity}x</span>
-                        <span className={styles.exchangeProductName}>{p.product.name}</span>
+                        <span className={styles.exchangeProductName}>
+                          {p.product.name}
+                          {getProductArticleLabel(p.product) && (
+                            <span className={styles.articleNumber}>
+                              {getProductArticleLabel(p.product)}
+                            </span>
+                          )}
+                        </span>
                         <span className={styles.exchangePrice}>{formatPrice(p.product.price * p.quantity)}</span>
                       </div>
                     ))}
@@ -1819,7 +1846,14 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
                     {selectedSuggestion.products.map(p => (
                       <div key={p.product.id} className={styles.exchangeProductItem}>
                         <span className={styles.exchangeQuantity}>{p.quantity}x</span>
-                        <span className={styles.exchangeProductName}>{p.product.name}</span>
+                        <span className={styles.exchangeProductName}>
+                          {p.product.name}
+                          {getProductArticleLabel(p.product) && (
+                            <span className={styles.articleNumber}>
+                              {getProductArticleLabel(p.product)}
+                            </span>
+                          )}
+                        </span>
                         <span className={styles.exchangePrice}>{formatPrice(p.product.price * p.quantity)}</span>
                       </div>
                     ))}
@@ -1940,4 +1974,3 @@ export const ProductCalculator: React.FC<ProductCalculatorProps> = ({ isOpen, on
     </div>
   );
 };
-

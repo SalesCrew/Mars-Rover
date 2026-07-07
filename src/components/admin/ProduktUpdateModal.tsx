@@ -6,6 +6,7 @@ import { CreateDisplayModal } from './CreateDisplayModal';
 import { readExcelSheetNames } from '../../utils/productImporter';
 import { refreshProducts } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
+import { getProductArticleLabel, productMatchesSearch } from '../../utils/productArticle';
 import { API_BASE_URL } from '../../config/database';
 import styles from './ProduktUpdateModal.module.css';
 
@@ -81,14 +82,12 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return products;
-    const q = searchQuery.toLowerCase();
-    return products.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      (p.department === 'pets' ? 'tiernahrung' : 'lebensmittel').includes(q) ||
-      p.productType.toLowerCase().includes(q) ||
-      (p.weight ?? '').toLowerCase().includes(q) ||
-      (p.content ?? '').toLowerCase().includes(q)
-    );
+    return products.filter(p => productMatchesSearch(p, searchQuery, [
+      p.department === 'pets' ? 'tiernahrung' : 'lebensmittel',
+      p.productType,
+      p.weight,
+      p.content,
+    ]));
   }, [products, searchQuery]);
 
   const visibleProducts = useMemo(() => {
@@ -569,7 +568,14 @@ export const ProduktUpdateModal: React.FC<ProduktUpdateModalProps> = ({ isOpen, 
                   const color = getDeptColor(p.department);
                   return (
                     <div key={p.id} className={styles.tableRow}>
-                      <span className={styles.productName}>{p.name}</span>
+                      <span className={styles.productName}>
+                        {p.name}
+                        {getProductArticleLabel(p) && (
+                          <span className={styles.articleNumber}>
+                            {getProductArticleLabel(p)}
+                          </span>
+                        )}
+                      </span>
                       <span>
                         <button
                           className={styles.deptBadge}

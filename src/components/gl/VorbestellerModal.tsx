@@ -11,6 +11,7 @@ import { MarketVisitChoiceModal } from './MarketVisitChoiceModal';
 import { VorbestellerDeliveryPhotoModal } from './VorbestellerDeliveryPhotoModal';
 import { getAllProducts } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
+import { getProductArticleLabel, productMatchesSearch } from '../../utils/productArticle';
 
 interface VorbestellerModalProps {
   isOpen: boolean;
@@ -754,9 +755,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   };
 
   const matchesProductSearch = (product: Product): boolean => {
-    if (!normalizedProductSearchQuery) return true;
-    return [product.name, product.artikelNr]
-      .some(value => String(value ?? '').toLowerCase().includes(normalizedProductSearchQuery));
+    return productMatchesSearch(product, normalizedProductSearchQuery);
   };
 
   if (!isOpen) return null;
@@ -1560,6 +1559,11 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     {product.weight && `${product.weight}`}
                                     {product.price > 0 && ` · €${product.price.toFixed(2)}`}
                                     {typeof product.palletSize === 'number' && product.palletSize > 0 && ` · VE: ${product.palletSize}`}
+                                    {getProductArticleLabel(product) && (
+                                      <span className={styles.articleNumber}>
+                                        {getProductArticleLabel(product)}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className={styles.quantityControls}>

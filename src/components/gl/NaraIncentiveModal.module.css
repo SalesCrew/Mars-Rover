@@ -429,6 +429,12 @@
   font-weight: 500;
 }
 
+.articleNumber {
+  margin-left: 6px;
+  opacity: 0.62;
+  white-space: nowrap;
+}
+
 .quantityControls {
   display: flex;
   align-items: center;

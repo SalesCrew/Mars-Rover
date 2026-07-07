@@ -7,6 +7,7 @@ import { vorverkaufService } from '../../services/vorverkaufService';
 import { marketService } from '../../services/marketService';
 import { wellenService, type PendingDeliverySubmission } from '../../services/wellenService';
 import { getAllProducts } from '../../data/productsData';
+import { getProductArticleLabel, productMatchesSearch } from '../../utils/productArticle';
 import styles from './VorverkaufModal.module.css';
 import { MarketVisitChoiceModal } from './MarketVisitChoiceModal';
 import { VorbestellerDeliveryPhotoModal } from './VorbestellerDeliveryPhotoModal';
@@ -205,13 +206,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
 
   // Filter and group products by category
   const filteredProducts = useMemo(() => {
-    const query = productSearchQuery.toLowerCase().trim();
-    if (!query) return allProducts;
-    
-    return allProducts.filter(p => 
-      p.name.toLowerCase().includes(query) ||
-      (p.sku && p.sku.toLowerCase().includes(query))
-    );
+    return allProducts.filter(p => productMatchesSearch(p, productSearchQuery, [p.sku]));
   }, [productSearchQuery, allProducts]);
 
   // Group products by department + productType
@@ -530,6 +525,11 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                       </div>
                       <div className={styles.successDetailText}>
                         {p.product.name}: {p.quantity}x
+                        {getProductArticleLabel(p.product) && (
+                          <span className={styles.articleNumber}>
+                            {getProductArticleLabel(p.product)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -602,6 +602,11 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                                   <div className={styles.productName}>{product.name}</div>
                                   <div className={styles.productDetails}>
                                     {product.weight}
+                                    {getProductArticleLabel(product) && (
+                                      <span className={styles.articleNumber}>
+                                        {getProductArticleLabel(product)}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className={styles.productPriceInfo}>
@@ -626,6 +631,11 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                         <div className={styles.productCardName}>{p.product.name}</div>
                         <div className={styles.productCardMeta}>
                           {p.product.weight}
+                          {getProductArticleLabel(p.product) && (
+                            <span className={styles.articleNumber}>
+                              {getProductArticleLabel(p.product)}
+                            </span>
+                          )}
                         </div>
                         {/* Individual reason selector */}
                         {useIndividualReasons && (
@@ -918,7 +928,14 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                         <span className={styles.confirmProductQty}>{p.quantity}x</span>
                         <div className={styles.confirmProductDetails}>
                           <div className={styles.confirmProductName}>{p.product.name}</div>
-                          <div className={styles.confirmProductMeta}>{p.product.weight}</div>
+                          <div className={styles.confirmProductMeta}>
+                            {p.product.weight}
+                            {getProductArticleLabel(p.product) && (
+                              <span className={styles.articleNumber}>
+                                {getProductArticleLabel(p.product)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className={styles.confirmProductRight}>

@@ -495,9 +495,19 @@
 }
 
 .productName {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.articleNumber {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  opacity: 0.62;
 }
 
 .categoryBadge {
