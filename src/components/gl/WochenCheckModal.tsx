@@ -214,6 +214,20 @@ interface DayGroup {
   reineArbeitszeit?: string;
 }
 
+type DayTimeField = 'start' | 'end';
+
+interface WeekValidationIssue {
+  id: string;
+  date: string;
+  dateLabel: string;
+  field: DayTimeField | null;
+  title: string;
+  details: string[];
+  fixLabel?: string;
+  timeValue: string;
+  kmValue: string;
+}
+
 interface WochenCheckModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -560,6 +574,88 @@ export const WochenCheckModal: React.FC<WochenCheckModalProps> = ({ isOpen, onCl
     return entries.filter(isEntryUnrealistic).length;
   }, [entries]);
 
+  const weekValidationIssues = useMemo((): WeekValidationIssue[] => {
+    const issues: WeekValidationIssue[] = [];
+
+    dayGroups.forEach(group => {
+      if (group.entries.length === 0) return;
+
+      const tracking = group.dayTracking;
+      if (!tracking) {
+        issues.push({
+          id: `${group.date}-missing-tracking`,
+          date: group.date,
+          dateLabel: group.dateLabel,
+          field: null,
+          title: 'Tagesdaten fehlen',
+          details: ['Start, Ende und KM wurden fuer diesen Tag nicht gefunden. Bitte im Zeitverlauf pruefen oder Admin melden.'],
+          timeValue: '',
+          kmValue: '',
+        });
+        return;
+      }
+
+      const startDetails: string[] = [];
+      if (!tracking.day_start_time) startDetails.push('Startzeit fehlt');
+      if (tracking.km_stand_start == null) startDetails.push('Start-KM fehlt');
+      if (startDetails.length > 0) {
+        issues.push({
+          id: `${group.date}-start`,
+          date: group.date,
+          dateLabel: group.dateLabel,
+          field: 'start',
+          title: 'Tagesstart unvollstaendig',
+          details: startDetails,
+          fixLabel: 'Start korrigieren',
+          timeValue: tracking.day_start_time ? formatTimeShort(tracking.day_start_time) : '',
+          kmValue: tracking.km_stand_start != null ? String(Math.round(tracking.km_stand_start)) : '',
+        });
+      }
+
+      const endDetails: string[] = [];
+      if (!tracking.day_end_time) endDetails.push('Endzeit fehlt');
+      if (tracking.km_stand_end == null) endDetails.push('End-KM fehlt');
+      if (endDetails.length > 0) {
+        issues.push({
+          id: `${group.date}-end`,
+          date: group.date,
+          dateLabel: group.dateLabel,
+          field: 'end',
+          title: 'Tagesende unvollstaendig',
+          details: endDetails,
+          fixLabel: 'Ende korrigieren',
+          timeValue: tracking.day_end_time ? formatTimeShort(tracking.day_end_time) : '',
+          kmValue: tracking.km_stand_end != null ? String(Math.round(tracking.km_stand_end)) : '',
+        });
+      }
+    });
+
+    return issues;
+  }, [dayGroups]);
+
+  const issuesByDate = useMemo(() => {
+    return weekValidationIssues.reduce<Record<string, WeekValidationIssue[]>>((acc, issue) => {
+      if (!acc[issue.date]) acc[issue.date] = [];
+      acc[issue.date].push(issue);
+      return acc;
+    }, {});
+  }, [weekValidationIssues]);
+
+  const handleFixValidationIssue = (issue: WeekValidationIssue) => {
+    if (!issue.field) return;
+    setEditingId(null);
+    setConfirmDeleteId(null);
+    setEditingDayTime({ date: issue.date, field: issue.field });
+    setEditDayTimeValue(issue.timeValue);
+    setEditKmValue(issue.kmValue);
+    setEditDayTimePicker(false);
+
+    window.setTimeout(() => {
+      const dayElement = contentRef.current?.querySelector(`[data-day="${issue.date}"]`);
+      dayElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 0);
+  };
+
   // Edit handlers
   const handleEditClick = (id: string, entry: TimeEntry) => {
     setEditingId(id);
@@ -665,6 +761,11 @@ export const WochenCheckModal: React.FC<WochenCheckModalProps> = ({ isOpen, onCl
         ? currentTracking?.km_stand_start == null
         : currentTracking?.km_stand_end == null;
 
+      if (editingDayTime.field === 'end' && (!currentTracking?.day_start_time || currentTracking?.km_stand_start == null)) {
+        alert('Bitte zuerst Startzeit und Start-KM korrigieren');
+        return;
+      }
+
       if (isKmMissing && kmNum === null) {
         alert('Bitte KM-Stand eingeben');
         return;
@@ -753,6 +854,42 @@ export const WochenCheckModal: React.FC<WochenCheckModalProps> = ({ isOpen, onCl
 
         {/* Content */}
         <div className={styles.content} ref={contentRef} onScroll={handleScroll}>
+          {!loading && weekValidationIssues.length > 0 && (
+            <div className={styles.validationBanner}>
+              <div className={styles.validationHeader}>
+                <WarningCircle size={20} weight="fill" className={styles.validationIcon} />
+                <div>
+                  <div className={styles.validationTitle}>Fehlende Tagesdaten gefunden</div>
+                  <div className={styles.validationText}>
+                    Bitte korrigiere diese Angaben, bevor du die Woche bestaetigst.
+                  </div>
+                </div>
+              </div>
+              <div className={styles.validationList}>
+                {weekValidationIssues.map(issue => (
+                  <div key={issue.id} className={styles.validationIssueRow}>
+                    <div className={styles.validationIssueInfo}>
+                      <span className={styles.validationIssueDate}>{issue.dateLabel}</span>
+                      <span className={styles.validationIssueText}>
+                        {issue.title}: {issue.details.join(', ')}
+                      </span>
+                    </div>
+                    {issue.field && (
+                      <button
+                        type="button"
+                        className={styles.validationFixButton}
+                        onClick={() => handleFixValidationIssue(issue)}
+                      >
+                        <PencilSimple size={14} weight="bold" />
+                        {issue.fixLabel}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className={styles.entriesList}>
             {loading ? (
               <div className={styles.loadingContainer}>
@@ -765,7 +902,7 @@ export const WochenCheckModal: React.FC<WochenCheckModalProps> = ({ isOpen, onCl
                 <span>Keine Zeiteinträge für letzte Woche</span>
               </div>
             ) : dayGroups.map((group) => (
-              <div key={group.date} className={styles.dayGroup}>
+              <div key={group.date} className={styles.dayGroup} data-day={group.date}>
                 <div className={styles.dayHeader}>
                   <span className={styles.dayLabel}>{group.dateLabel}</span>
                   <div className={styles.dayLine} />
@@ -819,12 +956,34 @@ export const WochenCheckModal: React.FC<WochenCheckModalProps> = ({ isOpen, onCl
                     timelineItems.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
                     const renderedItems: React.ReactNode[] = [];
+                    const dayIssues = issuesByDate[group.date] || [];
+
+                    dayIssues.forEach(issue => {
+                      renderedItems.push(
+                        <div key={`validation-${issue.id}`} className={styles.validationCard}>
+                          <WarningCircle size={18} weight="fill" className={styles.validationIcon} />
+                          <div className={styles.validationCardBody}>
+                            <div className={styles.validationCardTitle}>{issue.title}</div>
+                            <div className={styles.validationCardDetails}>{issue.details.join(', ')}</div>
+                          </div>
+                          {issue.field && (
+                            <button
+                              type="button"
+                              className={styles.validationCardAction}
+                              onClick={() => handleFixValidationIssue(issue)}
+                            >
+                              {issue.fixLabel}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    });
 
                     // Anfahrt
-                    if (dayTracking?.day_start_time && !dayTracking.skipped_first_fahrzeit && timelineItems.length > 0) {
+                    const isEditingAnfahrt = editingDayTime?.date === group.date && editingDayTime?.field === 'start';
+                    if (dayTracking && !dayTracking.skipped_first_fahrzeit && timelineItems.length > 0 && (dayTracking.day_start_time || isEditingAnfahrt)) {
                       const firstItem = timelineItems[0];
-                      const isEditingAnfahrt = editingDayTime?.date === group.date && editingDayTime?.field === 'start';
-                      const anfahrtMinutes = calcGapMinutes(dayTracking.day_start_time, firstItem.startTime);
+                      const anfahrtMinutes = dayTracking.day_start_time ? calcGapMinutes(dayTracking.day_start_time, firstItem.startTime) : 0;
                       if (anfahrtMinutes > 0 || isEditingAnfahrt) {
                         renderedItems.push(
                           <div key="anfahrt" className={styles.fahrzeitCard}>
@@ -1068,10 +1227,10 @@ export const WochenCheckModal: React.FC<WochenCheckModalProps> = ({ isOpen, onCl
                     });
 
                     // Heimfahrt
-                    if (dayTracking?.day_end_time && timelineItems.length > 0) {
+                    const isEditingHeimfahrt = editingDayTime?.date === group.date && editingDayTime?.field === 'end';
+                    if (dayTracking && timelineItems.length > 0 && (dayTracking.day_end_time || isEditingHeimfahrt)) {
                       const lastItem = timelineItems[timelineItems.length - 1];
-                      const isEditingHeimfahrt = editingDayTime?.date === group.date && editingDayTime?.field === 'end';
-                      const heimfahrtMinutes = calcGapMinutes(lastItem.endTime, dayTracking.day_end_time);
+                      const heimfahrtMinutes = dayTracking.day_end_time ? calcGapMinutes(lastItem.endTime, dayTracking.day_end_time) : 0;
                       if (heimfahrtMinutes > 0 || isEditingHeimfahrt) {
                         renderedItems.push(
                           <div key="heimfahrt" className={styles.fahrzeitCard}>
@@ -1128,10 +1287,15 @@ export const WochenCheckModal: React.FC<WochenCheckModalProps> = ({ isOpen, onCl
         <div className={styles.confirmBar}>
           <button
             className={styles.confirmButton}
-            disabled={!hasScrolledToBottom}
+            disabled={!hasScrolledToBottom || weekValidationIssues.length > 0}
             onClick={() => setShowConfirmDialog(true)}
           >
-            {hasScrolledToBottom ? (
+            {weekValidationIssues.length > 0 ? (
+              <>
+                <WarningCircle size={18} weight="bold" />
+                Bitte fehlende Tagesdaten korrigieren
+              </>
+            ) : hasScrolledToBottom ? (
               <>
                 <ShieldCheck size={18} weight="bold" />
                 Zeiteinträge bestätigen

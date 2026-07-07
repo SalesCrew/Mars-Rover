@@ -136,6 +136,150 @@
   font-weight: 500;
 }
 
+/* Missing day data validation */
+.validationBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-left: 3px solid #EF4444;
+  border-radius: 12px;
+}
+
+.validationHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.validationIcon {
+  color: #DC2626;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.validationTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #991B1B;
+}
+
+.validationText {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #B91C1C;
+}
+
+.validationList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.validationIssueRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(239, 68, 68, 0.12);
+  border-radius: 9px;
+}
+
+.validationIssueInfo {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.validationIssueDate {
+  font-size: 11px;
+  font-weight: 700;
+  color: #991B1B;
+  white-space: nowrap;
+}
+
+.validationIssueText {
+  font-size: 12px;
+  font-weight: 500;
+  color: #7F1D1D;
+}
+
+.validationFixButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 8px;
+  background: white;
+  color: #B91C1C;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.validationFixButton:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(220, 38, 38, 0.34);
+}
+
+.validationCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  background: rgba(254, 242, 242, 0.8);
+  border: 1px solid rgba(252, 165, 165, 0.45);
+  border-left: 3px solid #EF4444;
+  border-radius: 10px;
+}
+
+.validationCardBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.validationCardTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #991B1B;
+}
+
+.validationCardDetails {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #B91C1C;
+}
+
+.validationCardAction {
+  min-height: 30px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: #DC2626;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.validationCardAction:hover {
+  background: #B91C1C;
+}
+
 /* Content */
 .content {
   padding: 20px 24px;
@@ -1091,6 +1235,17 @@
   .editRow label {
     width: 100%;
     margin-bottom: 4px;
+  }
+
+  .validationIssueRow,
+  .validationCard {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .validationFixButton,
+  .validationCardAction {
+    width: 100%;
   }
 }
 
