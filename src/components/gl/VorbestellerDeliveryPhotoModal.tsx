@@ -58,6 +58,16 @@ export const VorbestellerDeliveryPhotoModal: React.FC<VorbestellerDeliveryPhotoM
 
   const formattedDate = formatDateGerman(lastVisitDate);
   const photosCount = Object.keys(photosBySubmission).length;
+  const formatItemMeta = (submission: PendingDeliverySubmission): string => {
+    const parts: string[] = [];
+    if (submission.artikelNr && String(submission.artikelNr).trim() !== '') {
+      parts.push(`Art.-Nr. ${submission.artikelNr}`);
+    }
+    if (submission.ve !== null && submission.ve !== undefined && String(submission.ve).trim() !== '') {
+      parts.push(`VE: ${submission.ve}`);
+    }
+    return parts.join(' · ');
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -179,6 +189,9 @@ export const VorbestellerDeliveryPhotoModal: React.FC<VorbestellerDeliveryPhotoM
                         <Package size={14} weight="fill" />
                         <span className={styles.itemQty}>{submission.quantity}x</span>
                         <span className={styles.itemName}>{submission.itemName}</span>
+                        {submission.itemType === 'einzelprodukt' && formatItemMeta(submission) && (
+                          <span className={styles.itemMeta}>{formatItemMeta(submission)}</span>
+                        )}
                         <span className={`${styles.itemType} ${submission.itemType === 'palette' ? styles.itemTypePalette : submission.itemType === 'schuette' ? styles.itemTypeSchuette : submission.itemType === 'einzelprodukt' ? styles.itemTypeEinzelprodukt : ''}`}>
                           {getItemTypeLabel(submission.itemType)}
                         </span>

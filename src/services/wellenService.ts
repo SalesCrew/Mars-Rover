@@ -27,6 +27,7 @@ export interface WelleEinzelprodukt {
   currentNumber?: number;
   picture: string | null;
   itemValue?: number | null;
+  artikelNr?: string | null;
   ve?: number | string | null;
 }
 
@@ -169,6 +170,8 @@ export interface CreateWelleDTO {
     targetNumber: number;
     picture: string | null;
     itemValue?: number | null;
+    artikelNr?: string | null;
+    ve?: number | string | null;
   }>;
   kwDays: Array<{
     kw: string;
@@ -686,6 +689,8 @@ export interface PendingDeliverySubmission {
   id: string;
   itemName: string;
   itemType: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt';
+  artikelNr?: string | null;
+  ve?: number | string | null;
   quantity: number;
   welleName: string;
   createdAt: string;

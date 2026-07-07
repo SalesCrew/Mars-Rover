@@ -157,6 +157,8 @@ interface GLProgress {
   marketCity: string;
   itemType: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt';
   itemName: string;
+  artikelNr?: string | null;
+  ve?: number | string | null;
   quantity: number;
   value: number;
   timestamp: string;
@@ -204,6 +206,17 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
   const [adminLoadingData, setAdminLoadingData] = useState(false);
   const [adminSuccess, setAdminSuccess] = useState(false);
   const adminFotoInputRef = useRef<HTMLInputElement>(null);
+
+  const formatArticleVeMeta = (item: { artikelNr?: string | null; ve?: number | string | null }): string => {
+    const parts: string[] = [];
+    if (item.artikelNr && String(item.artikelNr).trim() !== '') {
+      parts.push(`Art.-Nr. ${item.artikelNr}`);
+    }
+    if (item.ve !== null && item.ve !== undefined && String(item.ve).trim() !== '') {
+      parts.push(`VE: ${item.ve}`);
+    }
+    return parts.join(' · ');
+  };
 
   const toggleGL = (glName: string) => {
     setCollapsedGLs(prev => {
@@ -738,6 +751,9 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                 <span className={`${styles.itemType} ${progress.itemType === 'palette' ? styles.itemTypePalette : progress.itemType === 'schuette' ? styles.itemTypeSchuette : progress.itemType === 'einzelprodukt' ? styles.itemTypeEinzelprodukt : ''}`}>
                   {getItemTypeLabel(progress.itemType)}
                 </span>
+                {progress.itemType === 'einzelprodukt' && formatArticleVeMeta(progress) && (
+                  <span className={styles.itemMetaInline}>{formatArticleVeMeta(progress)}</span>
+                )}
                 {progress.products && progress.products.length > 0 && (
                   <span className={styles.expandIndicator}>
                     {expandedItems.has(progress.id) ? '▼' : '▶'} {progress.products.length} Produkte
@@ -1241,6 +1257,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                           <div key={item.id} className={styles.adminItemRow}>
                             <div className={styles.adminItemRowInfo}>
                               <span className={styles.adminItemRowName}>{item.name}</span>
+                              {formatArticleVeMeta(item) && <span className={styles.adminItemRowMeta}>{formatArticleVeMeta(item)}</span>}
                               {(item.itemValue || 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.itemValue || 0).toFixed(2)}/Stk</span>}
                             </div>
                             <div className={styles.adminItemRowControls}>

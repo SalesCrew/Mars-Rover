@@ -246,10 +246,13 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   };
 
   const renderItemMeta = (
-    item: { itemValue?: number | null },
+    item: { itemValue?: number | null; artikelNr?: string | null },
     ve?: number | string | null
   ): string => {
     const parts: string[] = [];
+    if (item.artikelNr && String(item.artikelNr).trim() !== '') {
+      parts.push(`Art.-Nr. ${item.artikelNr}`);
+    }
     if (item.itemValue !== null && item.itemValue !== undefined) {
       parts.push(`€${item.itemValue.toFixed(2)} / Stück`);
     }
@@ -1472,12 +1475,12 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
 
                 {/* Einzelprodukte Section */}
                 {selectedVorbesteller?.einzelproduktItems && selectedVorbesteller.einzelproduktItems.filter(e =>
-                  matchesUnifiedItemSearch(e.name)
+                  matchesUnifiedItemSearch(e.name, e.artikelNr, e.ve)
                 ).length > 0 && (
                   <div className={styles.itemsGroup}>
                     <div className={styles.itemsGroupLabel}>Einzelprodukte</div>
                     {selectedVorbesteller.einzelproduktItems.filter(e =>
-                      matchesUnifiedItemSearch(e.name)
+                      matchesUnifiedItemSearch(e.name, e.artikelNr, e.ve)
                     ).map((item) => (
                       <div key={item.id} className={styles.itemCard}>
                         <div className={styles.itemInfo}>

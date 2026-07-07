@@ -58,6 +58,8 @@ interface EinzelproduktItem {
   currentNumber?: number;
   picture?: string | null;
   itemValue?: number | null;
+  artikelNr?: string | null;
+  ve?: number | string | null;
 }
 
 interface Welle {
@@ -99,6 +101,16 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const formatEinzelproduktMeta = (item: EinzelproduktItem): string => {
+    const parts: string[] = [];
+    if (item.artikelNr && String(item.artikelNr).trim() !== '') {
+      parts.push(`Art.-Nr. ${item.artikelNr}`);
+    }
+    if (item.ve !== null && item.ve !== undefined && String(item.ve).trim() !== '') {
+      parts.push(`VE: ${item.ve}`);
+    }
+    return parts.join(' · ');
+  };
 
   useEffect(() => {
     return () => {
@@ -582,6 +594,9 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
                         )}
                         <div className={styles.itemContent}>
                           <div className={styles.itemName}>{item.name}</div>
+                          {formatEinzelproduktMeta(item) && (
+                            <div className={styles.itemMeta}>{formatEinzelproduktMeta(item)}</div>
+                          )}
                           <div className={styles.itemProgress}>
                             <div className={styles.itemProgressBar}>
                               <div

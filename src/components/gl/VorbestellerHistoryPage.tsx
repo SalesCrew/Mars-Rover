@@ -57,6 +57,8 @@ interface SubmissionEntry {
   marketId?: string;
   itemType: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt';
   itemName: string;
+  artikelNr?: string | null;
+  ve?: number | string | null;
   parentId?: string;
   quantity: number;
   valuePerUnit: number;
@@ -133,6 +135,17 @@ const formatCompactDate = (dateStr: string): string => {
 
 const formatValue = (v: number): string =>
   `€${v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const formatArticleVeMeta = (item: { artikelNr?: string | null; ve?: number | string | null }): string => {
+  const parts: string[] = [];
+  if (item.artikelNr && String(item.artikelNr).trim() !== '') {
+    parts.push(`Art.-Nr. ${item.artikelNr}`);
+  }
+  if (item.ve !== null && item.ve !== undefined && String(item.ve).trim() !== '') {
+    parts.push(`VE: ${item.ve}`);
+  }
+  return parts.join(' · ');
+};
 
 // Check if a date is within the editable window (1 month)
 const isWithinEditWindow = (dateStr: string): boolean => {
@@ -719,6 +732,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
                 onClick={() => toggleSelectItem(item.id, item.name, item.itemValue || 0)}
               >
                 <span className={styles.itemOptionName}>{item.name}</span>
+                {addState.itemType === 'einzelprodukt' && formatArticleVeMeta(item) ? <span className={styles.itemOptionMeta}>{formatArticleVeMeta(item)}</span> : null}
                 {item.itemValue ? <span className={styles.itemOptionMeta}>{formatValue(item.itemValue)}</span> : null}
                 {selectedIds.has(item.id) && <Check size={14} weight="bold" className={styles.itemOptionCheck} />}
               </button>
@@ -924,6 +938,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
                                               {entry.marketChain}
                                             </span>
                                             {hasSubs && <span className={styles.productCount}>{entry.products!.length} Produkte</span>}
+                                            {entry.itemType === 'einzelprodukt' && formatArticleVeMeta(entry) && <span className={styles.productCount}>{formatArticleVeMeta(entry)}</span>}
                                           </div>
                                         </div>
                                         {!hasSubs && renderQuantity(entry.id, entry.quantity, wave.id, day.date)}

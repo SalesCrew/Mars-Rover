@@ -94,6 +94,8 @@ interface EinzelproduktItem {
   targetNumber: string;
   picture: File | null;
   itemValue?: string; // Only used when wave goalType is 'value'
+  artikelNr?: string;
+  ve?: string;
 }
 
 interface KWDay {
@@ -126,7 +128,16 @@ interface WelleEinzelproduktItem {
   currentNumber?: number;
   picture?: string | null;
   itemValue?: number | null;
+  artikelNr?: string | null;
+  ve?: number | string | null;
 }
+
+const getProductVeValue = (product: Product): string => {
+  const content = String(product.content || '').replace(/^VE\s*:\s*/i, '').trim();
+  if (content) return content;
+  if (typeof product.palletSize === 'number' && product.palletSize > 0) return product.palletSize.toString();
+  return '';
+};
 
 // Welle type is imported from wellenService
 
@@ -286,7 +297,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         name: p.name,
         targetNumber: '1',
         picture: null,
-        itemValue: p.price?.toString() || ''
+        itemValue: p.price?.toString() || '',
+        artikelNr: p.artikelNr || '',
+        ve: getProductVeValue(p)
       })));
     }
     if (typeForStep === 'palette' && paletteItems.length === 0 && productPalettes.length > 0) {
@@ -372,6 +385,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 
   const handleNext = () => {
     if (currentStep === 1 && selectedTypes.length === 0 && !isFotoOnly && !noLimitWelle) return;
+    if (isEinzelproduktStepInvalid()) return;
     // For noLimitWelle, auto-select all product types when advancing from step 1
     if (noLimitWelle && currentStep === 1 && selectedTypes.length === 0) {
       setSelectedTypes(['display', 'kartonware', 'palette', 'schuette', 'einzelprodukt']);
@@ -544,7 +558,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       name: '',
       targetNumber: '1',
       picture: null,
-      itemValue: ''
+      itemValue: '',
+      artikelNr: '',
+      ve: ''
     }]);
   };
 
@@ -555,6 +571,36 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   const updateEinzelprodukt = (id: string, field: keyof EinzelproduktItem, value: any) => {
     setEinzelprodukte(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
   };
+
+  const hasPositiveTargetOrValue = (item: { targetNumber: string; itemValue?: string }): boolean => {
+    if (goalType === 'value') {
+      return parseInt(item.targetNumber, 10) > 0 || (item.itemValue ? parseFloat(item.itemValue) > 0 : false);
+    }
+    return parseInt(item.targetNumber, 10) > 0;
+  };
+
+  const hasEinzelproduktInput = (item: EinzelproduktItem): boolean =>
+    Boolean(
+      item.name.trim() ||
+      item.artikelNr?.trim() ||
+      item.ve?.trim() ||
+      parseInt(item.targetNumber, 10) > 0 ||
+      (item.itemValue && parseFloat(item.itemValue) > 0)
+    );
+
+  const isEinzelproduktComplete = (item: EinzelproduktItem): boolean =>
+    Boolean(
+      item.name.trim() &&
+      item.artikelNr?.trim() &&
+      item.ve?.trim() &&
+      hasPositiveTargetOrValue(item)
+    );
+
+  const hasValidEinzelprodukt = (): boolean => einzelprodukte.some(isEinzelproduktComplete);
+  const hasInvalidEinzelprodukt = (): boolean =>
+    einzelprodukte.some(item => hasEinzelproduktInput(item) && !isEinzelproduktComplete(item));
+  const isEinzelproduktStepInvalid = (): boolean =>
+    getTypeForStep(currentStep) === 'einzelprodukt' && (!hasValidEinzelprodukt() || hasInvalidEinzelprodukt());
 
   const addKWDay = () => {
     setKwDays(prev => [...prev, {
@@ -669,6 +715,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 
   const handleCreateWelle = async () => {
     if (isSaving) return; // Prevent double-click
+
+    if (!isFotoOnly && selectedTypes.includes('einzelprodukt') && (!hasValidEinzelprodukt() || hasInvalidEinzelprodukt())) {
+      alert('Bitte bei jedem Einzelprodukt Produktname, Artikelnummer, VE und Ziel ausfüllen.');
+      return;
+    }
 
     // Guard against saving when loaded assignments are already truncated.
     if (editingWelle && typeof editingWelle.assignedMarketCount === 'number') {
@@ -802,13 +853,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       }));
 
       // Process einzelprodukt items - same logic as displays/kartonware
-      const validEinzelprodukte = einzelprodukte.filter(e => {
-        if (!e.name.trim()) return false;
-        if (goalType === 'value') {
-          return parseInt(e.targetNumber) > 0 || (e.itemValue && parseFloat(e.itemValue) > 0);
-        }
-        return parseInt(e.targetNumber) > 0;
-      });
+      const validEinzelprodukte = einzelprodukte.filter(isEinzelproduktComplete);
       const processedEinzelprodukte = await Promise.all(validEinzelprodukte.map(async (e) => {
         let pictureUrl: string | null = null;
         if (e.picture) {
@@ -819,7 +864,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
           name: e.name,
           targetNumber: targetNum,
           picture: pictureUrl,
-          itemValue: goalType === 'value' && e.itemValue ? parseFloat(e.itemValue) : null
+          itemValue: goalType === 'value' && e.itemValue ? parseFloat(e.itemValue) : null,
+          artikelNr: e.artikelNr || null,
+          ve: e.ve || null
         };
       }));
 
@@ -947,7 +994,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         name: e.name,
         targetNumber: (e.targetNumber || 0).toString(),
         picture: null,
-        itemValue: e.itemValue?.toString()
+        itemValue: e.itemValue?.toString(),
+        artikelNr: e.artikelNr || '',
+        ve: e.ve !== null && e.ve !== undefined ? e.ve.toString() : ''
       })));
     }
     
@@ -1012,12 +1061,15 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       };
       setKartonwareItems(prev => [...prev, newKartonware]);
     } else if (pastItemType === 'einzelprodukt') {
+      const einzelprodukt = item as WelleEinzelproduktItem;
       const newEinzelprodukt: EinzelproduktItem = {
         id: Date.now().toString(),
         name: item.name,
         targetNumber: '',
         picture: null,
-        itemValue: item.itemValue?.toString()
+        itemValue: item.itemValue?.toString(),
+        artikelNr: einzelprodukt.artikelNr || '',
+        ve: einzelprodukt.ve !== null && einzelprodukt.ve !== undefined ? einzelprodukt.ve.toString() : ''
       };
       setEinzelprodukte(prev => [...prev, newEinzelprodukt]);
     }
@@ -1031,7 +1083,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       name: product.name,
       targetNumber: '',
       picture: null,
-      itemValue: product.price?.toString()
+      itemValue: product.price?.toString(),
+      artikelNr: product.artikelNr || '',
+      ve: getProductVeValue(product)
     };
     setEinzelprodukte(prev => [...prev, newEinzelprodukt]);
     handleClosePastItems();
@@ -2540,6 +2594,29 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                           </div>
                         </div>
 
+                        <div className={styles.formRow}>
+                          <div className={styles.formSection}>
+                            <label className={styles.label}>Artikelnummer *</label>
+                            <input
+                              type="text"
+                              className={styles.input}
+                              placeholder="z.B. 123456"
+                              value={produkt.artikelNr || ''}
+                              onChange={(e) => updateEinzelprodukt(produkt.id, 'artikelNr', e.target.value)}
+                            />
+                          </div>
+                          <div className={styles.formSection}>
+                            <label className={styles.label}>VE *</label>
+                            <input
+                              type="text"
+                              className={styles.input}
+                              placeholder="z.B. 12"
+                              value={produkt.ve || ''}
+                              onChange={(e) => updateEinzelprodukt(produkt.id, 've', e.target.value)}
+                            />
+                          </div>
+                        </div>
+
                         {goalType === 'value' && (
                           <div className={styles.formSection}>
                             <label className={styles.label}>Wert pro Stück (€)</label>
@@ -2747,7 +2824,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                     (getTypeForStep(currentStep) === 'display' && displays.length === 0) ||
                     (getTypeForStep(currentStep) === 'kartonware' && kartonwareItems.length === 0) ||
                     (getTypeForStep(currentStep) === 'palette' && paletteItems.length === 0) ||
-                    (getTypeForStep(currentStep) === 'schuette' && schutteItems.length === 0)
+                    (getTypeForStep(currentStep) === 'schuette' && schutteItems.length === 0) ||
+                    isEinzelproduktStepInvalid()
                     ? styles.nextButtonDisabled : ''
                   }`}
                   onClick={handleNext}
@@ -2759,7 +2837,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                     (getTypeForStep(currentStep) === 'display' && displays.length === 0) ||
                     (getTypeForStep(currentStep) === 'kartonware' && kartonwareItems.length === 0) ||
                     (getTypeForStep(currentStep) === 'palette' && paletteItems.length === 0) ||
-                    (getTypeForStep(currentStep) === 'schuette' && schutteItems.length === 0)
+                    (getTypeForStep(currentStep) === 'schuette' && schutteItems.length === 0) ||
+                    isEinzelproduktStepInvalid()
                   }
                 >
                   <span>Weiter</span>
@@ -2975,6 +3054,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                             </div>
                             <div className={styles.pastItemName}>{product.name}</div>
                             <div className={styles.pastItemWeight}>{product.weight}</div>
+                            {(product.artikelNr || getProductVeValue(product)) && (
+                              <div className={styles.pastItemMeta}>
+                                {[product.artikelNr ? `Art.-Nr. ${product.artikelNr}` : '', getProductVeValue(product) ? `VE: ${getProductVeValue(product)}` : ''].filter(Boolean).join(' · ')}
+                              </div>
+                            )}
                             {product.price > 0 && (
                               <div className={styles.pastItemPrice}>€{product.price.toFixed(2)}</div>
                             )}
@@ -3005,6 +3089,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               )}
                             </div>
                             <div className={styles.pastItemName}>{item.name}</div>
+                            {(item.artikelNr || item.ve) && (
+                              <div className={styles.pastItemMeta}>
+                                {[item.artikelNr ? `Art.-Nr. ${item.artikelNr}` : '', item.ve ? `VE: ${item.ve}` : ''].filter(Boolean).join(' · ')}
+                              </div>
+                            )}
                             {item.itemValue && (
                               <div className={styles.pastItemPrice}>€{item.itemValue}</div>
                             )}
@@ -3047,4 +3136,3 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     </div>
   );
 };
-

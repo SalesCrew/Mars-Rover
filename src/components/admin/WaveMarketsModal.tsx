@@ -23,6 +23,8 @@ interface ActivityItem {
   name: string;
   quantity: number;
   value: number;
+  artikelNr?: string | null;
+  ve?: number | string | null;
   products?: ProductDetail[];
 }
 
@@ -118,6 +120,16 @@ export const WaveMarketsModal: React.FC<WaveMarketsModalProps> = ({ welle, onClo
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedMarkets, setExpandedMarkets] = useState<Set<string>>(new Set());
+  const formatItemMeta = (item: ActivityItem): string => {
+    const parts: string[] = [];
+    if (item.artikelNr && String(item.artikelNr).trim() !== '') {
+      parts.push(`Art.-Nr. ${item.artikelNr}`);
+    }
+    if (item.ve !== null && item.ve !== undefined && String(item.ve).trim() !== '') {
+      parts.push(`VE: ${item.ve}`);
+    }
+    return parts.join(' · ');
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -325,6 +337,9 @@ export const WaveMarketsModal: React.FC<WaveMarketsModalProps> = ({ welle, onClo
                                           {item.products ? `${item.products.reduce((s, p) => s + p.quantity, 0)}x` : `${item.quantity}x`}
                                         </span>
                                         <span className={styles.itemName}>{item.name}</span>
+                                        {item.type === 'einzelprodukt' && formatItemMeta(item) && (
+                                          <span className={styles.itemMeta}>{formatItemMeta(item)}</span>
+                                        )}
                                         <span className={`${styles.itemType} ${item.type === 'palette' ? styles.itemTypePalette : item.type === 'schuette' ? styles.itemTypeSchuette : item.type === 'einzelprodukt' ? styles.itemTypeEinzelprodukt : ''}`}>
                                           {item.type === 'display' ? 'Display' : item.type === 'kartonware' ? 'Kartonware' : item.type === 'palette' ? 'Palette' : item.type === 'schuette' ? 'Schütte' : 'Einzelprodukt'}
                                         </span>
