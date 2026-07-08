@@ -1001,6 +1001,11 @@ export const exportApi = {
     questionIds: string[];
     chains?: string[];
     targetFilter?: 'all' | 'distribution' | 'quality';
+    quarterCompression?: {
+      enabled: boolean;
+      year: number;
+      quarter: 1 | 2 | 3 | 4;
+    };
   }): Promise<void> {
     const response = await fetch(`${FRAGEBOGEN_API}/fragebogen/distribution-export.xlsx`, {
       method: 'POST',
@@ -1009,7 +1014,8 @@ export const exportApi = {
         fragebogen_ids: payload.fragebogenIds,
         question_ids: payload.questionIds,
         chains: payload.chains || [],
-        target_filter: payload.targetFilter || 'all'
+        target_filter: payload.targetFilter || 'all',
+        quarter_compression: payload.quarterCompression || { enabled: false }
       })
     });
 

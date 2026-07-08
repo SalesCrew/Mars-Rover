@@ -21,6 +21,11 @@ interface DistributionExportSelection {
   questionIds: string[];
   chains: string[];
   targetFilter: 'all' | 'distribution' | 'quality';
+  quarterCompression?: {
+    enabled: boolean;
+    year: number;
+    quarter: 1 | 2 | 3 | 4;
+  };
 }
 
 interface FragebogenDistributionExportModalProps {
@@ -40,10 +45,28 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
   onClose,
   onExport
 }) => {
+  const getDefaultTargetQuarter = (): { year: number; quarter: 1 | 2 | 3 | 4 } => {
+    const now = new Date();
+    const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+    if (currentQuarter === 1) {
+      return { year: now.getFullYear() - 1, quarter: 4 };
+    }
+    return { year: now.getFullYear(), quarter: (currentQuarter - 1) as 1 | 2 | 3 | 4 };
+  };
+
+  const defaultTargetQuarter = useMemo(() => getDefaultTargetQuarter(), []);
+  const availableQuarterYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return [currentYear - 1, currentYear, currentYear + 1];
+  }, []);
+
   const [selectedFragebogenIds, setSelectedFragebogenIds] = useState<string[]>([]);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
   const [selectedChains, setSelectedChains] = useState<string[]>([]);
   const [targetFilter, setTargetFilter] = useState<'all' | 'distribution' | 'quality'>('all');
+  const [compressToQuarter, setCompressToQuarter] = useState(false);
+  const [targetQuarterYear, setTargetQuarterYear] = useState(defaultTargetQuarter.year);
+  const [targetQuarter, setTargetQuarter] = useState<1 | 2 | 3 | 4>(defaultTargetQuarter.quarter);
   const [error, setError] = useState<string | null>(null);
 
   const selectedFragebogen = useMemo(
@@ -142,7 +165,12 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
       fragebogenIds: selectedFragebogenIds,
       questionIds: validQuestionIds,
       chains: validChains,
-      targetFilter
+      targetFilter,
+      quarterCompression: {
+        enabled: compressToQuarter,
+        year: targetQuarterYear,
+        quarter: targetQuarter
+      }
     });
   };
 
@@ -277,6 +305,53 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
                   <span>{chain}</span>
                 </label>
               ))}
+            </div>
+          </section>
+
+          <section className={`${styles.section} ${styles.optionsSection}`}>
+            <div className={styles.sectionHeader}>
+              <h3>Zeitraum</h3>
+            </div>
+            <div className={styles.optionBody}>
+              <label className={styles.optionToggle}>
+                <input
+                  type="checkbox"
+                  checked={compressToQuarter}
+                  onChange={(event) => setCompressToQuarter(event.target.checked)}
+                  disabled={isExporting}
+                />
+                <span>Alles in ein Quartal komprimieren</span>
+              </label>
+
+              {compressToQuarter && (
+                <div className={styles.quarterControls}>
+                  <label className={styles.selectField}>
+                    <span>Quartal</span>
+                    <select
+                      value={targetQuarter}
+                      onChange={(event) => setTargetQuarter(Number(event.target.value) as 1 | 2 | 3 | 4)}
+                      disabled={isExporting}
+                    >
+                      <option value={1}>Q1</option>
+                      <option value={2}>Q2</option>
+                      <option value={3}>Q3</option>
+                      <option value={4}>Q4</option>
+                    </select>
+                  </label>
+                  <label className={styles.selectField}>
+                    <span>Jahr</span>
+                    <select
+                      value={targetQuarterYear}
+                      onChange={(event) => setTargetQuarterYear(Number(event.target.value))}
+                      disabled={isExporting}
+                    >
+                      {availableQuarterYears.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
             </div>
           </section>
         </div>

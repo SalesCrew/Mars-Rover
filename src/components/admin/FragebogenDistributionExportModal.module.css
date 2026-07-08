@@ -69,6 +69,11 @@
   flex-direction: column;
 }
 
+.optionsSection {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
 .sectionHeader {
   padding: 12px 14px;
   border-bottom: 1px solid #e5e7eb;
@@ -156,6 +161,49 @@
   color: #64748b;
   font-size: 0.86rem;
   padding: 6px 2px;
+}
+
+.optionBody {
+  padding: 12px 14px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.optionToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1f2937;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.quarterControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.selectField {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.selectField select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 9px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 600;
 }
 
 .errorBanner {

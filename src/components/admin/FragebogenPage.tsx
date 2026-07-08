@@ -1148,6 +1148,11 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
     questionIds: string[];
     chains: string[];
     targetFilter: 'all' | 'distribution' | 'quality';
+    quarterCompression?: {
+      enabled: boolean;
+      year: number;
+      quarter: 1 | 2 | 3 | 4;
+    };
   }) => {
     try {
       setIsDistributionExporting(true);
