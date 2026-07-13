@@ -4,6 +4,17 @@ import styles from './DayTrackingModal.module.css';
 
 type ModalMode = 'start' | 'end' | 'force_close' | 'km_pending' | 'close_previous';
 
+interface DayContextInfo {
+  date?: string | null;
+  startTime?: string | null;
+  startKm?: number | string | null;
+  lastEntry?: {
+    label: string;
+    time: string | null;
+    date?: string | null;
+  } | null;
+}
+
 interface DayTrackingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -13,6 +24,8 @@ interface DayTrackingModalProps {
   onSubmitKmStand?: (km: string) => void;
   requiresStartKmBeforeEnd?: boolean;
   blockingDate?: string | null;
+  dayContext?: DayContextInfo;
+  errorMessage?: string | null;
   summary?: {
     totalFahrzeit: string;
     totalBesuchszeit: string;
@@ -126,6 +139,24 @@ const formatTimeInput = (value: string): string => {
   return `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
 };
 
+const formatDateLabel = (value?: string | null): string => {
+  if (!value) return '';
+  const [year, month, day] = value.split('-');
+  if (!year || !month || !day) return value;
+  return `${day}.${month}.${year}`;
+};
+
+const formatTimeLabel = (value?: string | null): string => {
+  if (!value) return '';
+  return String(value).slice(0, 5);
+};
+
+const formatKmLabel = (value?: number | string | null): string => {
+  if (value === undefined || value === null || value === '') return '';
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `${Math.round(parsed).toLocaleString('de-AT')} km` : `${value} km`;
+};
+
 export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
   isOpen,
   onClose,
@@ -135,6 +166,8 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
   onSubmitKmStand,
   requiresStartKmBeforeEnd = false,
   blockingDate,
+  dayContext,
+  errorMessage,
   summary,
 }) => {
   const [endTime, setEndTime] = useState('');
@@ -239,6 +272,47 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
 
   const canClose = mode !== 'force_close' && mode !== 'close_previous';
   const isEndTimeValid = endTime.match(/^\d{2}:\d{2}$/);
+  const dayDateLabel = formatDateLabel(dayContext?.date || blockingDate || null);
+  const dayStartTimeLabel = formatTimeLabel(dayContext?.startTime);
+  const dayStartKmLabel = formatKmLabel(dayContext?.startKm);
+  const lastEntryLabel = dayContext?.lastEntry?.label;
+  const lastEntryTimeLabel = formatTimeLabel(dayContext?.lastEntry?.time);
+
+  const renderDayInfoCard = () => {
+    if (!dayContext && !blockingDate) return null;
+
+    return (
+      <div className={styles.dayInfoCard}>
+        <div className={styles.dayInfoHeader}>
+          <span>Offener Tag</span>
+          {dayDateLabel && <strong>{dayDateLabel}</strong>}
+        </div>
+        <div className={styles.dayInfoGrid}>
+          {dayStartTimeLabel && (
+            <div className={styles.dayInfoItem}>
+              <span>Gestartet</span>
+              <strong>{dayStartTimeLabel}</strong>
+            </div>
+          )}
+          {dayStartKmLabel && (
+            <div className={styles.dayInfoItem}>
+              <span>Start-KM</span>
+              <strong>{dayStartKmLabel}</strong>
+            </div>
+          )}
+          {(lastEntryLabel || lastEntryTimeLabel || dayStartTimeLabel) && (
+            <div className={`${styles.dayInfoItem} ${styles.dayInfoItemWide}`}>
+              <span>Letzter Eintrag</span>
+              <strong>
+                {lastEntryLabel || 'Tag gestartet'}
+                {(lastEntryTimeLabel || dayStartTimeLabel) && ` um ${lastEntryTimeLabel || dayStartTimeLabel}`}
+              </strong>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const renderStartKmBeforeEndStep = () => (
     <div className={styles.kmStandSection}>
@@ -274,6 +348,7 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
       </div>
       <span className={styles.kmStandTitle}>End-KM eingeben</span>
       <span className={styles.kmStandDesc}>{description}</span>
+      {renderDayInfoCard()}
       <input
         ref={kmInputRef}
         type="text"
@@ -311,6 +386,12 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
 
         {/* Content */}
         <div className={styles.content}>
+          {errorMessage && (
+            <div className={styles.errorMessage}>
+              {errorMessage}
+            </div>
+          )}
+
           {/* Start Mode */}
           {mode === 'start' && (
             <>
@@ -386,6 +467,8 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
                 renderEndKmStep('Aktueller Kilometerstand nach der Heimfahrt', 'Tag beenden')
               ) : (
                 <>
+                  {renderDayInfoCard()}
+
                   {/* Step 1: Confirm current time */}
                   {endStep === 'confirm' && (
                     <>
@@ -517,6 +600,8 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
                       Bitte gib hier deine korrekte Ankunftszeit zuhause an.
                     </p>
                   </div>
+
+                  {renderDayInfoCard()}
 
                   <div className={styles.endTimeSection}>
                     <div className={styles.endTimeHeader}>

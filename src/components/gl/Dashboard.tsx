@@ -19,7 +19,7 @@ import { ZusatzZeiterfassungModal } from './ZusatzZeiterfassungModal';
 import { ZeiterfassungVerlaufModal } from './ZeiterfassungVerlaufModal';
 import { DayTrackingButton } from './DayTrackingButton';
 import { DayTrackingModal } from './DayTrackingModal';
-import { dayTrackingService, type DayTracking, type DayTrackingStatus } from '../../services/dayTrackingService';
+import { dayTrackingService, type DayTracking, type DayTrackingStatus, type DaySummary } from '../../services/dayTrackingService';
 import { StatisticsContent } from './StatisticsContent';
 import { VorbestellerHistoryPage } from './VorbestellerHistoryPage';
 import { FragebogenAmpelPage } from './FragebogenAmpelPage';
@@ -52,6 +52,34 @@ interface DashboardProps {
 }
 
 type DayTrackingModalMode = 'start' | 'end' | 'force_close' | 'km_pending' | 'close_previous';
+type DaySummaryPreview = Pick<DaySummary, 'totalFahrzeit' | 'totalBesuchszeit' | 'marketsVisited' | 'lastEntry'>;
+
+const formatKmForMessage = (value: unknown): string => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed).toLocaleString('de-AT') : '';
+};
+
+const buildEndDayErrorMessage = (error: any, closingDay: DayTracking | null): string => {
+  const backendMessage = error?.message || 'Fehler beim Beenden des Tages';
+  const startKm = closingDay?.km_stand_start;
+  const startKmText = formatKmForMessage(startKm);
+
+  if (error?.code === 'KM_END_BEFORE_START' && startKmText) {
+    return `Der End-KM-Stand muss mindestens ${startKmText} km sein. Bitte gib den Kilometerstand nach der Heimfahrt ein.`;
+  }
+
+  if (error?.code === 'KM_END_REQUIRED') {
+    return startKmText
+      ? `Bitte gib den End-KM-Stand ein. Er muss mindestens ${startKmText} km sein.`
+      : 'Bitte gib den End-KM-Stand ein.';
+  }
+
+  if (error?.code === 'KM_START_REQUIRED') {
+    return 'Bitte trage zuerst den Start-KM-Stand nach. Danach kannst du den Tag beenden.';
+  }
+
+  return backendMessage;
+};
 
 export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<NavigationTab>(() => {
@@ -82,11 +110,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [dayTrackingModalMode, setDayTrackingModalMode] = useState<DayTrackingModalMode>('start');
   const [currentDayTracking, setCurrentDayTracking] = useState<DayTracking | null>(null);
   const [pendingClosureDay, setPendingClosureDay] = useState<DayTracking | null>(null);
-  const [daySummary, setDaySummary] = useState<{
-    totalFahrzeit: string;
-    totalBesuchszeit: string;
-    marketsVisited: number;
-  } | undefined>(undefined);
+  const [daySummary, setDaySummary] = useState<DaySummaryPreview | undefined>(undefined);
+  const [dayTrackingError, setDayTrackingError] = useState<string | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
   const [activeTour, setActiveTour] = useState<TourRoute | null>(null);
   const [activeVisit, setActiveVisit] = useState<{
@@ -308,11 +333,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       setDaySummary({
         totalFahrzeit: dayTrackingService.formatInterval(summary.totalFahrzeit),
         totalBesuchszeit: dayTrackingService.formatInterval(summary.totalBesuchszeit),
-        marketsVisited: summary.marketsVisited
+        marketsVisited: summary.marketsVisited,
+        lastEntry: summary.lastEntry || null
       });
     } catch (summaryError) {
       console.error('Error loading pending day summary:', summaryError);
     }
+    setDayTrackingError(null);
     setDayTrackingModalMode('close_previous');
     setIsDayTrackingModalOpen(true);
     return true;
@@ -340,10 +367,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             setDaySummary({
               totalFahrzeit: dayTrackingService.formatInterval(summary.totalFahrzeit),
               totalBesuchszeit: dayTrackingService.formatInterval(summary.totalBesuchszeit),
-              marketsVisited: summary.marketsVisited
+              marketsVisited: summary.marketsVisited,
+              lastEntry: summary.lastEntry || null
             });
             // If km_stand_start is missing, open the KM pending reminder
             if (status.km_stand_start === null) {
+              setDayTrackingError(null);
               setDayTrackingModalMode('km_pending');
               setIsDayTrackingModalOpen(true);
             }
@@ -382,6 +411,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
   const handleDayTrackingClick = async () => {
     if (pendingClosureDay) {
+      setDayTrackingError(null);
       setDayTrackingModalMode('close_previous');
       setIsDayTrackingModalOpen(true);
       return;
@@ -395,15 +425,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           setDaySummary({
             totalFahrzeit: dayTrackingService.formatInterval(summary.totalFahrzeit),
             totalBesuchszeit: dayTrackingService.formatInterval(summary.totalBesuchszeit),
-            marketsVisited: summary.marketsVisited
+            marketsVisited: summary.marketsVisited,
+            lastEntry: summary.lastEntry || null
           });
         } catch (error) {
           console.error('Error loading summary:', error);
         }
       }
+      setDayTrackingError(null);
       setDayTrackingModalMode('end');
     } else {
       // Show start modal
+      setDayTrackingError(null);
       setDayTrackingModalMode('start');
     }
     setIsDayTrackingModalOpen(true);
@@ -448,6 +481,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     if (!user?.id) return;
     
     try {
+      setDayTrackingError(null);
       const closingPreviousDay = dayTrackingModalMode === 'close_previous';
       const endedDay = await dayTrackingService.endDay(user.id, { 
         endTime, 
@@ -474,7 +508,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       }
     } catch (error) {
       console.error('Error ending day:', error);
-      alert('Fehler beim Beenden des Tages');
+      const closingPreviousDay = dayTrackingModalMode === 'close_previous';
+      const closingDay = closingPreviousDay ? pendingClosureDay : currentDayTracking;
+      setDayTrackingError(buildEndDayErrorMessage(error, closingDay));
     }
   };
 
@@ -611,6 +647,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     }
     return mockProfileData;
   }, [glProfileData, profileStats]);
+
+  const dayTrackingModalContext = useMemo(() => {
+    const modalDay = dayTrackingModalMode === 'close_previous' ? pendingClosureDay : currentDayTracking;
+    if (!modalDay) return undefined;
+
+    return {
+      date: modalDay.tracking_date,
+      startTime: modalDay.day_start_time,
+      startKm: modalDay.km_stand_start,
+      lastEntry: daySummary?.lastEntry || null
+    };
+  }, [currentDayTracking, dayTrackingModalMode, daySummary?.lastEntry, pendingClosureDay]);
 
   const handleLogout = () => {
     logout();
@@ -1126,6 +1174,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         }
         blockingDate={pendingClosureDay?.tracking_date}
         summary={daySummary}
+        dayContext={dayTrackingModalContext}
+        errorMessage={dayTrackingError}
       />
 
       {/* Admin Panel */}

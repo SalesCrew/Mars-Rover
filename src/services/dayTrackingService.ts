@@ -46,9 +46,17 @@ export interface MarketVisitForDay {
   created_at: string;
 }
 
+export interface DayLastEntry {
+  source: 'day_start' | 'market' | 'zusatz' | string;
+  label: string;
+  time: string | null;
+  date: string;
+}
+
 export interface DaySummary {
   dayTracking: DayTracking | null;
   marketVisits: MarketVisitForDay[];
+  lastEntry?: DayLastEntry | null;
   totalFahrzeit: string;
   totalBesuchszeit: string;
   totalUnterbrechung: string;
@@ -136,8 +144,17 @@ class DayTrackingService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to end day');
+        const errorText = await response.text();
+        let errorData: any = {};
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+        const error = new Error(errorData.error || 'Failed to end day') as Error & { code?: string; status?: number };
+        error.code = errorData.code;
+        error.status = response.status;
+        throw error;
       }
 
       return response.json();
