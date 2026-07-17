@@ -222,6 +222,8 @@ interface DayGroup {
   reineArbeitszeit?: string;
 }
 
+type DayKmField = 'start' | 'end';
+
 interface ZeiterfassungVerlaufModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -366,6 +368,9 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
   const [editDayTimePicker, setEditDayTimePicker] = useState(false);
   const [savingDayTime, setSavingDayTime] = useState(false);
   const [editKmValue, setEditKmValue] = useState('');
+  const [editingDayKm, setEditingDayKm] = useState<{ date: string; field: DayKmField } | null>(null);
+  const [editDayKmValue, setEditDayKmValue] = useState('');
+  const [savingDayKm, setSavingDayKm] = useState(false);
 
   // Fetch real data when modal opens
   useEffect(() => {
@@ -649,6 +654,10 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
   // Edit handlers
   const handleEditClick = (id: string, entry: TimeEntry) => {
     setEditingId(id);
+    setEditingDayTime(null);
+    setEditDayTimePicker(false);
+    setEditingDayKm(null);
+    setEditDayKmValue('');
     if (entry.type === 'market') {
       setEditData({
         fahrzeitVon: entry.fahrzeit.von,
@@ -825,6 +834,65 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
     }
   };
 
+  const beginDayKmEdit = (date: string, field: DayKmField, currentValue: number | null | undefined) => {
+    setEditingId(null);
+    setConfirmDeleteId(null);
+    setEditingDayTime(null);
+    setEditDayTimeValue('');
+    setEditDayTimePicker(false);
+    setEditKmValue('');
+    setEditingDayKm({ date, field });
+    setEditDayKmValue(currentValue != null ? String(Math.round(currentValue)) : '');
+  };
+
+  const handleSaveDayKm = async () => {
+    if (!editingDayKm || !user?.id) return;
+
+    const kmNum = parseKmInput(editDayKmValue);
+    if (kmNum === null) {
+      alert('Bitte einen gueltigen KM-Stand eingeben');
+      return;
+    }
+
+    const currentTracking = dayTrackingMap[editingDayKm.date];
+    if (editingDayKm.field === 'end' && currentTracking?.km_stand_start == null) {
+      alert('Bitte zuerst den Start-KM-Stand korrigieren');
+      return;
+    }
+
+    setSavingDayKm(true);
+    try {
+      const updatedDay = await dayTrackingService.updateDayKm(
+        user.id,
+        editingDayKm.date,
+        editingDayKm.field === 'start'
+          ? { km_stand_start: kmNum }
+          : { km_stand_end: kmNum }
+      );
+
+      setDayTrackingMap(prev => ({
+        ...prev,
+        [editingDayKm.date]: {
+          ...prev[editingDayKm.date],
+          ...updatedDay,
+        }
+      }));
+
+      setEditingDayKm(null);
+      setEditDayKmValue('');
+    } catch (error) {
+      console.error('Error saving day KM:', error);
+      alert(error instanceof Error && error.message ? error.message : 'Fehler beim Speichern des KM-Stands');
+    } finally {
+      setSavingDayKm(false);
+    }
+  };
+
+  const handleCancelDayKmEdit = () => {
+    setEditingDayKm(null);
+    setEditDayKmValue('');
+  };
+
   const handleCancelDayTimeEdit = () => {
     setEditingDayTime(null);
     setEditDayTimeValue('');
@@ -996,8 +1064,9 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                     if (dayTracking?.day_start_time && !dayTracking.skipped_first_fahrzeit && timelineItems.length > 0) {
                       const firstItem = timelineItems[0];
                       const isEditingAnfahrt = editingDayTime?.date === group.date && editingDayTime?.field === 'start';
+                      const isEditingStartKm = editingDayKm?.date === group.date && editingDayKm?.field === 'start';
                       const anfahrtMinutes = calcGapMinutes(dayTracking.day_start_time, firstItem.startTime);
-                      if (anfahrtMinutes > 0 || isEditingAnfahrt) {
+                      if (anfahrtMinutes > 0 || isEditingAnfahrt || isEditingStartKm) {
                         renderedItems.push(
                           <div key="anfahrt" className={styles.fahrzeitCard}>
                             <div className={styles.fahrzeitIcon}>
@@ -1009,14 +1078,30 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                                 {formatTimeShort(dayTracking.day_start_time)} - {formatTimeShort(firstItem.startTime)}
                               </span>
                             </div>
-                            {dayTracking.km_stand_start != null && (
-                              <span className={styles.kmBadge}>KM: {Math.round(dayTracking.km_stand_start).toLocaleString('de-AT')}</span>
-                            )}
+                            <span className={styles.kmBadge}>
+                              {dayTracking.km_stand_start != null
+                                ? `KM: ${Math.round(dayTracking.km_stand_start).toLocaleString('de-AT')}`
+                                : 'KM fehlt'}
+                            </span>
                             <span className={styles.fahrzeitDuration}>({formatGapTime(anfahrtMinutes)})</span>
-                            {!isEditingAnfahrt && isWithinEditWindow(group.date) && (
+                            {!isEditingAnfahrt && !isEditingStartKm && isWithinEditWindow(group.date) && (
+                              <button
+                                className={styles.editButton}
+                                title="Start-KM korrigieren"
+                                aria-label="Start-KM korrigieren"
+                                onClick={() => beginDayKmEdit(group.date, 'start', dayTracking.km_stand_start)}
+                              >
+                                <Path size={16} weight="regular" />
+                              </button>
+                            )}
+                            {!isEditingAnfahrt && !isEditingStartKm && isWithinEditWindow(group.date) && (
                               <button 
                                 className={styles.editButton}
+                                title="Startzeit korrigieren"
+                                aria-label="Startzeit korrigieren"
                                 onClick={() => {
+                                  setEditingDayKm(null);
+                                  setEditDayKmValue('');
                                   setEditingDayTime({ date: group.date, field: 'start' });
                                   setEditDayTimeValue(formatTimeShort(dayTracking.day_start_time));
                                   setEditKmValue(dayTracking.km_stand_start != null ? String(Math.round(dayTracking.km_stand_start)) : '');
@@ -1075,6 +1160,32 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                                 <button className={styles.saveBtn} onClick={handleSaveDayTime} disabled={savingDayTime}>
                                   <Check size={14} weight="bold" />
                                   Speichern
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+                        if (isEditingStartKm) {
+                          renderedItems.push(
+                            <div key="anfahrt-km-edit" className={styles.editForm}>
+                              <div className={styles.editRow}>
+                                <label>Start-KM:</label>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  className={styles.editTimeInput}
+                                  value={editDayKmValue}
+                                  onChange={(e) => setEditDayKmValue(e.target.value.replace(/[^0-9,.]/g, ''))}
+                                  placeholder="z.B. 12345"
+                                />
+                              </div>
+                              <div className={styles.editActions}>
+                                <button className={styles.cancelBtn} onClick={handleCancelDayKmEdit}>
+                                  Abbrechen
+                                </button>
+                                <button className={styles.saveBtn} onClick={handleSaveDayKm} disabled={savingDayKm}>
+                                  <Check size={14} weight="bold" />
+                                  KM speichern
                                 </button>
                               </div>
                             </div>
@@ -1403,8 +1514,9 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                     if (dayTracking?.day_end_time && timelineItems.length > 0) {
                       const lastItem = timelineItems[timelineItems.length - 1];
                       const isEditingHeimfahrt = editingDayTime?.date === group.date && editingDayTime?.field === 'end';
+                      const isEditingEndKm = editingDayKm?.date === group.date && editingDayKm?.field === 'end';
                       const heimfahrtMinutes = calcGapMinutes(lastItem.endTime, dayTracking.day_end_time);
-                      if (heimfahrtMinutes > 0 || isEditingHeimfahrt) {
+                      if (heimfahrtMinutes > 0 || isEditingHeimfahrt || isEditingEndKm) {
                         renderedItems.push(
                           <div key="heimfahrt" className={styles.fahrzeitCard}>
                             <div className={styles.fahrzeitIcon}>
@@ -1416,14 +1528,30 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                                 {formatTimeShort(lastItem.endTime)} - {formatTimeShort(dayTracking.day_end_time)}
                               </span>
                             </div>
-                            {dayTracking.km_stand_end != null && (
-                              <span className={styles.kmBadge}>KM: {Math.round(dayTracking.km_stand_end).toLocaleString('de-AT')}</span>
-                            )}
+                            <span className={styles.kmBadge}>
+                              {dayTracking.km_stand_end != null
+                                ? `KM: ${Math.round(dayTracking.km_stand_end).toLocaleString('de-AT')}`
+                                : 'KM fehlt'}
+                            </span>
                             <span className={styles.fahrzeitDuration}>({formatGapTime(heimfahrtMinutes)})</span>
-                            {!isEditingHeimfahrt && isWithinEditWindow(group.date) && (
+                            {!isEditingHeimfahrt && !isEditingEndKm && isWithinEditWindow(group.date) && (
+                              <button
+                                className={styles.editButton}
+                                title="End-KM korrigieren"
+                                aria-label="End-KM korrigieren"
+                                onClick={() => beginDayKmEdit(group.date, 'end', dayTracking.km_stand_end)}
+                              >
+                                <Path size={16} weight="regular" />
+                              </button>
+                            )}
+                            {!isEditingHeimfahrt && !isEditingEndKm && isWithinEditWindow(group.date) && (
                               <button 
                                 className={styles.editButton}
+                                title="Endzeit korrigieren"
+                                aria-label="Endzeit korrigieren"
                                 onClick={() => {
+                                  setEditingDayKm(null);
+                                  setEditDayKmValue('');
                                   setEditingDayTime({ date: group.date, field: 'end' });
                                   setEditDayTimeValue(formatTimeShort(dayTracking.day_end_time));
                                   setEditKmValue(dayTracking.km_stand_end != null ? String(Math.round(dayTracking.km_stand_end)) : '');
@@ -1482,6 +1610,32 @@ export const ZeiterfassungVerlaufModal: React.FC<ZeiterfassungVerlaufModalProps>
                                 <button className={styles.saveBtn} onClick={handleSaveDayTime} disabled={savingDayTime}>
                                   <Check size={14} weight="bold" />
                                   Speichern
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+                        if (isEditingEndKm) {
+                          renderedItems.push(
+                            <div key="heimfahrt-km-edit" className={styles.editForm}>
+                              <div className={styles.editRow}>
+                                <label>End-KM:</label>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  className={styles.editTimeInput}
+                                  value={editDayKmValue}
+                                  onChange={(e) => setEditDayKmValue(e.target.value.replace(/[^0-9,.]/g, ''))}
+                                  placeholder="z.B. 12400"
+                                />
+                              </div>
+                              <div className={styles.editActions}>
+                                <button className={styles.cancelBtn} onClick={handleCancelDayKmEdit}>
+                                  Abbrechen
+                                </button>
+                                <button className={styles.saveBtn} onClick={handleSaveDayKm} disabled={savingDayKm}>
+                                  <Check size={14} weight="bold" />
+                                  KM speichern
                                 </button>
                               </div>
                             </div>
