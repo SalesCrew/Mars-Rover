@@ -218,7 +218,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
   }, [isMarketSelectorOpen]);
 
   useEffect(() => {
-    if (activeDetailTab !== 'markets') return;
+    if (activeDetailTab !== 'markets' && !isMarketSelectorOpen) return;
     let isCancelled = false;
 
     const loadMarketStatus = async () => {
@@ -245,7 +245,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [activeDetailTab, fragebogen.id, marketStatusRefreshKey]);
+  }, [activeDetailTab, fragebogen.id, isMarketSelectorOpen, marketStatusRefreshKey]);
 
   // Helper functions
   const getChainGradient = (chain: string) => {
@@ -465,6 +465,11 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
       open: Math.max(marketStatusRows.length - completed, 0)
     };
   }, [marketStatusRows]);
+
+  const completedMarketIds = useMemo(
+    () => new Set(marketStatusRows.filter((market) => market.completed).map((market) => market.id)),
+    [marketStatusRows]
+  );
 
   const getQuestionTypeLabel = (type: Question['type']) => {
     switch (type) {
@@ -1086,7 +1091,16 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                     >
                       <span className={styles.marketChain} style={{ background: getChainGradient(getMarketChainLabel(market)) }}>{getMarketChainLabel(market)}</span>
                       <span className={styles.marketId}>{getMarketInternalId(market) || '—'}</span>
-                      <span className={styles.marketName}>{market.name}</span>
+                      <span className={styles.marketNameCell}>
+                        {completedMarketIds.has(market.id) && (
+                          <span
+                            className={styles.marketCompletionDot}
+                            title="Fragebogen eingereicht"
+                            aria-label="Fragebogen eingereicht"
+                          />
+                        )}
+                        <span className={styles.marketName}>{market.name}</span>
+                      </span>
                       <span className={styles.marketGL}>
                         {getMarketGlLabel(market) || <span className={styles.noGL}>Kein GL</span>}
                       </span>

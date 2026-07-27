@@ -1140,6 +1140,22 @@
   letter-spacing: 0.5px;
 }
 
+.marketNameCell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.marketCompletionDot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: #16A34A;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+}
+
 .marketName {
   font-weight: 600;
   color: #1E293B;
