@@ -7,6 +7,7 @@ export interface DistributionQuestionOption {
   label: string;
   distributionsziel?: boolean;
   qualitaetsziel?: boolean;
+  sourceIds?: string[];
 }
 
 export interface DistributionFragebogenOption {
@@ -36,6 +37,16 @@ interface FragebogenDistributionExportModalProps {
   onClose: () => void;
   onExport: (selection: DistributionExportSelection) => Promise<void>;
 }
+
+const normalizeQuestionGroupLabel = (label: string): string =>
+  label
+    .normalize('NFKC')
+    .toLocaleLowerCase('de-AT')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+
+const getSourceQuestionIds = (question: DistributionQuestionOption): string[] =>
+  question.sourceIds?.length ? question.sourceIds : [question.id];
 
 export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionExportModalProps> = ({
   isOpen,
@@ -75,12 +86,30 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
   );
 
   const availableQuestions = useMemo(() => {
+    const shouldGroupHistoricalQuestions = selectedFragebogen.length > 1;
     const map = new Map<string, DistributionQuestionOption>();
+
     selectedFragebogen.forEach(f => {
       f.yesnoQuestions.forEach(q => {
-        if (!map.has(q.id)) map.set(q.id, q);
+        const groupKey = shouldGroupHistoricalQuestions
+          ? normalizeQuestionGroupLabel(q.label) || q.id
+          : q.id;
+        const existing = map.get(groupKey);
+
+        if (!existing) {
+          map.set(groupKey, { ...q, sourceIds: [q.id] });
+          return;
+        }
+
+        map.set(groupKey, {
+          ...existing,
+          sourceIds: Array.from(new Set([...getSourceQuestionIds(existing), q.id])),
+          distributionsziel: existing.distributionsziel === true || q.distributionsziel === true,
+          qualitaetsziel: existing.qualitaetsziel === true || q.qualitaetsziel === true
+        });
       });
     });
+
     const questions = Array.from(map.values());
     if (targetFilter === 'distribution') {
       return questions.filter(q => q.distributionsziel === true);
@@ -97,8 +126,11 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
     return Array.from(set.values()).sort((a, b) => a.localeCompare(b, 'de'));
   }, [selectedFragebogen]);
 
+  const isQuestionSelected = (question: DistributionQuestionOption): boolean =>
+    getSourceQuestionIds(question).some(id => selectedQuestionIds.includes(id));
+
   const allQuestionsSelected = availableQuestions.length > 0
-    && availableQuestions.every(q => selectedQuestionIds.includes(q.id));
+    && availableQuestions.every(isQuestionSelected);
   const allChainsSelected = availableChains.length > 0
     && availableChains.every(chain => selectedChains.includes(chain));
 
@@ -110,9 +142,20 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
     });
   };
 
-  const toggleQuestion = (id: string) => {
+  const toggleQuestion = (question: DistributionQuestionOption) => {
     setError(null);
-    setSelectedQuestionIds(prev => (prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]));
+    const sourceIds = getSourceQuestionIds(question);
+    setSelectedQuestionIds(prev => {
+      const selectedSet = new Set(prev);
+      const isSelected = sourceIds.some(id => selectedSet.has(id));
+
+      sourceIds.forEach(id => {
+        if (isSelected) selectedSet.delete(id);
+        else selectedSet.add(id);
+      });
+
+      return Array.from(selectedSet);
+    });
   };
 
   const toggleChain = (chain: string) => {
@@ -122,13 +165,15 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
 
   const handleSelectAllQuestions = () => {
     setError(null);
+    const availableQuestionIds = availableQuestions.flatMap(getSourceQuestionIds);
     if (allQuestionsSelected) {
-      setSelectedQuestionIds(prev => prev.filter(id => !availableQuestions.some(q => q.id === id)));
+      const availableSet = new Set(availableQuestionIds);
+      setSelectedQuestionIds(prev => prev.filter(id => !availableSet.has(id)));
       return;
     }
     setSelectedQuestionIds(prev => {
       const merged = new Set(prev);
-      availableQuestions.forEach(q => merged.add(q.id));
+      availableQuestionIds.forEach(id => merged.add(id));
       return Array.from(merged.values());
     });
   };
@@ -152,7 +197,11 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
       return;
     }
 
-    const validQuestionIds = selectedQuestionIds.filter(id => availableQuestions.some(q => q.id === id));
+    const validQuestionIds = Array.from(new Set(
+      availableQuestions
+        .filter(isQuestionSelected)
+        .flatMap(getSourceQuestionIds)
+    ));
     if (validQuestionIds.length === 0) {
       setError('Bitte mindestens ein Ja/Nein-Item auswählen.');
       return;
@@ -175,7 +224,7 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
   };
 
   React.useEffect(() => {
-    const availableQuestionSet = new Set(availableQuestions.map(q => q.id));
+    const availableQuestionSet = new Set(availableQuestions.flatMap(getSourceQuestionIds));
     setSelectedQuestionIds(prev => prev.filter(id => availableQuestionSet.has(id)));
 
     const availableChainSet = new Set(availableChains);
@@ -268,8 +317,8 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
                 <label key={question.id} className={styles.checkItem}>
                   <input
                     type="checkbox"
-                    checked={selectedQuestionIds.includes(question.id)}
-                    onChange={() => toggleQuestion(question.id)}
+                    checked={isQuestionSelected(question)}
+                    onChange={() => toggleQuestion(question)}
                     disabled={isExporting}
                   />
                   <span>{question.label}</span>
