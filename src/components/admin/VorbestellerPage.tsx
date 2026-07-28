@@ -1065,7 +1065,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       const newEinzelprodukt: EinzelproduktItem = {
         id: Date.now().toString(),
         name: item.name,
-        targetNumber: '',
+        targetNumber: '1',
         picture: null,
         itemValue: item.itemValue?.toString(),
         artikelNr: einzelprodukt.artikelNr || '',
@@ -1081,7 +1081,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     const newEinzelprodukt: EinzelproduktItem = {
       id: Date.now().toString(),
       name: product.name,
-      targetNumber: '',
+      targetNumber: '1',
       picture: null,
       itemValue: product.price?.toString(),
       artikelNr: product.artikelNr || '',
