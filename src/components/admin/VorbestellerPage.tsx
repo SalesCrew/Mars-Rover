@@ -1565,8 +1565,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 
       {/* Create Welle Modal */}
       {isCreateWelleModalOpen && ReactDOM.createPortal(
-        <div className={styles.modalOverlay} onClick={handleClose}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>{getStepTitle()}</h3>
               <button 
