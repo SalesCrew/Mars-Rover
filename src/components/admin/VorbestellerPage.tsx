@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { CalendarPlus, X, CheckCircle, Package, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash, PencilSimple, Calendar, TrendUp, Clock, CheckCircle as CheckCircleFilled, Storefront, Stack, ShoppingBag, Cube, Camera } from '@phosphor-icons/react';
+import { CalendarPlus, X, CheckCircle, Package, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash, PencilSimple, Calendar, TrendUp, Clock, CheckCircle as CheckCircleFilled, Storefront, Stack, ShoppingBag, Cube, Camera, MagnifyingGlass } from '@phosphor-icons/react';
 import styles from './VorbestellerPage.module.css';
 import { CustomDatePicker } from './CustomDatePicker';
 import { WelleDetailModal } from './WelleDetailModal';
@@ -8,6 +8,7 @@ import { WelleMarketSelectorModal } from './WelleMarketSelectorModal';
 import { wellenService, type Welle } from '../../services/wellenService';
 import { getAllProducts, type Product } from '../../data/productsData';
 import { API_BASE_URL } from '../../config/database';
+import { productMatchesSearch } from '../../utils/productArticle';
 
 // Helper function to upload image to Supabase Storage
 const uploadImageToStorage = async (file: File, folder: string): Promise<string | null> => {
@@ -235,6 +236,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   const [editingWelle, setEditingWelle] = useState<Welle | null>(null);
   const [isPastItemsModalOpen, setIsPastItemsModalOpen] = useState<boolean>(false);
   const [pastItemType, setPastItemType] = useState<'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt' | null>(null);
+  const [pastItemSearch, setPastItemSearch] = useState('');
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTypes, setSelectedTypes] = useState<('display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt')[]>([]);
   const [productDisplays, setProductDisplays] = useState<Product[]>([]);
@@ -1031,12 +1033,28 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     return pastWellen.flatMap(w => w.einzelproduktItems || []);
   };
 
+  const normalizedPastItemSearch = pastItemSearch.trim().toLowerCase();
+  const filteredStandardProducts = productStandard.filter((product) =>
+    productMatchesSearch(product, normalizedPastItemSearch, [
+      product.sku,
+      product.weight,
+      getProductVeValue(product)
+    ])
+  );
+  const filteredPastEinzelprodukte = getAllPastEinzelprodukte().filter((item) => {
+    if (!normalizedPastItemSearch) return true;
+    return [item.name, item.artikelNr, item.ve]
+      .some((value) => String(value ?? '').toLowerCase().includes(normalizedPastItemSearch));
+  });
+
   const handleOpenPastItems = (type: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt') => {
+    setPastItemSearch('');
     setPastItemType(type);
     setIsPastItemsModalOpen(true);
   };
 
   const handleClosePastItems = () => {
+    setPastItemSearch('');
     setIsPastItemsModalOpen(false);
     setPastItemType(null);
   };
@@ -2890,6 +2908,19 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
             </div>
 
             <div className={styles.pastItemsContent}>
+              {pastItemType === 'einzelprodukt' && (
+                <div className={styles.pastItemsSearch}>
+                  <MagnifyingGlass size={18} weight="bold" aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={pastItemSearch}
+                    onChange={(event) => setPastItemSearch(event.target.value)}
+                    placeholder="Produkt oder 6-stellige Art.-Nr. suchen"
+                    aria-label="Einzelprodukt nach Name oder Artikelnummer suchen"
+                  />
+                </div>
+              )}
+
               {/* Product Displays Section (only for display type) */}
               {pastItemType === 'display' && productDisplays.length > 0 && (
                 <div className={styles.pastItemsSection}>
@@ -3037,11 +3068,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
               {pastItemType === 'einzelprodukt' && (
                 <>
                   {/* Products from products table (standard products) */}
-                  {productStandard.length > 0 && (
+                  {filteredStandardProducts.length > 0 && (
                     <div className={styles.pastItemsSection}>
                       <h4 className={styles.pastItemsSectionTitle}>Aus Produktliste (Standard Produkte)</h4>
                       <div className={styles.pastItemsGrid}>
-                        {productStandard.map((product) => (
+                        {filteredStandardProducts.map((product) => (
                           <button
                             key={product.id}
                             className={styles.pastItemCard}
@@ -3069,11 +3100,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                   )}
 
                   {/* Past einzelprodukte from previous wellen */}
-                  {getAllPastEinzelprodukte().length > 0 && (
+                  {filteredPastEinzelprodukte.length > 0 && (
                     <div className={styles.pastItemsSection}>
                       <h4 className={styles.pastItemsSectionTitle}>Aus vergangenen Wellen</h4>
                       <div className={styles.pastItemsGrid}>
-                        {getAllPastEinzelprodukte().map((item) => (
+                        {filteredPastEinzelprodukte.map((item) => (
                           <button
                             key={item.id}
                             className={styles.pastItemCard}
@@ -3110,9 +3141,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                   <p>Keine Schütten gefunden</p>
                 </div>
               )}
-              {pastItemType === 'einzelprodukt' && getAllPastEinzelprodukte().length === 0 && productStandard.length === 0 && (
+              {pastItemType === 'einzelprodukt' && filteredPastEinzelprodukte.length === 0 && filteredStandardProducts.length === 0 && (
                 <div className={styles.emptyPastItems}>
-                  <p>Keine Einzelprodukte gefunden</p>
+                  <p>{pastItemSearch.trim() ? 'Keine passenden Einzelprodukte gefunden' : 'Keine Einzelprodukte gefunden'}</p>
                 </div>
               )}
             </div>

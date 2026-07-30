@@ -162,6 +162,9 @@ export interface FragebogenStatusOption {
   startDate: string;
   endDate: string;
   status: 'active' | 'scheduled' | 'inactive';
+  distributionScore?: number | null;
+  distributionYes?: number;
+  distributionTotal?: number;
 }
 
 export interface GLFragebogenMarketStatus {
@@ -170,6 +173,9 @@ export interface GLFragebogenMarketStatus {
   completed: boolean;
   completedAt?: string | null;
   responseId?: string | null;
+  distributionScore?: number | null;
+  distributionYes?: number;
+  distributionTotal?: number;
 }
 
 export interface GLFragebogenStatusMarket {

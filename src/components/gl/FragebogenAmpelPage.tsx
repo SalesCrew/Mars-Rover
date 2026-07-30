@@ -57,6 +57,21 @@ const getSelectedStatus = (
 ): GLFragebogenMarketStatus | undefined =>
   market.statuses.find((status) => status.fragebogenId === selectedFragebogenId);
 
+const hasDistributionScore = (
+  value: number | null | undefined
+): value is number => typeof value === 'number' && Number.isFinite(value);
+
+const getDistributionTitle = (
+  score: number,
+  yes?: number,
+  total?: number
+): string => {
+  if (typeof yes === 'number' && typeof total === 'number' && total > 0) {
+    return `Distributionsziel: ${score}% (${yes} von ${total} Ja)`;
+  }
+  return `Distributionsziel: ${score}%`;
+};
+
 export const FragebogenAmpelPage: React.FC<FragebogenAmpelPageProps> = ({ glId }) => {
   const [selectedFragebogenId, setSelectedFragebogenId] = useState<'all' | string>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -242,9 +257,14 @@ export const FragebogenAmpelPage: React.FC<FragebogenAmpelPageProps> = ({ glId }
               className={`${styles.tabButton} ${selectedFragebogenId === item.id ? styles.tabButtonActive : ''}`}
               onClick={() => setSelectedFragebogenId(item.id)}
               type="button"
-              title={item.name}
+              title={hasDistributionScore(item.distributionScore)
+                ? `${item.name} - ${getDistributionTitle(item.distributionScore, item.distributionYes, item.distributionTotal)}`
+                : item.name}
             >
-              {item.name}
+              <span className={styles.tabLabel}>{item.name}</span>
+              {hasDistributionScore(item.distributionScore) && (
+                <span className={styles.tabScore}>Distri {item.distributionScore}%</span>
+              )}
             </button>
           ))}
         </div>
@@ -316,9 +336,23 @@ export const FragebogenAmpelPage: React.FC<FragebogenAmpelPageProps> = ({ glId }
                         aria-hidden="true"
                       />
                       <span>{selectedStatus.completed ? 'Erledigt' : 'Offen'}</span>
-                      {selectedStatus.completedAt && (
-                        <small>{formatDateTime(selectedStatus.completedAt)}</small>
-                      )}
+                      <div className={styles.singleStatusMeta}>
+                        {selectedStatus.completedAt && (
+                          <small>{formatDateTime(selectedStatus.completedAt)}</small>
+                        )}
+                        {hasDistributionScore(selectedStatus.distributionScore) && (
+                          <small
+                            className={styles.inlineScore}
+                            title={getDistributionTitle(
+                              selectedStatus.distributionScore,
+                              selectedStatus.distributionYes,
+                              selectedStatus.distributionTotal
+                            )}
+                          >
+                            Distri {selectedStatus.distributionScore}%
+                          </small>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <span className={styles.noStatus}>-</span>
@@ -371,6 +405,14 @@ export const FragebogenAmpelPage: React.FC<FragebogenAmpelPageProps> = ({ glId }
                     <div>
                       <strong>{status.fragebogenName}</strong>
                       <small>{status.completed && status.completedAt ? `Abgeschlossen ${formatDateTime(status.completedAt)}` : 'Noch offen'}</small>
+                      {hasDistributionScore(status.distributionScore) && (
+                        <small
+                          className={styles.detailDistributionScore}
+                          title={getDistributionTitle(status.distributionScore, status.distributionYes, status.distributionTotal)}
+                        >
+                          Distributionsziel {status.distributionScore}%
+                        </small>
+                      )}
                     </div>
                     <span className={`${styles.detailStatusBadge} ${status.completed ? styles.detailStatusDone : styles.detailStatusOpen}`}>
                       {status.completed ? 'Erledigt' : 'Offen'}
