@@ -155,11 +155,40 @@
   font-size: 13px; font-weight: 600; color: #1E293B;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.itemMeta { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.itemMeta { display: flex; align-items: flex-start; gap: 6px; margin-top: 3px; }
 
 .chainBadge {
   display: inline-flex; padding: 1px 6px; border-radius: 4px;
   font-size: 10px; font-weight: 600; border: 1px solid;
+  flex-shrink: 0;
+}
+.itemMarketInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.itemMarketName {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.itemMarketAddress {
+  margin-top: 1px;
+  font-size: 10px;
+  color: #94A3B8;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.itemDetailMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
 }
 .productCount {
   font-size: 11px; color: #64748B;

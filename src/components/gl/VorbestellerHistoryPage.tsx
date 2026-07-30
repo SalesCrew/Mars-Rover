@@ -55,6 +55,9 @@ interface SubmissionEntry {
   marketName: string;
   marketChain: string;
   marketId?: string;
+  marketAddress?: string;
+  marketPostalCode?: string;
+  marketCity?: string;
   itemType: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt';
   itemName: string;
   artikelNr?: string | null;
@@ -145,6 +148,11 @@ const formatArticleVeMeta = (item: { artikelNr?: string | null; ve?: number | st
     parts.push(`VE: ${item.ve}`);
   }
   return parts.join(' · ');
+};
+
+const formatMarketAddress = (entry: SubmissionEntry): string => {
+  const postalCity = [entry.marketPostalCode, entry.marketCity].filter(Boolean).join(' ');
+  return [entry.marketAddress, postalCity].filter(Boolean).join(', ');
 };
 
 // Check if a date is within the editable window (1 month)
@@ -920,6 +928,10 @@ export const VorbestellerHistoryPage: React.FC = () => {
                                   const hasSubs = entry.products && entry.products.length > 0;
                                   const isItemExpanded = expandedItems.has(entry.id);
                                   const colors = getChainColor(entry.marketChain);
+                                  const marketAddress = formatMarketAddress(entry);
+                                  const articleVeMeta = entry.itemType === 'einzelprodukt'
+                                    ? formatArticleVeMeta(entry)
+                                    : '';
 
                                   return (
                                     <div
@@ -937,9 +949,19 @@ export const VorbestellerHistoryPage: React.FC = () => {
                                             <span className={styles.chainBadge} style={{ background: colors.bg, borderColor: colors.border, color: colors.text }}>
                                               {entry.marketChain}
                                             </span>
-                                            {hasSubs && <span className={styles.productCount}>{entry.products!.length} Produkte</span>}
-                                            {entry.itemType === 'einzelprodukt' && formatArticleVeMeta(entry) && <span className={styles.productCount}>{formatArticleVeMeta(entry)}</span>}
+                                            <div className={styles.itemMarketInfo}>
+                                              <span className={styles.itemMarketName}>{entry.marketName}</span>
+                                              {marketAddress && (
+                                                <span className={styles.itemMarketAddress}>{marketAddress}</span>
+                                              )}
+                                            </div>
                                           </div>
+                                          {(hasSubs || articleVeMeta) && (
+                                            <div className={styles.itemDetailMeta}>
+                                              {hasSubs && <span className={styles.productCount}>{entry.products!.length} Produkte</span>}
+                                              {articleVeMeta && <span className={styles.productCount}>{articleVeMeta}</span>}
+                                            </div>
+                                          )}
                                         </div>
                                         {!hasSubs && renderQuantity(entry.id, entry.quantity, wave.id, day.date)}
                                         <span className={`${styles.itemValue} ${entry.value > 0 ? styles.itemValueCash : styles.itemValueCount}`}>
