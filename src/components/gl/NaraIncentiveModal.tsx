@@ -84,6 +84,7 @@ export const NaraIncentiveModal: React.FC<NaraIncentiveModalProps> = ({ isOpen, 
     return allMarkets.filter(m =>
       m.name.toLowerCase().includes(q) ||
       (m.address || '').toLowerCase().includes(q) ||
+      (m.postalCode || '').toLowerCase().includes(q) ||
       (m.city || '').toLowerCase().includes(q) ||
       (m.chain || '').toLowerCase().includes(q)
     );
@@ -215,7 +216,7 @@ export const NaraIncentiveModal: React.FC<NaraIncentiveModalProps> = ({ isOpen, 
                       >
                         <div className={styles.marketInfo}>
                           <div className={styles.marketName}>{market.name}</div>
-                          <div className={styles.marketAddress}>{market.chain} · {market.city}</div>
+                          <div className={styles.marketAddress}>{market.chain} · {market.address}, {market.postalCode} {market.city}</div>
                         </div>
                         {selectedMarketId === market.id && (
                           <div className={styles.marketCheck}>
@@ -237,7 +238,7 @@ export const NaraIncentiveModal: React.FC<NaraIncentiveModalProps> = ({ isOpen, 
                       >
                         <div className={styles.marketInfo}>
                           <div className={styles.marketName}>{market.name}</div>
-                          <div className={styles.marketAddress}>{market.chain} · {market.city}</div>
+                          <div className={styles.marketAddress}>{market.chain} · {market.address}, {market.postalCode} {market.city}</div>
                         </div>
                         {selectedMarketId === market.id && (
                           <div className={styles.marketCheck}>

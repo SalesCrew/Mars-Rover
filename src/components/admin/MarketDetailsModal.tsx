@@ -544,16 +544,28 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
                 </div>
               </div>
 
-              {/* Row 8: Mars Fil Nr */}
-              <div className={styles.field}>
-                <label className={styles.label}>Mars Fil Nr</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  value={formData.marsFil || ''}
-                  onChange={(e) => handleInputChange('marsFil', e.target.value)}
-                  placeholder="z.B. 12345"
-                />
+              {/* Row 8: Subgroup & Mars Fil Nr */}
+              <div className={styles.row}>
+                <div className={styles.field}>
+                  <label className={styles.label}>Subgroup</label>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    value={formData.subgroup || ''}
+                    onChange={(e) => handleInputChange('subgroup', e.target.value)}
+                    placeholder="Subgroup eingeben"
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Mars Fil Nr</label>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    value={formData.marsFil || ''}
+                    onChange={(e) => handleInputChange('marsFil', e.target.value)}
+                    placeholder="z.B. 12345"
+                  />
+                </div>
               </div>
             </>
           ) : (

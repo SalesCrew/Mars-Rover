@@ -185,6 +185,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
     return allMarkets.filter(m => 
       m.name.toLowerCase().includes(query) ||
       m.address.toLowerCase().includes(query) ||
+      m.postalCode.toLowerCase().includes(query) ||
       m.city.toLowerCase().includes(query) ||
       m.chain.toLowerCase().includes(query)
     );
@@ -772,7 +773,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                           >
                             <div className={styles.marketInfo}>
                               <div className={styles.marketName}>{market.name}</div>
-                              <div className={styles.marketAddress}>{market.address}, {market.city}</div>
+                              <div className={styles.marketAddress}>{market.address}, {market.postalCode} {market.city}</div>
                             </div>
                             <div className={styles.marketChain}>{market.chain}</div>
                             {selectedMarketId === market.id && (
@@ -797,7 +798,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                           >
                             <div className={styles.marketInfo}>
                               <div className={styles.marketName}>{market.name}</div>
-                              <div className={styles.marketAddress}>{market.address}, {market.city}</div>
+                              <div className={styles.marketAddress}>{market.address}, {market.postalCode} {market.city}</div>
                             </div>
                             <div className={styles.marketChain}>{market.chain}</div>
                             {selectedMarketId === market.id && (
@@ -861,7 +862,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                               >
                                 <div className={styles.productInfo}>
                                   <div className={styles.productName}>{market.name}</div>
-                                  <div className={styles.productDetails}>{market.address}, {market.city}</div>
+                                  <div className={styles.productDetails}>{market.address}, {market.postalCode} {market.city}</div>
                                 </div>
                                 {selectedMarketId === market.id && (
                                   <div className={styles.productCheck}>
@@ -889,7 +890,7 @@ export const VorverkaufModal: React.FC<VorverkaufModalProps> = ({ isOpen, onClos
                               >
                                 <div className={styles.productInfo}>
                                   <div className={styles.productName}>{market.name}</div>
-                                  <div className={styles.productDetails}>{market.address}, {market.city}</div>
+                                  <div className={styles.productDetails}>{market.address}, {market.postalCode} {market.city}</div>
                                 </div>
                                 {selectedMarketId === market.id && (
                                   <div className={styles.productCheck}>

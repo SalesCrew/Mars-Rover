@@ -160,9 +160,16 @@ export const FotosPage: React.FC = () => {
 
   // Unique markets from photos for dropdown
   const allMarkets = useMemo(() => {
-    const mMap = new Map<string, string>();
-    photos.forEach(p => { if (p.marketId && p.marketName) mMap.set(p.marketId, p.marketName); });
-    return Array.from(mMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+    const mMap = new Map<string, { id: string; name: string; fullAddress: string }>();
+    photos.forEach(p => {
+      if (!p.marketId || !p.marketName) return;
+      const fullAddress = p.marketAddress || [
+        p.marketAddressLine,
+        [p.marketPostalCode, p.marketCity].filter(Boolean).join(' ')
+      ].filter(Boolean).join(', ');
+      mMap.set(p.marketId, { id: p.marketId, name: p.marketName, fullAddress });
+    });
+    return Array.from(mMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [photos]);
 
   // Close dropdown on outside click
@@ -472,9 +479,10 @@ export const FotosPage: React.FC = () => {
                 <button className={`${styles.dropdownItem} ${!filterMarket ? styles.dropdownItemActive : ''}`} onClick={() => { setFilterMarket(''); setMarketSearch(''); setOpenDropdown(null); }}>
                   Alle Märkte
                 </button>
-                {allMarkets.filter(m => m.name.toLowerCase().includes(marketSearch.toLowerCase())).map(m => (
-                  <button key={m.id} className={`${styles.dropdownItem} ${filterMarket === m.id ? styles.dropdownItemActive : ''}`} onClick={() => { setFilterMarket(m.id); setMarketSearch(''); setOpenDropdown(null); }}>
-                    {m.name}
+                {allMarkets.filter(m => `${m.name} ${m.fullAddress}`.toLowerCase().includes(marketSearch.toLowerCase())).map(m => (
+                  <button key={m.id} className={`${styles.dropdownItem} ${styles.marketDropdownItem} ${filterMarket === m.id ? styles.dropdownItemActive : ''}`} onClick={() => { setFilterMarket(m.id); setMarketSearch(''); setOpenDropdown(null); }}>
+                    <span className={styles.dropdownItemTitle}>{m.name}</span>
+                    <span className={styles.dropdownItemMeta}>{m.fullAddress || 'Keine Adresse hinterlegt'}</span>
                   </button>
                 ))}
               </div>

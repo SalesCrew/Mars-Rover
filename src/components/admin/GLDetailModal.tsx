@@ -1109,7 +1109,7 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
                           </div>
                           <div className={styles.addMarketInfo}>
                             <div className={styles.addMarketName}>{market.name || market.address}</div>
-                            <div className={styles.addMarketAddress}>{market.postalCode} {market.city}</div>
+                            <div className={styles.addMarketAddress}>{market.address}, {market.postalCode} {market.city}</div>
                           </div>
                           {market.gebietsleiterName && (
                             <div className={styles.addMarketCurrentGL}>
@@ -1131,4 +1131,3 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
     document.body
   );
 };
-
