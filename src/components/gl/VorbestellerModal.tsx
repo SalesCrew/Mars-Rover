@@ -89,6 +89,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const submissionInFlightRef = useRef(false);
+  const submissionBatchIdRef = useRef<string | null>(null);
 
   // Fetch wellen on mount
   useEffect(() => {
@@ -628,6 +630,11 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
 
   // Actual submission logic - can be called with or without creating a new visit
   const executeSubmission = async (createNewVisit: boolean) => {
+    if (submissionInFlightRef.current) return;
+
+    submissionInFlightRef.current = true;
+    const submissionBatchId = submissionBatchIdRef.current ?? crypto.randomUUID();
+    submissionBatchIdRef.current = submissionBatchId;
     setIsSubmitting(true);
     
     try {
@@ -729,7 +736,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
           gebietsleiter_id: user.id,
           market_id: selectedMarket.id,
           items,
-          photo_url: capturedPhoto || undefined
+          photo_url: capturedPhoto || undefined,
+          submission_batch_id: submissionBatchId
         });
 
         // Upload foto welle photos if any
@@ -773,6 +781,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
       }, 1500);
     } catch (error) {
       console.error('Error submitting progress:', error);
+      submissionInFlightRef.current = false;
       setIsSubmitting(false);
       setPendingCreateNewVisit(null);
       alert('Fehler beim Speichern. Bitte versuche es erneut.');
@@ -804,6 +813,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   };
 
   const handleClose = () => {
+    if (submissionInFlightRef.current) return;
+
     // Don't reset state - allow user to continue from where they left off
     // Only close for re-entry
     onClose();
@@ -811,6 +822,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
 
   // Full reset only on success completion
   const handleSuccessClose = () => {
+    submissionInFlightRef.current = false;
+    submissionBatchIdRef.current = null;
     setFlippedCardId(null);
     setSelectedCardId(null);
     setSubmittedMarketIds(new Set());
@@ -2078,24 +2091,24 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
             </button>
           ) : showFotoWelle ? (
             <>
-              <button className={styles.secondaryButton} onClick={() => setShowFotoWelle(false)}>
+              <button className={styles.secondaryButton} onClick={() => setShowFotoWelle(false)} disabled={isSubmitting || isSubmitCompleted}>
                 Zurück
               </button>
-              <button className={styles.primaryButton} onClick={handleFotoWelleWeiter} disabled={fotoWellePhotos.length === 0}>
-                Absenden
+              <button className={styles.primaryButton} onClick={handleFotoWelleWeiter} disabled={fotoWellePhotos.length === 0 || isSubmitting || isSubmitCompleted}>
+                {isSubmitting ? 'Wird gespeichert...' : 'Absenden'}
               </button>
             </>
           ) : showItemSelection ? (
             <>
-              <button className={styles.secondaryButton} onClick={() => setShowItemSelection(false)}>
+              <button className={styles.secondaryButton} onClick={() => setShowItemSelection(false)} disabled={isSubmitting || isSubmitCompleted}>
                 Zurück
               </button>
               <button 
                 className={styles.primaryButton} 
                 onClick={handleFertigClick}
-                disabled={totalQuantity === 0 && !selectedVorbesteller?.fotoEnabled}
+                disabled={(totalQuantity === 0 && !selectedVorbesteller?.fotoEnabled) || isSubmitting || isSubmitCompleted}
               >
-                {selectedVorbesteller?.fotoEnabled ? 'Weiter' : 'Fertig'}
+                {isSubmitting ? 'Wird gespeichert...' : (selectedVorbesteller?.fotoEnabled ? 'Weiter' : 'Fertig')}
               </button>
             </>
           ) : showMarketSelection ? (

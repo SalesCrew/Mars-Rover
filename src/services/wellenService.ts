@@ -358,9 +358,10 @@ class WellenService {
       value_per_unit?: number;
     }>;
     photo_url?: string;
+    submission_batch_id?: string;
     timestamp?: string;
     skipVisitUpdate?: boolean;
-  }): Promise<{ message: string; items_updated: number }> {
+  }): Promise<{ message: string; items_updated: number; already_processed?: boolean }> {
     try {
       const response = await fetch(`${this.baseUrl}/${welleId}/progress/batch`, {
         method: 'POST',
