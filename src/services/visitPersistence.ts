@@ -26,6 +26,8 @@ export interface PersistedVisit {
   distanzKm: string;
   pendingSync: PendingSync;
   modules: any[];
+  questionnaireAnswers?: Record<string, unknown>;
+  pendingQuestionKeys?: string[];
   savedAt: string;
 }
 

@@ -28,7 +28,7 @@ import type { Market } from '../../types/market-types';
 import { useAuth } from '../../contexts/AuthContext';
 import fragebogenService from '../../services/fragebogenService';
 import { marketService, type VisitCrmContext } from '../../services/marketService';
-import { saveActiveVisit, updateActiveVisit, updatePendingSync, clearActiveVisit, getPendingSync, type PersistedVisit } from '../../services/visitPersistence';
+import { saveActiveVisit, getActiveVisit, updateActiveVisit, updatePendingSync, clearActiveVisit, getPendingSync, type PersistedVisit } from '../../services/visitPersistence';
 import { VisitMiniCrmPanel } from './VisitMiniCrmPanel';
 import styles from './MarketVisitPage.module.css';
 
@@ -196,20 +196,39 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   );
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, any>>(
+    () => (resumeData?.questionnaireAnswers as Record<string, any> | undefined) || {}
+  );
+  const answersRef = useRef<Record<string, any>>(
+    (resumeData?.questionnaireAnswers as Record<string, any> | undefined) || {}
+  );
   const [isCompleted, setIsCompleted] = useState(false);
   
   // Response IDs by Fragebogen — created lazily on first answer per Fragebogen.
-  const [responseIdByFragebogenId, setResponseIdByFragebogenId] = useState<Record<string, string>>(
+  const [, setResponseIdByFragebogenId] = useState<Record<string, string>>(
+    resumeData?.responseIdByFragebogenId || {}
+  );
+  const responseIdByFragebogenIdRef = useRef<Record<string, string>>(
     resumeData?.responseIdByFragebogenId || {}
   );
   const responseCreationInFlightRef = useRef<Partial<Record<string, Promise<string | null>>>>({});
 
   // Pending answer sync queue — keyed by questionId, stores the latest un-synced value.
   // Navigation never waits for this; it is flushed in the background and before completion.
-  const pendingAnswersRef = useRef<Map<string, { question: QuestionWithContext; value: any }>>(new Map());
+  const restoredPendingKeys = Array.isArray(resumeData?.pendingQuestionKeys)
+    ? resumeData.pendingQuestionKeys
+    : Object.keys(resumeData?.questionnaireAnswers || {});
+  const restoredPendingAnswers = new Map<string, { question: QuestionWithContext; value: any }>();
+  restoredPendingKeys.forEach((questionKey) => {
+    const question = allQuestions.find((candidate) => candidate.questionKey === questionKey);
+    const value = resumeData?.questionnaireAnswers?.[questionKey];
+    if (question && value !== undefined) {
+      restoredPendingAnswers.set(questionKey, { question, value });
+    }
+  });
+  const pendingAnswersRef = useRef<Map<string, { question: QuestionWithContext; value: any }>>(restoredPendingAnswers);
   const isSyncingRef = useRef(false);
-  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [pendingSyncCount, setPendingSyncCount] = useState(restoredPendingAnswers.size);
   const [syncError, setSyncError] = useState<string | null>(null);
 
   // UI states for completion feedback only (not used to block mid-question navigation)
@@ -243,6 +262,41 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   const [fahrzeitRunning, setFahrzeitRunning] = useState(false);
   const [besuchszeitRunning, setBesuchszeitRunning] = useState(hasVonNoBis);
   const [visitStarted, setVisitStarted] = useState(!!resumeData?.besuchszeitVon);
+
+  const persistQuestionnaireDraft = (nextAnswers: Record<string, any>) => {
+    if (!user?.id) return;
+
+    const questionnaireState = {
+      questionnaireAnswers: nextAnswers,
+      pendingQuestionKeys: Array.from(pendingAnswersRef.current.keys()),
+      responseIdByFragebogenId: responseIdByFragebogenIdRef.current,
+      modules,
+      fragebogenIds: fragebogenIds
+        || Array.from(new Set(modules.map(m => m.fragebogenId).filter(Boolean))) as string[]
+    };
+    const current = getActiveVisit();
+
+    if (current?.glId === user.id && current.marketId === market.id) {
+      saveActiveVisit({ ...current, ...questionnaireState });
+      return;
+    }
+
+    saveActiveVisit({
+      submissionId,
+      glId: user.id,
+      marketId: market.id,
+      marketName: market.name,
+      marketChain: market.chain || '',
+      besuchszeitVon: zeiterfassung.besuchszeitVon,
+      besuchszeitBis: zeiterfassung.besuchszeitBis || null,
+      kommentar: zeiterfassung.kommentar,
+      foodProzent: zeiterfassung.foodProzent,
+      distanzKm: '',
+      pendingSync: {},
+      ...questionnaireState,
+      savedAt: new Date().toISOString()
+    });
+  };
   
   // Elapsed time: if resuming an ongoing visit, calculate elapsed from VON
   const [fahrzeitElapsed, setFahrzeitElapsed] = useState(0);
@@ -386,8 +440,10 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           distanzKm: '',
           pendingSync: {},
           fragebogenIds: Array.from(new Set(modules.map(m => m.fragebogenId).filter(Boolean))) as string[],
-          responseIdByFragebogenId,
+          responseIdByFragebogenId: responseIdByFragebogenIdRef.current,
           modules,
+          questionnaireAnswers: answersRef.current,
+          pendingQuestionKeys: Array.from(pendingAnswersRef.current.keys()),
           savedAt: new Date().toISOString()
         });
       } catch {
@@ -405,8 +461,10 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           distanzKm: '',
           pendingSync: { create: true },
           fragebogenIds: Array.from(new Set(modules.map(m => m.fragebogenId).filter(Boolean))) as string[],
-          responseIdByFragebogenId,
+          responseIdByFragebogenId: responseIdByFragebogenIdRef.current,
           modules,
+          questionnaireAnswers: answersRef.current,
+          pendingQuestionKeys: Array.from(pendingAnswersRef.current.keys()),
           savedAt: new Date().toISOString()
         });
       }
@@ -421,7 +479,9 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   const ensureResponseRun = async (targetFragebogenId?: string): Promise<string | null> => {
     const resolvedFragebogenId = targetFragebogenId || fragebogenId || fragebogenIds?.[0];
     if (!resolvedFragebogenId || !hasFragebogen || !user?.id) return null;
-    if (responseIdByFragebogenId[resolvedFragebogenId]) return responseIdByFragebogenId[resolvedFragebogenId];
+    if (responseIdByFragebogenIdRef.current[resolvedFragebogenId]) {
+      return responseIdByFragebogenIdRef.current[resolvedFragebogenId];
+    }
     if (responseCreationInFlightRef.current[resolvedFragebogenId]) {
       return responseCreationInFlightRef.current[resolvedFragebogenId];
     }
@@ -435,6 +495,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
         });
         setResponseIdByFragebogenId(prev => {
           const next = { ...prev, [resolvedFragebogenId]: result.id };
+          responseIdByFragebogenIdRef.current = next;
           updateActiveVisit({ responseIdByFragebogenId: next });
           return next;
         });
@@ -762,9 +823,18 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     }
   };
 
+  const storeQuestionAnswer = (question: QuestionWithContext, value: any) => {
+    const nextAnswers = { ...answersRef.current, [question.questionKey]: value };
+    answersRef.current = nextAnswers;
+    pendingAnswersRef.current.set(question.questionKey, { question, value });
+    setAnswers(nextAnswers);
+    setPendingSyncCount(pendingAnswersRef.current.size);
+    persistQuestionnaireDraft(nextAnswers);
+  };
+
   const handleAnswer = (value: any) => {
     if (!currentQuestion) return;
-    setAnswers(prev => ({ ...prev, [currentQuestion.questionKey]: value }));
+    storeQuestionAnswer(currentQuestion, value);
   };
 
   const readFileAsDataUrl = (file: File): Promise<string> =>
@@ -828,13 +898,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
         const uploadedUrl = await uploadPhotoAnswer(question, file);
         if (uploadedUrl) uploadedUrls.push(uploadedUrl);
       }
-      setAnswers((prev) => {
-        const existingValue = prev[question.questionKey];
-        const existingUrls = Array.isArray(existingValue)
-          ? existingValue.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
-          : (typeof existingValue === 'string' && existingValue.trim().length > 0 ? [existingValue] : []);
-        return { ...prev, [question.questionKey]: [...existingUrls, ...uploadedUrls] };
-      });
+      const existingValue = answersRef.current[question.questionKey];
+      const existingUrls = Array.isArray(existingValue)
+        ? existingValue.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+        : (typeof existingValue === 'string' && existingValue.trim().length > 0 ? [existingValue] : []);
+      storeQuestionAnswer(question, [...existingUrls, ...uploadedUrls]);
     } catch (error: any) {
       setSaveError(error?.message || 'Foto konnte nicht hochgeladen werden.');
     } finally {
@@ -889,6 +957,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   const enqueueAnswer = (question: QuestionWithContext, value: any) => {
     pendingAnswersRef.current.set(question.questionKey, { question, value });
     setPendingSyncCount(pendingAnswersRef.current.size);
+    persistQuestionnaireDraft(answersRef.current);
   };
 
   /**
@@ -930,6 +999,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     }
 
     setPendingSyncCount(pendingAnswersRef.current.size);
+    persistQuestionnaireDraft(answersRef.current);
     const allSynced = pendingAnswersRef.current.size === 0;
     if (!allSynced) {
       setSyncError('Einige Antworten konnten nicht gespeichert werden.');
@@ -939,8 +1009,21 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     return allSynced;
   };
 
+  useEffect(() => {
+    const retryPendingAnswers = () => {
+      if (pendingAnswersRef.current.size > 0) {
+        void flushPendingAnswers();
+      }
+    };
+
+    window.addEventListener('online', retryPendingAnswers);
+    if (navigator.onLine) retryPendingAnswers();
+
+    return () => window.removeEventListener('online', retryPendingAnswers);
+  }, [market.id, user?.id]);
+
   const completeAllResponseRuns = async (): Promise<boolean> => {
-    const responseIds = Object.values(responseIdByFragebogenId);
+    const responseIds = Object.values(responseIdByFragebogenIdRef.current);
     if (responseIds.length === 0) return true;
     for (const id of responseIds) {
       try {
@@ -1161,7 +1244,12 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     }
 
     setCompletionPendingSync(false);
-    onComplete({ ...answers, zeiterfassung, submissionId: resolvedSubmissionId, responseIdByFragebogenId });
+    onComplete({
+      ...answers,
+      zeiterfassung,
+      submissionId: resolvedSubmissionId,
+      responseIdByFragebogenId: responseIdByFragebogenIdRef.current
+    });
   };
 
   const handleAbortVisit = async () => {
@@ -1188,7 +1276,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
         .filter((id): id is string => Boolean(id));
 
       const responseIds = Array.from(
-        new Set([...Object.values(responseIdByFragebogenId), ...createdIds].filter(Boolean))
+        new Set([...Object.values(responseIdByFragebogenIdRef.current), ...createdIds].filter(Boolean))
       );
 
       if (user?.id) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { BonusHeroCard } from './BonusHeroCard';
 import { QuickActionsBar } from './QuickActionsBar';
 import { MarketFrequencyAlerts } from './MarketFrequencyAlerts';
@@ -252,7 +252,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   // Auto-resume incomplete visit from localStorage
   useEffect(() => {
     const persisted = getActiveVisit();
-    if (!persisted || !persisted.besuchszeitVon) return;
+    const hasQuestionnaireDraft = !!persisted?.questionnaireAnswers
+      && Object.keys(persisted.questionnaireAnswers).length > 0;
+    if (!persisted || (!persisted.besuchszeitVon && !hasQuestionnaireDraft)) return;
 
     const markets = realMarkets.length > 0 ? realMarkets : mockMarkets;
     const market = markets.find((m: Market) => m.id === persisted.marketId);
@@ -691,7 +693,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     setIsMarketModalOpen(true);
   };
 
+  const visitStartInFlightRef = useRef(false);
+
+  const loadWithRetry = async <T,>(load: () => Promise<T>, attempts = 2): Promise<T> => {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        return await load();
+      } catch (error) {
+        lastError = error;
+        if (attempt + 1 < attempts) {
+          await new Promise(resolve => window.setTimeout(resolve, 400));
+        }
+      }
+    }
+    throw lastError;
+  };
+
   const handleStartSingleVisit = async (marketId: string) => {
+    if (visitStartInFlightRef.current) return;
     console.log('Start visit for market:', marketId);
     
     // Find the market
@@ -701,10 +721,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       console.error('Market not found:', marketId);
       return;
     }
+
+    if (!navigator.onLine) {
+      alert('Keine Internetverbindung. Bitte verbinde dich mit dem Internet und versuche es erneut.');
+      return;
+    }
+
+    visitStartInFlightRef.current = true;
     
     // Fetch active fragebogen for this market
     try {
-      const allFragebogen = await fragebogenService.fragebogen.getAll({ status: 'active' });
+      const allFragebogen = await loadWithRetry(
+        () => fragebogenService.fragebogen.getAll({ status: 'active' })
+      );
       
       // Find all active fragebogen assigned to this market
       const marketFragebogen = allFragebogen
@@ -721,11 +750,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       let openMarketFragebogen = marketFragebogen;
       if (marketFragebogen.length > 0 && user?.id) {
         try {
-          const completedMap = await fragebogenService.responses.getCompletedMap({
-            gebietsleiter_id: user.id,
-            market_id: marketId,
-            fragebogen_ids: marketFragebogen.map((f: any) => f.id)
-          });
+          const completedMap = await loadWithRetry(
+            () => fragebogenService.responses.getCompletedMap({
+              gebietsleiter_id: user.id,
+              market_id: marketId,
+              fragebogen_ids: marketFragebogen.map((f: any) => f.id)
+            })
+          );
           const completedSet = new Set(completedMap.completed_fragebogen_ids || []);
           openMarketFragebogen = marketFragebogen.filter((f: any) => !completedSet.has(f.id));
         } catch (completionError) {
@@ -737,8 +768,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
       if (openMarketFragebogen.length > 0) {
         const fullFragebogenList = await Promise.all(
-          openMarketFragebogen.map((f: any) => fragebogenService.fragebogen.getById(f.id))
+          openMarketFragebogen.map((f: any) =>
+            loadWithRetry(() => fragebogenService.fragebogen.getById(f.id))
+          )
         );
+        const incompleteFragebogen = fullFragebogenList.find((fullFragebogen: any) =>
+          !Array.isArray(fullFragebogen.modules)
+          || !fullFragebogen.modules.some((fm: any) =>
+            Array.isArray(fm.module?.questions) && fm.module.questions.length > 0
+          )
+        );
+        if (incompleteFragebogen) {
+          throw new Error(`Fragebogen ${incompleteFragebogen.id} enthält keine vollständig geladenen Fragen.`);
+        }
 
         // Flatten all modules across assigned fragebogen while carrying hidden
         // source metadata for per-fragebogen response routing.
@@ -796,13 +838,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       }
     } catch (error) {
       console.error('Error fetching fragebogen:', error);
-      // Still start the visit but without a fragebogen
-      setActiveVisit({
-        market,
-        modules: [],
-        zeiterfassungActive: true
-      });
-      setIsMarketModalOpen(false);
+      alert('Fragebögen konnten nicht vollständig geladen werden. Der Marktbesuch wurde nicht gestartet. Bitte prüfe deine Internetverbindung und versuche es erneut.');
+    } finally {
+      visitStartInFlightRef.current = false;
     }
   };
 
