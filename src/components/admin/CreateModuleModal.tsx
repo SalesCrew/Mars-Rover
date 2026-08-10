@@ -886,22 +886,26 @@ const SortableQuestionCard: React.FC<SortableQuestionCardProps> = ({
 
   // Image attachment state
   const [isUploading, setIsUploading] = useState(false);
-  const [hoveredImageIdx, setHoveredImageIdx] = useState<number | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = async (file: File) => {
     setIsUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64 = e.target?.result as string;
-        const url = await fragebogenService.questions.uploadImage(base64, file.name);
-        onUpdate(question.id, { images: [...(question.images || []), url] });
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === 'string'
+          ? resolve(reader.result)
+          : reject(new Error('Image could not be read'));
+        reader.onerror = () => reject(reader.error || new Error('Image could not be read'));
+        reader.readAsDataURL(file);
+      });
+      const url = await fragebogenService.questions.uploadImage(base64, file.name);
+      onUpdate(question.id, { images: [...(question.images || []), url] });
+    } catch (error) {
+      console.error('Failed to upload question image:', error);
+      alert('Bild konnte nicht hochgeladen werden.');
+    } finally {
       setIsUploading(false);
     }
   };
@@ -1065,28 +1069,25 @@ const SortableQuestionCard: React.FC<SortableQuestionCardProps> = ({
               {(question.images || []).map((url, idx) => (
                 <div
                   key={idx}
-                  className={styles.imagePill}
-                  onMouseEnter={() => setHoveredImageIdx(idx)}
-                  onMouseLeave={() => setHoveredImageIdx(null)}
+                  className={styles.imageThumbnail}
                 >
-                  {hoveredImageIdx === idx && (
-                    <div className={styles.imageHoverPreview}>
-                      <img src={url} alt={`Bild ${idx + 1}`} />
-                    </div>
-                  )}
-                  <span
-                    className={styles.imagePillLabel}
-                    onClick={() => setLightboxUrl(url)}
-                  >
-                    <Image size={12} weight="bold" />
-                    Bild {idx + 1}
-                  </span>
                   <button
-                    className={styles.imagePillRemove}
+                    type="button"
+                    className={styles.imageThumbnailPreview}
+                    onClick={() => setLightboxUrl(url)}
+                    aria-label={`Fragebild ${idx + 1} vergrößern`}
+                    title="Bild vergrößern"
+                  >
+                    <img src={url} alt={`Fragebild ${idx + 1}`} loading="lazy" />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.imageThumbnailRemove}
                     onClick={() => handleRemoveImage(idx)}
                     title="Bild entfernen"
+                    aria-label={`Fragebild ${idx + 1} entfernen`}
                   >
-                    <X size={11} weight="bold" />
+                    <X size={12} weight="bold" />
                   </button>
                 </div>
               ))}

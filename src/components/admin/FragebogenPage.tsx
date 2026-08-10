@@ -1831,6 +1831,7 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                 matrixColumns: q.matrixColumns,
                 numericConstraints: q.numericConstraints,
                 sliderConfig: q.sliderConfig,
+                images: q.images || [],
                 conditions: q.conditions?.map((c: any) => ({
                   id: c.id,
                   triggerQuestionId: c.triggerQuestionId,
