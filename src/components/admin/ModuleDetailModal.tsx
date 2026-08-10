@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, PencilSimple, Stack, Question, CheckCircle, Eye, CircleNotch } from '@phosphor-icons/react';
+import { X, PencilSimple, Stack, Question, CheckCircle, Eye, CircleNotch, Image as ImageIcon, Plus } from '@phosphor-icons/react';
 import { FragebogenPreviewModal } from './FragebogenPreviewModal';
 import fragebogenService from '../../services/fragebogenService';
 import styles from './ModuleDetailModal.module.css';
@@ -44,6 +44,7 @@ interface QuestionData {
     step: number;
     unit?: string;
   };
+  images?: string[];
   conditions?: QuestionCondition[];
 }
 
@@ -73,6 +74,7 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [module, setModule] = useState<Module>(initialModule);
   const [savingTargetQuestionId, setSavingTargetQuestionId] = useState<string | null>(null);
+  const [savingImageQuestionId, setSavingImageQuestionId] = useState<string | null>(null);
 
   // Load full module data with questions
   useEffect(() => {
@@ -138,6 +140,7 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
             matrixColumns: mq.question?.matrix_config?.columns,
             numericConstraints: mq.question?.numeric_constraints,
             sliderConfig: mq.question?.slider_config,
+            images: Array.isArray(mq.question?.images) ? mq.question.images.filter(Boolean) : [],
             conditions: rulesByQuestion[mq.question?.id] || []
           })),
           createdAt: fullModule.created_at
@@ -193,6 +196,52 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
       alert('Export-Ziel konnte nicht gespeichert werden.');
     } finally {
       setSavingTargetQuestionId(null);
+    }
+  };
+
+  const updateQuestionImages = async (question: QuestionData, images: string[]) => {
+    await fragebogenService.questions.update(question.id, { images });
+    setModule(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => q.id === question.id ? { ...q, images } : q)
+    }));
+  };
+
+  const handleRemoveImage = async (question: QuestionData, imageIndex: number) => {
+    if (savingImageQuestionId === question.id) return;
+
+    setSavingImageQuestionId(question.id);
+    try {
+      const images = (question.images || []).filter((_, index) => index !== imageIndex);
+      await updateQuestionImages(question, images);
+    } catch (error) {
+      console.error('Failed to remove question image:', error);
+      alert('Bild konnte nicht entfernt werden.');
+    } finally {
+      setSavingImageQuestionId(null);
+    }
+  };
+
+  const handleAddImage = async (question: QuestionData, file: File) => {
+    if (savingImageQuestionId === question.id) return;
+
+    setSavingImageQuestionId(question.id);
+    try {
+      const imageBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === 'string'
+          ? resolve(reader.result)
+          : reject(new Error('Image could not be read'));
+        reader.onerror = () => reject(reader.error || new Error('Image could not be read'));
+        reader.readAsDataURL(file);
+      });
+      const imageUrl = await fragebogenService.questions.uploadImage(imageBase64, file.name);
+      await updateQuestionImages(question, [...(question.images || []), imageUrl]);
+    } catch (error) {
+      console.error('Failed to add question image:', error);
+      alert('Bild konnte nicht hinterlegt werden.');
+    } finally {
+      setSavingImageQuestionId(null);
     }
   };
 
@@ -267,6 +316,47 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
                     <Question size={16} weight="fill" />
                     {question.questionText}
                   </p>
+
+                  <div className={styles.questionImages}>
+                    {(question.images || []).map((imageUrl, imageIndex) => (
+                      <div key={`${imageUrl}-${imageIndex}`} className={styles.questionImageThumbnail}>
+                        <img src={imageUrl} alt={`Fragebild ${imageIndex + 1}`} loading="lazy" />
+                        <button
+                          type="button"
+                          className={styles.removeImageButton}
+                          onClick={() => handleRemoveImage(question, imageIndex)}
+                          disabled={savingImageQuestionId === question.id}
+                          aria-label={`Fragebild ${imageIndex + 1} entfernen`}
+                          title="Bild entfernen"
+                        >
+                          <X size={12} weight="bold" />
+                        </button>
+                      </div>
+                    ))}
+                    <label
+                      className={`${styles.addImageButton} ${savingImageQuestionId === question.id ? styles.addImageButtonBusy : ''}`}
+                      title="Bild hinterlegen"
+                    >
+                      {savingImageQuestionId === question.id ? (
+                        <CircleNotch size={16} weight="bold" className={styles.spinner} />
+                      ) : (question.images || []).length > 0 ? (
+                        <Plus size={16} weight="bold" />
+                      ) : (
+                        <ImageIcon size={16} weight="bold" />
+                      )}
+                      <span>{(question.images || []).length > 0 ? 'Bild hinzufügen' : 'Bild hinterlegen'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={savingImageQuestionId === question.id}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void handleAddImage(question, file);
+                          event.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
 
                   {question.type === 'yesno' && (
                     <div className={styles.exportTargetControls}>
