@@ -83,6 +83,8 @@ export interface QuestionInterface {
 
   // Attached images (URLs stored in question-images bucket)
   images?: string[];
+  // Local edit marker: only an explicit image action may replace persisted images.
+  imagesChanged?: boolean;
 }
 
 export interface QuestionCondition {
@@ -132,23 +134,31 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
   onCloseCreateFragebogenModal
 }) => {
 
-  /** Build an API-typed question payload from the local QuestionInterface. */
-  const buildQuestionPayload = (q: QuestionInterface): Partial<ApiQuestion> => ({
-    type: q.type,
-    question_text: q.questionText,
-    instruction: q.instruction,
-    is_template: false,
-    distributionsziel: q.distributionsziel === true,
-    qualitaetsziel: q.qualitaetsziel === true,
-    options: q.options,
-    likert_scale: q.likertScale as any,
-    matrix_config: q.matrixRows && q.matrixColumns
-      ? { rows: q.matrixRows, columns: q.matrixColumns }
-      : undefined,
-    numeric_constraints: q.numericConstraints as any,
-    slider_config: q.sliderConfig,
-    images: q.images || []
-  });
+  /** Build an API-typed question payload without implicitly replacing images. */
+  const buildQuestionPayload = (
+    q: QuestionInterface,
+    options: { includeImages?: boolean; replaceImages?: boolean } = {}
+  ): Partial<ApiQuestion> & { replace_images?: boolean } => {
+    const payload: Partial<ApiQuestion> & { replace_images?: boolean } = {
+      type: q.type,
+      question_text: q.questionText,
+      instruction: q.instruction,
+      is_template: false,
+      distributionsziel: q.distributionsziel === true,
+      qualitaetsziel: q.qualitaetsziel === true,
+      options: q.options,
+      likert_scale: q.likertScale as any,
+      matrix_config: q.matrixRows && q.matrixColumns
+        ? { rows: q.matrixRows, columns: q.matrixColumns }
+        : undefined,
+      numeric_constraints: q.numericConstraints as any,
+      slider_config: q.sliderConfig,
+    };
+
+    if (options.includeImages) payload.images = q.images || [];
+    if (options.replaceImages) payload.replace_images = true;
+    return payload;
+  };
   // Data states
   const [modules, setModules] = useState<Module[]>([]);
   const [fragebogenList, setFragebogenList] = useState<Fragebogen[]>([]);
@@ -660,18 +670,36 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
         
         if (moduleCount > 1) {
           // Question is shared - create a NEW question (copy-on-write)
-          const createdQuestion = await fragebogenService.questions.create(buildQuestionPayload(question));
+          const persistedQuestion = await fragebogenService.questions.getById(question.id);
+          const questionForCopy = {
+            ...question,
+            images: question.imagesChanged === true
+              ? question.images || []
+              : persistedQuestion.images || []
+          };
+          const createdQuestion = await fragebogenService.questions.create(
+            buildQuestionPayload(questionForCopy, { includeImages: true })
+          );
           newQuestionIdMap[question.id] = createdQuestion.id; // Map old ID to new ID
           console.log(`Copy-on-write: Question ${question.id} is used by ${moduleCount} modules, created new question ${createdQuestion.id}`);
         } else {
           // Question is only used by this module - update it in place
-          await fragebogenService.questions.update(question.id, buildQuestionPayload(question));
+          const replaceImages = question.imagesChanged === true;
+          await fragebogenService.questions.update(
+            question.id,
+            buildQuestionPayload(question, {
+              includeImages: replaceImages,
+              replaceImages
+            })
+          );
         }
       }
       
       // Step 2: Create brand new questions (temp IDs)
       for (const question of newQuestions) {
-        const createdQuestion = await fragebogenService.questions.create(buildQuestionPayload(question));
+        const createdQuestion = await fragebogenService.questions.create(
+          buildQuestionPayload(question, { includeImages: true })
+        );
         newQuestionIdMap[question.id] = createdQuestion.id;
       }
       
@@ -1214,7 +1242,9 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
       const createdQuestionIds: Array<{ question_id: string; order_index: number; required: boolean; local_id: string }> = [];
       
       for (const question of newModule.questions) {
-        const createdQuestion = await fragebogenService.questions.create(buildQuestionPayload(question));
+        const createdQuestion = await fragebogenService.questions.create(
+          buildQuestionPayload(question, { includeImages: true })
+        );
         
         createdQuestionIds.push({
           question_id: createdQuestion.id,

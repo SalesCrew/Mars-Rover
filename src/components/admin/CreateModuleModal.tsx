@@ -901,7 +901,10 @@ const SortableQuestionCard: React.FC<SortableQuestionCardProps> = ({
         reader.readAsDataURL(file);
       });
       const url = await fragebogenService.questions.uploadImage(base64, file.name);
-      onUpdate(question.id, { images: [...(question.images || []), url] });
+      onUpdate(question.id, {
+        images: [...(question.images || []), url],
+        imagesChanged: true
+      });
     } catch (error) {
       console.error('Failed to upload question image:', error);
       alert('Bild konnte nicht hochgeladen werden.');
@@ -912,7 +915,7 @@ const SortableQuestionCard: React.FC<SortableQuestionCardProps> = ({
 
   const handleRemoveImage = (idx: number) => {
     const updated = (question.images || []).filter((_, i) => i !== idx);
-    onUpdate(question.id, { images: updated });
+    onUpdate(question.id, { images: updated, imagesChanged: true });
   };
 
   const handleAddOption = () => {

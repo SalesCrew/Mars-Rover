@@ -84,6 +84,11 @@ export interface Question {
   archived: boolean;
 }
 
+type QuestionUpdate = Partial<Question> & {
+  /** Required before the backend will replace the persisted images array. */
+  replace_images?: boolean;
+};
+
 export interface ModuleQuestion {
   id: string;
   order_index: number;
@@ -369,7 +374,7 @@ export const questionsApi = {
   /**
    * Update a question
    */
-  async update(id: string, updates: Partial<Question>): Promise<Question> {
+  async update(id: string, updates: QuestionUpdate): Promise<Question> {
     const response = await fetch(`${FRAGEBOGEN_API}/questions/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
