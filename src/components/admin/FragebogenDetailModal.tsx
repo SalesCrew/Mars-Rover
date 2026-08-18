@@ -50,6 +50,7 @@ interface FragebogenDetailModalProps {
 
 type FilterType = 'chain' | 'plz' | 'adresse' | 'gebietsleiter' | 'subgroup' | 'status';
 type DetailTab = 'questions' | 'markets';
+type MarketStatusFilter = 'all' | 'completed' | 'open';
 
 export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({ 
   fragebogen, 
@@ -157,6 +158,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
   const [isLoadingMarketStatus, setIsLoadingMarketStatus] = useState(false);
   const [marketStatusError, setMarketStatusError] = useState<string | null>(null);
   const [marketStatusSearch, setMarketStatusSearch] = useState('');
+  const [marketStatusFilter, setMarketStatusFilter] = useState<MarketStatusFilter>('all');
   const [marketStatusRefreshKey, setMarketStatusRefreshKey] = useState(0);
   const [marketSearchTerm, setMarketSearchTerm] = useState('');
   const [openFilter, setOpenFilter] = useState<FilterType | null>(null);
@@ -444,18 +446,23 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
 
   const filteredMarketStatusRows = useMemo(() => {
     const term = marketStatusSearch.trim().toLowerCase();
-    if (!term) return marketStatusRows;
-    return marketStatusRows.filter((market) => [
-      market.id,
-      market.internalId,
-      market.name,
-      market.chain,
-      market.address,
-      market.postalCode,
-      market.city,
-      market.gebietsleiterName
-    ].some((value) => String(value || '').toLowerCase().includes(term)));
-  }, [marketStatusRows, marketStatusSearch]);
+    return marketStatusRows.filter((market) => {
+      if (marketStatusFilter === 'completed' && !market.completed) return false;
+      if (marketStatusFilter === 'open' && market.completed) return false;
+      if (!term) return true;
+
+      return [
+        market.id,
+        market.internalId,
+        market.name,
+        market.chain,
+        market.address,
+        market.postalCode,
+        market.city,
+        market.gebietsleiterName
+      ].some((value) => String(value || '').toLowerCase().includes(term));
+    });
+  }, [marketStatusRows, marketStatusSearch, marketStatusFilter]);
 
   const marketStatusSummary = useMemo(() => {
     const completed = marketStatusRows.filter((market) => market.completed).length;
@@ -727,10 +734,33 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
           )) : (
             <div className={styles.marketStatusContent}>
               <div className={styles.marketStatusToolbar}>
-                <div className={styles.marketStatusSummary}>
-                  <span><strong>{marketStatusSummary.completed}</strong> erledigt</span>
-                  <span><strong>{marketStatusSummary.open}</strong> offen</span>
-                  <span><strong>{marketStatusSummary.total}</strong> Märkte</span>
+                <div className={styles.marketStatusFilters} role="group" aria-label="Märkte nach Status filtern">
+                  <button
+                    type="button"
+                    className={`${styles.marketStatusFilterButton} ${marketStatusFilter === 'all' ? styles.marketStatusFilterActive : ''}`}
+                    onClick={() => setMarketStatusFilter('all')}
+                    aria-pressed={marketStatusFilter === 'all'}
+                  >
+                    Alle <strong>{marketStatusSummary.total}</strong>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.marketStatusFilterButton} ${marketStatusFilter === 'completed' ? styles.marketStatusFilterActive : ''}`}
+                    onClick={() => setMarketStatusFilter('completed')}
+                    aria-pressed={marketStatusFilter === 'completed'}
+                  >
+                    <span className={`${styles.marketStatusFilterDot} ${styles.marketStatusDone}`} />
+                    Erledigt <strong>{marketStatusSummary.completed}</strong>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.marketStatusFilterButton} ${marketStatusFilter === 'open' ? styles.marketStatusFilterActive : ''}`}
+                    onClick={() => setMarketStatusFilter('open')}
+                    aria-pressed={marketStatusFilter === 'open'}
+                  >
+                    <span className={`${styles.marketStatusFilterDot} ${styles.marketStatusOpen}`} />
+                    Nicht erledigt <strong>{marketStatusSummary.open}</strong>
+                  </button>
                 </div>
                 <div className={styles.marketStatusSearch}>
                   <MagnifyingGlass size={16} weight="bold" />
@@ -750,7 +780,15 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
               ) : filteredMarketStatusRows.length === 0 ? (
                 <div className={styles.marketStatusState}>
                   <Storefront size={32} weight="regular" />
-                  <span>{marketStatusError || 'Keine Märkte gefunden'}</span>
+                  <span>
+                    {marketStatusError || (
+                      marketStatusFilter === 'completed'
+                        ? 'Keine erledigten Märkte gefunden'
+                        : marketStatusFilter === 'open'
+                          ? 'Keine nicht erledigten Märkte gefunden'
+                          : 'Keine Märkte gefunden'
+                    )}
+                  </span>
                 </div>
               ) : (
                 <div className={styles.marketStatusList}>
