@@ -85,6 +85,10 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const [submitEinzelprodukteAsVe, setSubmitEinzelprodukteAsVe] = useState(false);
   const [submittedMarketIds, setSubmittedMarketIds] = useState<Set<string>>(new Set());
   const [allSubmittedMarketIds, setAllSubmittedMarketIds] = useState<Set<string>>(new Set());
+  const [visitedMarketIds, setVisitedMarketIds] = useState<Set<string>>(new Set());
+  const [allVisitedMarketIds, setAllVisitedMarketIds] = useState<Set<string>>(new Set());
+  const [isLoadingMarketStatus, setIsLoadingMarketStatus] = useState(false);
+  const [hasLoadedMarketStatus, setHasLoadedMarketStatus] = useState(false);
   const [itemSearchQuery, setItemSearchQuery] = useState('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -153,22 +157,40 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     }
   }, [preSelectedWaveId, wellen, isLoadingWellen]);
 
-  // Fetch which markets already have submissions for the selected wave
+  // Fetch visit and submission status for the selected wave.
   useEffect(() => {
     if (!showMarketSelection || !selectedCardId || !user?.id) return;
+    let cancelled = false;
+
     const fetchSubmittedMarkets = async () => {
+      setIsLoadingMarketStatus(true);
+      setHasLoadedMarketStatus(false);
+      setSubmittedMarketIds(new Set());
+      setAllSubmittedMarketIds(new Set());
+      setVisitedMarketIds(new Set());
+      setAllVisitedMarketIds(new Set());
       try {
         const res = await fetch(`${API_BASE_URL}/wellen/${selectedCardId}/submitted-markets/${user.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setSubmittedMarketIds(new Set(data.marketIds || []));
-          setAllSubmittedMarketIds(new Set(data.allMarketIds || []));
-        }
+        if (!res.ok) throw new Error(`Market status request failed: ${res.status}`);
+
+        const data = await res.json();
+        if (cancelled) return;
+        setSubmittedMarketIds(new Set(data.marketIds || []));
+        setAllSubmittedMarketIds(new Set(data.allMarketIds || []));
+        setVisitedMarketIds(new Set(data.visitedMarketIds || []));
+        setAllVisitedMarketIds(new Set(data.allVisitedMarketIds || []));
+        setHasLoadedMarketStatus(true);
       } catch (e) {
-        console.error('Error fetching submitted markets:', e);
+        if (!cancelled) console.error('Error fetching submitted markets:', e);
+      } finally {
+        if (!cancelled) setIsLoadingMarketStatus(false);
       }
     };
     fetchSubmittedMarkets();
+
+    return () => {
+      cancelled = true;
+    };
   }, [showMarketSelection, selectedCardId, user?.id]);
 
   useEffect(() => {
@@ -438,6 +460,31 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
 
   const handleSelectMarket = (market: Market) => {
     setSelectedMarket(market);
+  };
+
+  const renderMarketStatusDots = (marketId: string, useAllStatuses = false) => {
+    const hasVisit = (useAllStatuses ? allVisitedMarketIds : visitedMarketIds).has(marketId);
+    const hasSubmission = (useAllStatuses ? allSubmittedMarketIds : submittedMarketIds).has(marketId);
+    const submissionStatusName = selectedVorbesteller?.fotoOnly ? 'Foto erfasst' : 'Vorbesteller gebucht';
+    const statusUnavailable = isLoadingMarketStatus || !hasLoadedMarketStatus;
+    const visitLabel = statusUnavailable ? 'Besuchsstatus wird geladen' : hasVisit ? 'Markt besucht' : 'Markt noch nicht besucht';
+    const submissionLabel = statusUnavailable ? 'Erfassungsstatus wird geladen' : hasSubmission ? submissionStatusName : 'Noch nichts erfasst';
+    const loadingColor = '#CBD5E1';
+
+    return (
+      <div className={styles.marketStatusDots} aria-label={`${visitLabel}; ${submissionLabel}`}>
+        <span
+          className={styles.submissionDot}
+          style={{ background: statusUnavailable ? loadingColor : hasVisit ? '#10B981' : '#EF4444' }}
+          title={visitLabel}
+        />
+        <span
+          className={styles.submissionDot}
+          style={{ background: statusUnavailable ? loadingColor : hasSubmission ? '#10B981' : '#EF4444' }}
+          title={submissionLabel}
+        />
+      </div>
+    );
   };
 
   const handleUpdateItemQuantity = (itemId: string, delta: number) => {
@@ -767,6 +814,9 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
             // Don't fail the whole submission if visit recording fails
           }
         }
+
+        setSubmittedMarketIds(prev => new Set(prev).add(selectedMarket.id));
+        setAllSubmittedMarketIds(prev => new Set(prev).add(selectedMarket.id));
       }
 
       setIsSubmitting(false);
@@ -828,6 +878,10 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     setSelectedCardId(null);
     setSubmittedMarketIds(new Set());
     setAllSubmittedMarketIds(new Set());
+    setVisitedMarketIds(new Set());
+    setAllVisitedMarketIds(new Set());
+    setIsLoadingMarketStatus(false);
+    setHasLoadedMarketStatus(false);
     setShowMarketSelection(false);
     setShowItemSelection(false);
     _setShowPhotoCapture(false);
@@ -1345,6 +1399,17 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                 />
               </div>
 
+              <div className={styles.marketStatusLegend} aria-label="Marktstatus">
+                <span className={styles.marketStatusLegendItem}>
+                  <span className={styles.legendDot} />
+                  Besucht
+                </span>
+                <span className={styles.marketStatusLegendItem}>
+                  <span className={styles.legendDot} />
+                  {selectedVorbesteller?.fotoOnly ? 'Foto erfasst' : 'Gebucht'}
+                </span>
+              </div>
+
               {/* Markets List */}
               <div className={styles.marketsList}>
                 {/* Meine Märkte Section */}
@@ -1358,7 +1423,6 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.marketsGroupLabel}>Verfügbar</div>
                         {uncompletedMarkets.map((market) => {
                           const isSelected = selectedMarket?.id === market.id;
-                          const hasSubmission = submittedMarketIds.has(market.id);
                           return (
                             <div
                               key={market.id}
@@ -1371,7 +1435,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                   {market.address}, {market.postalCode} {market.city}
                                 </div>
                               </div>
-                              <div className={styles.submissionDot} style={{ background: hasSubmission ? '#10B981' : '#EF4444' }} />
+                              {renderMarketStatusDots(market.id)}
                             </div>
                           );
                         })}
@@ -1384,7 +1448,6 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.marketsGroupLabel}>Abgeschlossen</div>
                         {completedMarkets.map((market) => {
                           const isSelected = selectedMarket?.id === market.id;
-                          const hasSubmission = submittedMarketIds.has(market.id);
                           return (
                             <div
                               key={market.id}
@@ -1400,7 +1463,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                   {market.address}, {market.postalCode} {market.city}
                                 </div>
                               </div>
-                              <div className={styles.submissionDot} style={{ background: hasSubmission ? '#10B981' : '#EF4444' }} />
+                              {renderMarketStatusDots(market.id)}
                             </div>
                           );
                         })}
@@ -1420,7 +1483,6 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.marketsGroupLabel}>Verfügbar</div>
                         {otherUncompletedMarkets.map((market) => {
                           const isSelected = selectedMarket?.id === market.id;
-                          const hasSubmission = allSubmittedMarketIds.has(market.id);
                           return (
                             <div
                               key={market.id}
@@ -1433,7 +1495,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                   {market.address}, {market.postalCode} {market.city}
                                 </div>
                               </div>
-                              <div className={styles.submissionDot} style={{ background: hasSubmission ? '#10B981' : '#EF4444', opacity: 0.5 }} />
+                              {renderMarketStatusDots(market.id, true)}
                             </div>
                           );
                         })}
@@ -1446,7 +1508,6 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                         <div className={styles.marketsGroupLabel}>Abgeschlossen</div>
                         {otherCompletedMarkets.map((market) => {
                           const isSelected = selectedMarket?.id === market.id;
-                          const hasSubmission = allSubmittedMarketIds.has(market.id);
                           return (
                             <div
                               key={market.id}
@@ -1462,7 +1523,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                   {market.address}, {market.postalCode} {market.city}
                                 </div>
                               </div>
-                              <div className={styles.submissionDot} style={{ background: hasSubmission ? '#10B981' : '#EF4444', opacity: 0.5 }} />
+                              {renderMarketStatusDots(market.id, true)}
                             </div>
                           );
                         })}
