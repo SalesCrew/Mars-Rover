@@ -30,6 +30,7 @@ import fragebogenService from '../../services/fragebogenService';
 import { marketService, type VisitCrmContext } from '../../services/marketService';
 import { saveActiveVisit, getActiveVisit, updateActiveVisit, updatePendingSync, clearActiveVisit, getPendingSync, type PersistedVisit } from '../../services/visitPersistence';
 import { VisitMiniCrmPanel } from './VisitMiniCrmPanel';
+import { ApiError, toApiError } from '../../utils/apiErrors';
 import styles from './MarketVisitPage.module.css';
 
 // Question types matching the fragebogen system
@@ -157,6 +158,47 @@ interface MarketVisitPageProps {
   onOpenProduktrechner: () => void;
 }
 
+interface VisitSaveError {
+  code: string;
+  message: string;
+}
+
+const VISIT_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+const getVisitTimeValidationError = (
+  startTime: string,
+  endTime: string,
+  requireBoth: boolean
+): VisitSaveError | null => {
+  if (!startTime) {
+    return requireBoth
+      ? { code: 'MR-VISIT-TIME-START-002', message: 'Die Startzeit des Marktbesuchs fehlt.' }
+      : null;
+  }
+  if (!VISIT_TIME_PATTERN.test(startTime)) {
+    return {
+      code: 'MR-VISIT-TIME-START-001',
+      message: 'Die Startzeit des Marktbesuchs ist ungültig. Bitte verwende das Format HH:MM.'
+    };
+  }
+  if (!endTime) {
+    return requireBoth
+      ? { code: 'MR-VISIT-TIME-END-002', message: 'Die Endzeit des Marktbesuchs fehlt.' }
+      : null;
+  }
+  if (!VISIT_TIME_PATTERN.test(endTime)) {
+    return {
+      code: 'MR-VISIT-TIME-END-001',
+      message: 'Die Endzeit des Marktbesuchs ist ungültig. Bitte verwende das Format HH:MM.'
+    };
+  }
+
+  return null;
+};
+
+const formatErrorWithCode = (error: VisitSaveError): string =>
+  `${error.message} (Fehlercode: ${error.code})`;
+
 export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   market,
   modules,
@@ -236,6 +278,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isFinalSyncInFlight, setIsFinalSyncInFlight] = useState(false);
   const [showFinalSaveErrorModal, setShowFinalSaveErrorModal] = useState(false);
+  const [finalSaveError, setFinalSaveError] = useState<VisitSaveError | null>(null);
   const [completionPendingSync, setCompletionPendingSync] = useState(
     () => !!(resumeData?.pendingSync && Object.values(resumeData.pendingSync).some(Boolean))
   );
@@ -257,6 +300,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     marketStartTime: resumeData?.besuchszeitVon || '',
     marketEndTime: resumeData?.besuchszeitBis || ''
   }));
+  const visibleTimeValidationError = getVisitTimeValidationError(
+    zeiterfassung.besuchszeitVon,
+    zeiterfassung.besuchszeitBis,
+    false
+  );
   const [submissionId, setSubmissionId] = useState<string | null>(resumeData?.submissionId || null);
   const hasVonNoBis = !!(resumeData?.besuchszeitVon && !resumeData?.besuchszeitBis);
   const [fahrzeitRunning, setFahrzeitRunning] = useState(false);
@@ -772,7 +820,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
   };
 
   const calculateTimeDiff = (von: string, bis: string): string => {
-    if (!von || !bis) return '--:--:--';
+    if (getVisitTimeValidationError(von, bis, true)) return '--:--:--';
     const [vonH, vonM] = von.split(':').map(Number);
     const [bisH, bisM] = bis.split(':').map(Number);
     let diffMinutes = (bisH * 60 + bisM) - (vonH * 60 + vonM);
@@ -1092,6 +1140,16 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     }
     
     if (zeiterfassungStep === 'end') {
+      const timeValidationError = getVisitTimeValidationError(
+        zeiterfassung.besuchszeitVon,
+        zeiterfassung.besuchszeitBis,
+        true
+      );
+      if (timeValidationError) {
+        setSaveError(formatErrorWithCode(timeValidationError));
+        return;
+      }
+
       // Flush any pending answers before completing the response run
       if (hasFragebogen) {
         setIsSavingAnswer(true);
@@ -1129,9 +1187,14 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
           await fragebogenService.zeiterfassung.update(submissionId, { besuchszeit_bis: endTime });
           updateActiveVisit({ besuchszeitBis: endTime, pendingSync: {} });
           setCompletionPendingSync(false);
-        } catch {
+        } catch (error) {
+          const apiError = toApiError(error, {
+            code: 'MR-VISIT-UPDATE-001',
+            message: 'Die Endzeit des Marktbesuchs konnte nicht gespeichert werden. Bitte versuche es erneut.'
+          });
           updateActiveVisit({ besuchszeitBis: endTime });
           updatePendingSync({ bis: true });
+          setFinalSaveError({ code: apiError.code, message: apiError.message });
           setCompletionPendingSync(true);
           setShowFinalSaveErrorModal(true);
         }
@@ -1169,7 +1232,24 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
     });
   }, [submissionId, zeiterfassung.besuchszeitVon, zeiterfassung.besuchszeitBis, zeiterfassung.kommentar, zeiterfassung.foodProzent]);
 
-  const syncFinalVisitData = useCallback(async (): Promise<{ success: boolean; resolvedSubmissionId: string | null }> => {
+  const syncFinalVisitData = useCallback(async (): Promise<{
+    success: boolean;
+    resolvedSubmissionId: string | null;
+    error?: ApiError;
+  }> => {
+    const timeValidationError = getVisitTimeValidationError(
+      zeiterfassung.besuchszeitVon,
+      zeiterfassung.besuchszeitBis,
+      true
+    );
+    if (timeValidationError) {
+      return {
+        success: false,
+        resolvedSubmissionId: submissionId,
+        error: new ApiError(timeValidationError)
+      };
+    }
+
     const finalPayload = {
       besuchszeit_von: zeiterfassung.besuchszeitVon,
       besuchszeit_bis: zeiterfassung.besuchszeitBis,
@@ -1183,7 +1263,14 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
       if (!user?.id) {
         persistFinalVisitLocally({ submissionId: null });
         updatePendingSync({ create: true, final: true });
-        return { success: false, resolvedSubmissionId: null };
+        return {
+          success: false,
+          resolvedSubmissionId: null,
+          error: new ApiError({
+            code: 'MR-AUTH-001',
+            message: 'Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.'
+          })
+        };
       }
       try {
         const result = await fragebogenService.zeiterfassung.submit({
@@ -1196,27 +1283,48 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
         setSubmissionId(result.id);
         persistFinalVisitLocally({ submissionId: result.id });
         updatePendingSync({ create: false, von: false, bis: false });
-      } catch {
+      } catch (error) {
         persistFinalVisitLocally({ submissionId: null });
         updatePendingSync({ create: true, final: true });
-        return { success: false, resolvedSubmissionId: null };
+        return {
+          success: false,
+          resolvedSubmissionId: null,
+          error: toApiError(error, {
+            code: 'MR-VISIT-CREATE-001',
+            message: 'Der Marktbesuch konnte nicht angelegt werden. Bitte versuche es erneut.'
+          })
+        };
       }
     }
 
     if (!resolvedSubmissionId) {
       persistFinalVisitLocally({ submissionId: null });
       updatePendingSync({ final: true });
-      return { success: false, resolvedSubmissionId: null };
+      return {
+        success: false,
+        resolvedSubmissionId: null,
+        error: new ApiError({
+          code: 'MR-VISIT-CREATE-002',
+          message: 'Der Marktbesuch hat nach dem Speichern keine gültige ID erhalten. Bitte versuche es erneut.'
+        })
+      };
     }
 
     try {
       await fragebogenService.zeiterfassung.update(resolvedSubmissionId, finalPayload);
       clearActiveVisit();
       return { success: true, resolvedSubmissionId };
-    } catch {
+    } catch (error) {
       persistFinalVisitLocally({ submissionId: resolvedSubmissionId });
       updatePendingSync({ final: true });
-      return { success: false, resolvedSubmissionId };
+      return {
+        success: false,
+        resolvedSubmissionId,
+        error: toApiError(error, {
+          code: 'MR-VISIT-UPDATE-001',
+          message: 'Der Marktbesuch konnte nicht aktualisiert werden. Bitte versuche es erneut.'
+        })
+      };
     }
   }, [
     submissionId,
@@ -1234,10 +1342,15 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
 
     setShowFinalSaveErrorModal(false);
     setIsFinalSyncInFlight(true);
-    const { success, resolvedSubmissionId } = await syncFinalVisitData();
+    const { success, resolvedSubmissionId, error } = await syncFinalVisitData();
     setIsFinalSyncInFlight(false);
 
     if (!success) {
+      const apiError = error || new ApiError({
+        code: 'MR-VISIT-SAVE-001',
+        message: 'Der Marktbesuch konnte nicht gespeichert werden. Bitte versuche es erneut.'
+      });
+      setFinalSaveError({ code: apiError.code, message: apiError.message });
       setCompletionPendingSync(true);
       setShowFinalSaveErrorModal(true);
       return;
@@ -1333,7 +1446,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
       return true;
     }
     if (zeiterfassungStep === 'end') {
-      return !!(zeiterfassung.besuchszeitVon && zeiterfassung.besuchszeitBis);
+      return getVisitTimeValidationError(
+        zeiterfassung.besuchszeitVon,
+        zeiterfassung.besuchszeitBis,
+        true
+      ) === null;
     }
     // If in 'questions' step but no questions exist, allow proceeding
     if (zeiterfassungStep === 'questions' && totalQuestions === 0) {
@@ -1745,7 +1862,7 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
             <div className={styles.timeField}>
               <span className={styles.timeLabel}>Von</span>
               <input
-                type="text"
+                type="time"
                 className={styles.timeInput}
                 value={zeiterfassung.besuchszeitVon}
                 onChange={(e) => {
@@ -1754,13 +1871,14 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
                   debouncedPatch('besuchszeit_von', val);
                 }}
                 placeholder="--:--"
-                maxLength={5}
+                step={60}
+                aria-invalid={visibleTimeValidationError?.code.startsWith('MR-VISIT-TIME-START') || undefined}
               />
             </div>
             <div className={styles.timeField}>
               <span className={styles.timeLabel}>Bis</span>
               <input
-                type="text"
+                type="time"
                 className={styles.timeInput}
                 value={zeiterfassung.besuchszeitBis}
                 onChange={(e) => {
@@ -1769,7 +1887,8 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
                   debouncedPatch('besuchszeit_bis', val);
                 }}
                 placeholder="--:--"
-                maxLength={5}
+                step={60}
+                aria-invalid={visibleTimeValidationError?.code.startsWith('MR-VISIT-TIME-END') || undefined}
               />
             </div>
             <div className={styles.timeFieldNarrow}>
@@ -1779,6 +1898,11 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
               </div>
             </div>
           </div>
+          {visibleTimeValidationError && (
+            <p className={styles.timeValidationError} role="alert">
+              {formatErrorWithCode(visibleTimeValidationError)}
+            </p>
+          )}
         </div>
 
         {/* Kommentar */}
@@ -1898,14 +2022,14 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
                     <Car size={20} weight="fill" className={styles.summaryIcon} />
                     <div className={styles.summaryContent}>
                       <span className={styles.summaryLabel}>Fahrzeit</span>
-                      <span className={styles.summaryValue}>{fahrzeitSummary !== '--:--' ? fahrzeitSummary : '00:00'}</span>
+                      <span className={styles.summaryValue}>{fahrzeitSummary !== '--:--:--' ? fahrzeitSummary : '00:00:00'}</span>
                     </div>
                   </div>
                   <div className={styles.summaryItem}>
                     <Timer size={20} weight="fill" className={styles.summaryIcon} />
                     <div className={styles.summaryContent}>
                       <span className={styles.summaryLabel}>Besuchszeit</span>
-                      <span className={styles.summaryValue}>{besuchszeitSummary !== '--:--' ? besuchszeitSummary : '00:00'}</span>
+                      <span className={styles.summaryValue}>{besuchszeitSummary !== '--:--:--' ? besuchszeitSummary : '00:00:00'}</span>
                     </div>
                   </div>
                 </div>
@@ -1960,12 +2084,13 @@ export const MarketVisitPage: React.FC<MarketVisitPageProps> = ({
               <div className={styles.finalSaveModal}>
                 <h3>Speichern fehlgeschlagen</h3>
                 <p>
-                  Deine Internetverbindung ist gerade zu schwach. Geh bitte an einen Ort mit besserem Internet
-                  und versuche das Speichern erneut.
+                  {finalSaveError?.message || 'Der Marktbesuch konnte nicht gespeichert werden. Bitte versuche es erneut.'}
+                </p>
+                <p className={styles.finalSaveErrorCode}>
+                  Fehlercode: {finalSaveError?.code || 'MR-VISIT-SAVE-001'}
                 </p>
                 <p className={styles.finalSaveDisclaimer}>
-                  Hinweis: Solange der Browser-Tab nicht geschlossen wird, bleiben deine Daten persistent erhalten,
-                  bis das Speichern erfolgreich war.
+                  Deine Daten bleiben auf diesem Gerät erhalten, bis das Speichern erfolgreich war.
                 </p>
                 <div className={styles.finalSaveActions}>
                   <button

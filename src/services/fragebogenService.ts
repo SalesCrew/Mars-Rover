@@ -1,3 +1,5 @@
+import { fetchJsonWithErrorCode } from '../utils/apiErrors';
+
 /**
  * Fragebogen Service
  * Handles all API calls for the Fragebogen system (Questions, Modules, Fragebogen, Responses)
@@ -1078,16 +1080,14 @@ export const zeiterfassungApi = {
     kommentar?: string;
     food_prozent?: number;
   }): Promise<any> {
-    const response = await fetch(`${FRAGEBOGEN_API}/zeiterfassung`, {
+    return fetchJsonWithErrorCode<any>(`${FRAGEBOGEN_API}/zeiterfassung`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
+    }, {
+      code: 'MR-VISIT-CREATE-001',
+      message: 'Der Marktbesuch konnte nicht angelegt werden. Bitte versuche es erneut.'
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to save zeiterfassung');
-    }
-    return response.json();
   },
 
   /**
@@ -1102,16 +1102,14 @@ export const zeiterfassungApi = {
     kommentar?: string;
     food_prozent?: number;
   }): Promise<any> {
-    const response = await fetch(`${FRAGEBOGEN_API}/zeiterfassung/${id}`, {
+    return fetchJsonWithErrorCode<any>(`${FRAGEBOGEN_API}/zeiterfassung/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
+    }, {
+      code: 'MR-VISIT-UPDATE-001',
+      message: 'Der Marktbesuch konnte nicht aktualisiert werden. Bitte versuche es erneut.'
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to update zeiterfassung');
-    }
-    return response.json();
   },
 
   /**

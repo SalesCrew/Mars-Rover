@@ -1073,6 +1073,18 @@
   font-weight: 600;
 }
 
+.finalSaveErrorCode {
+  display: inline-block;
+  padding: 4px 7px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  background: #F8FAFC;
+  color: #475569 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px !important;
+  font-weight: 700;
+}
+
 .finalSaveActions {
   display: flex;
   justify-content: flex-end;
@@ -1430,6 +1442,19 @@
   outline: none;
   border-color: #3B82F6;
   background: white;
+}
+
+.timeInput[aria-invalid='true'] {
+  border-color: #DC2626;
+  background: #FEF2F2;
+}
+
+.timeValidationError {
+  margin: 8px 0 0;
+  color: #B91C1C;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .timeFieldNarrow {
