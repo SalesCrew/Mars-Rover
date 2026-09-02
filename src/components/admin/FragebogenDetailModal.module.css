@@ -447,10 +447,34 @@
 
 .marketStatusToolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) 240px;
   gap: 14px;
   align-items: center;
   margin-bottom: 16px;
+}
+
+.marketStatusGlFilter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 10px;
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
+  color: var(--color-text-secondary);
+}
+
+.marketStatusGlFilter select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .marketStatusFilters {

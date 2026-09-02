@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { X, PencilSimple, Stack, Question, Storefront, Check, MagnifyingGlass, Funnel, Archive, CheckCircle, Eye, DownloadSimple, SpinnerGap } from '@phosphor-icons/react';
+import { X, PencilSimple, Stack, Question, Storefront, Check, MagnifyingGlass, Funnel, Archive, CheckCircle, Eye, DownloadSimple, SpinnerGap, UserCircle } from '@phosphor-icons/react';
 import { FragebogenPreviewModal } from './FragebogenPreviewModal';
 import fragebogenService, { type FragebogenMarketStatusRow } from '../../services/fragebogenService';
 import { marketService } from '../../services/marketService';
@@ -51,6 +51,8 @@ interface FragebogenDetailModalProps {
 type FilterType = 'chain' | 'plz' | 'adresse' | 'gebietsleiter' | 'subgroup' | 'status';
 type DetailTab = 'questions' | 'markets';
 type MarketStatusFilter = 'all' | 'completed' | 'open';
+const ALL_MARKET_STATUS_GLS = '__all__';
+const UNASSIGNED_MARKET_STATUS_GL = '__unassigned__';
 
 export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({ 
   fragebogen, 
@@ -159,6 +161,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
   const [marketStatusError, setMarketStatusError] = useState<string | null>(null);
   const [marketStatusSearch, setMarketStatusSearch] = useState('');
   const [marketStatusFilter, setMarketStatusFilter] = useState<MarketStatusFilter>('all');
+  const [marketStatusGlFilter, setMarketStatusGlFilter] = useState(ALL_MARKET_STATUS_GLS);
   const [marketStatusRefreshKey, setMarketStatusRefreshKey] = useState(0);
   const [marketSearchTerm, setMarketSearchTerm] = useState('');
   const [openFilter, setOpenFilter] = useState<FilterType | null>(null);
@@ -444,9 +447,39 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
     }).format(new Date(value));
   };
 
+  const marketStatusGlOptions = useMemo(() => {
+    const byGl = new Map<string, { id: string; name: string; total: number; completed: number }>();
+
+    marketStatusRows.forEach((market) => {
+      const id = market.gebietsleiterId || UNASSIGNED_MARKET_STATUS_GL;
+      const current = byGl.get(id) || {
+        id,
+        name: market.gebietsleiterName || 'Kein GL',
+        total: 0,
+        completed: 0
+      };
+      current.total += 1;
+      if (market.completed) current.completed += 1;
+      byGl.set(id, current);
+    });
+
+    return Array.from(byGl.values()).sort((a, b) => {
+      if (a.id === UNASSIGNED_MARKET_STATUS_GL) return 1;
+      if (b.id === UNASSIGNED_MARKET_STATUS_GL) return -1;
+      return a.name.localeCompare(b.name, 'de');
+    });
+  }, [marketStatusRows]);
+
+  const marketStatusRowsForGl = useMemo(() => {
+    if (marketStatusGlFilter === ALL_MARKET_STATUS_GLS) return marketStatusRows;
+    return marketStatusRows.filter((market) =>
+      (market.gebietsleiterId || UNASSIGNED_MARKET_STATUS_GL) === marketStatusGlFilter
+    );
+  }, [marketStatusRows, marketStatusGlFilter]);
+
   const filteredMarketStatusRows = useMemo(() => {
     const term = marketStatusSearch.trim().toLowerCase();
-    return marketStatusRows.filter((market) => {
+    return marketStatusRowsForGl.filter((market) => {
       if (marketStatusFilter === 'completed' && !market.completed) return false;
       if (marketStatusFilter === 'open' && market.completed) return false;
       if (!term) return true;
@@ -462,16 +495,16 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
         market.gebietsleiterName
       ].some((value) => String(value || '').toLowerCase().includes(term));
     });
-  }, [marketStatusRows, marketStatusSearch, marketStatusFilter]);
+  }, [marketStatusRowsForGl, marketStatusSearch, marketStatusFilter]);
 
   const marketStatusSummary = useMemo(() => {
-    const completed = marketStatusRows.filter((market) => market.completed).length;
+    const completed = marketStatusRowsForGl.filter((market) => market.completed).length;
     return {
-      total: marketStatusRows.length,
+      total: marketStatusRowsForGl.length,
       completed,
-      open: Math.max(marketStatusRows.length - completed, 0)
+      open: Math.max(marketStatusRowsForGl.length - completed, 0)
     };
-  }, [marketStatusRows]);
+  }, [marketStatusRowsForGl]);
 
   const completedMarketIds = useMemo(
     () => new Set(marketStatusRows.filter((market) => market.completed).map((market) => market.id)),
@@ -762,6 +795,23 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                     Nicht erledigt <strong>{marketStatusSummary.open}</strong>
                   </button>
                 </div>
+                <label className={styles.marketStatusGlFilter}>
+                  <UserCircle size={17} weight="bold" />
+                  <select
+                    value={marketStatusGlFilter}
+                    onChange={(event) => setMarketStatusGlFilter(event.target.value)}
+                    aria-label="Nach Gebietsleiter filtern"
+                  >
+                    <option value={ALL_MARKET_STATUS_GLS}>
+                      Alle GLs · {marketStatusRows.filter((market) => market.completed).length}/{marketStatusRows.length} erledigt
+                    </option>
+                    {marketStatusGlOptions.map((gl) => (
+                      <option key={gl.id} value={gl.id}>
+                        {gl.name} · {gl.completed}/{gl.total} erledigt
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className={styles.marketStatusSearch}>
                   <MagnifyingGlass size={16} weight="bold" />
                   <input
