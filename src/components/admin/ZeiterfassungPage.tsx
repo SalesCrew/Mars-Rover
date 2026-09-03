@@ -168,20 +168,57 @@ const getLastActionInfo = (
   };
 };
 
+const parseGermanDate = (value: string): number | null => {
+  const match = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(value.trim());
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const timestamp = Date.UTC(year, month - 1, day);
+  const parsed = new Date(timestamp);
+
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return timestamp;
+};
+
+const sortExportRowsNewestFirst = (data: string[][]): string[][] => {
+  if (data.length <= 2) return data;
+
+  const [header, ...rows] = data;
+  const sortedRows = rows
+    .map((row, index) => ({ row, index, timestamp: parseGermanDate(row[0] || '') }))
+    .sort((a, b) => {
+      const dateDifference = (b.timestamp ?? Number.NEGATIVE_INFINITY) - (a.timestamp ?? Number.NEGATIVE_INFINITY);
+      return dateDifference || a.index - b.index;
+    })
+    .map(({ row }) => row);
+
+  return [header, ...sortedRows];
+};
+
 // Export helper function for Excel
 const exportToExcel = (data: string[][], filename: string) => {
+  const orderedData = sortExportRowsNewestFirst(data);
   // Create worksheet with styled cells
   const worksheet: XLSX.WorkSheet = {};
   
   // Set column widths
-  const colWidths = data[0].map((_, colIdx) => {
-    const maxLength = Math.max(...data.map(row => String(row[colIdx] || '').length));
+  const colWidths = orderedData[0].map((_, colIdx) => {
+    const maxLength = Math.max(...orderedData.map(row => String(row[colIdx] || '').length));
     return { wch: Math.min(Math.max(maxLength + 2, 12), 45) };
   });
   worksheet['!cols'] = colWidths;
   
   // Add cells with styling
-  data.forEach((row, rowIdx) => {
+  orderedData.forEach((row, rowIdx) => {
     row.forEach((cell, colIdx) => {
       const cellAddress = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
       
@@ -200,10 +237,12 @@ const exportToExcel = (data: string[][], filename: string) => {
           }
         };
       } else {
+        const dateTimestamp = colIdx === 0 ? parseGermanDate(cell) : null;
         // Data rows
         worksheet[cellAddress] = {
-          v: cell,
-          t: 's',
+          v: dateTimestamp === null ? cell : (dateTimestamp / 86400000) + 25569,
+          t: dateTimestamp === null ? 's' : 'n',
+          ...(dateTimestamp === null ? {} : { z: 'dd.mm.yyyy' }),
           s: {
             font: { sz: 10 },
             alignment: { vertical: 'center' },
@@ -219,11 +258,11 @@ const exportToExcel = (data: string[][], filename: string) => {
   // Set worksheet range
   worksheet['!ref'] = XLSX.utils.encode_range({
     s: { r: 0, c: 0 },
-    e: { r: data.length - 1, c: data[0].length - 1 }
+    e: { r: orderedData.length - 1, c: orderedData[0].length - 1 }
   });
   
   // Set row heights (header slightly taller)
-  worksheet['!rows'] = data.map((_, idx) => ({ hpt: idx === 0 ? 24 : 18 }));
+  worksheet['!rows'] = orderedData.map((_, idx) => ({ hpt: idx === 0 ? 24 : 18 }));
   
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Zeiterfassung');
