@@ -52,6 +52,17 @@ Beispiele: `MR-AUTH-001`, `MR-NETWORK-001`, `MR-VISIT-TIME-END-001`.
 | `MR-VISIT-UPDATE-001` | Bestehender Marktbesuch konnte serverseitig nicht aktualisiert werden. | Erneut versuchen; bei Wiederholung Support mit Code informieren. |
 | `MR-VISIT-SAVE-001` | Unerwarteter Abschlussfehler ohne spezifischeren Code. | Erneut versuchen und den Code melden. |
 
+## Wellen-Preiskorrektur
+
+| Code | Bedeutung | Meldung / Reaktion |
+| --- | --- | --- |
+| `MR-WELLE-PRICE-REQUEST-001` | Wellen-ID oder Bestaetigungstoken ist ungueltig. | Welle erneut oeffnen und Vorschau laden. |
+| `MR-WELLE-PRICE-REQUEST-002` | Preisvergleich schlug ohne spezifischere Ursache fehl. | Erneut pruefen; bei Wiederholung Code melden. |
+| `MR-WELLE-PRICE-PREVIEW-001` | Welle gespeichert, Vergleich mit Buchungspreisen fehlgeschlagen. | Nur den Vergleich erneut laden, nicht die Welle erneut speichern. |
+| `MR-WELLE-PRICE-APPLY-001` | Ergebnis der Preisuebernahme nicht bestaetigt, z.B. wegen verlorener Antwort. | Neue Vorschau laden. Niemals denselben POST blind wiederholen. |
+| `MR-WELLE-PRICE-STALE-001` | Preise oder Buchungen seit der Vorschau geaendert. Keine Korrektur ausgefuehrt. | Neue Vorschau laden, pruefen und erneut bestaetigen. |
+| `MR-WELLE-PRICE-NOT-FOUND-001` | Welle fehlt oder wurde geloescht. | Liste neu laden. |
+
 ## Einen neuen Code aufnehmen
 
 1. Den echten technischen Ausloeser identifizieren.

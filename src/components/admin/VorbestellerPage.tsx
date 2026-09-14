@@ -5,6 +5,7 @@ import styles from './VorbestellerPage.module.css';
 import { CustomDatePicker } from './CustomDatePicker';
 import { WelleDetailModal } from './WelleDetailModal';
 import { WelleMarketSelectorModal } from './WelleMarketSelectorModal';
+import { WellePriceCorrectionModal } from './WellePriceCorrectionModal';
 import { wellenService, type Welle } from '../../services/wellenService';
 import { getAllProducts, type Product } from '../../data/productsData';
 import { API_BASE_URL } from '../../config/database';
@@ -175,39 +176,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     if (waveIdToEdit && wellenList.length > 0) {
       const waveToEdit = wellenList.find(w => w.id === waveIdToEdit);
       if (waveToEdit) {
-        // Open edit mode for this wave
-        setEditingWelle(waveToEdit);
-        setWaveName(waveToEdit.name);
-        setStartDate(waveToEdit.startDate);
-        setEndDate(waveToEdit.endDate);
-        setSelectedTypes(waveToEdit.types);
-        setWaveImagePreview(waveToEdit.image);
-        setGoalType(waveToEdit.goalType);
-        setGoalPercentage(waveToEdit.goalPercentage?.toString() || '');
-        setGoalValue(waveToEdit.goalValue?.toString() || '');
-        setAssignedMarketIds(waveToEdit.assignedMarketIds || []);
-        setDisplays(waveToEdit.displays?.map((d, idx) => ({
-          id: `existing-${idx}`,
-          name: d.name,
-          targetNumber: d.targetNumber?.toString() || '',
-          picture: null,
-          itemValue: d.itemValue?.toString() || ''
-        })) || []);
-        setKartonwareItems(waveToEdit.kartonwareItems?.map((k, idx) => ({
-          id: `existing-${idx}`,
-          name: k.name,
-          targetNumber: k.targetNumber?.toString() || '',
-          picture: null,
-          itemValue: k.itemValue?.toString() || ''
-        })) || []);
-        setKwDays(waveToEdit.kwDays || []);
-        setFotoEnabled(waveToEdit.fotoEnabled || false);
-        setFotoHeader(waveToEdit.fotoHeader || '');
-        setFotoDescription(waveToEdit.fotoDescription || '');
-        setFotoTags((waveToEdit.fotoTags || []).map(t => ({ name: t.name, type: t.type })));
-        setIsFotoOnly(waveToEdit.fotoOnly || false);
-        setCurrentStep(2); // Skip type selection when editing
-        onOpenCreateWelleModal();
+        // Use the same complete loader as editing from the list, including nested product IDs.
+        handleEditWelle(waveToEdit);
         // Clear the waveIdToEdit
         if (onClearWaveIdToEdit) {
           onClearWaveIdToEdit();
@@ -288,6 +258,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   
   // Saving state
   const [isSaving, setIsSaving] = useState(false);
+  const [priceCorrectionWelle, setPriceCorrectionWelle] = useState<{ id: string; name: string } | null>(null);
 
   // Auto-populate all products when noLimitWelle is ON and user steps into a product step
   useEffect(() => {
@@ -902,6 +873,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       if (editingWelle) {
         // Update existing welle
         await wellenService.updateWelle(editingWelle.id, welleData);
+        // Always compare persisted bookings, including prices edited on an earlier occasion.
+        setPriceCorrectionWelle({ id: editingWelle.id, name: waveName });
+        return;
       } else {
         // Create new welle
         await wellenService.createWelle(welleData);
@@ -1582,7 +1556,16 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       )}
 
       {/* Create Welle Modal */}
-      {isCreateWelleModalOpen && ReactDOM.createPortal(
+      {priceCorrectionWelle && <WellePriceCorrectionModal
+        welleId={priceCorrectionWelle.id}
+        welleName={priceCorrectionWelle.name}
+        onDone={() => {
+          setPriceCorrectionWelle(null);
+          handleClose();
+          void wellenService.getAllWellen().then(setWellenList).catch(error => console.error('Error refreshing saved welle:', error));
+        }}
+      />}
+      {isCreateWelleModalOpen && !priceCorrectionWelle && ReactDOM.createPortal(
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
             <div className={styles.modalHeader}>
@@ -1590,6 +1573,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
               <button 
                 className={styles.modalClose}
                 onClick={handleClose}
+                disabled={isSaving}
               >
                 <X size={20} weight="bold" />
               </button>
@@ -2803,6 +2787,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                 <button 
                   className={styles.backButton}
                   onClick={handleBack}
+                  disabled={isSaving}
                 >
                   <ArrowLeft size={18} weight="bold" />
                   <span>Zurück</span>
@@ -2828,6 +2813,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
               <button 
                 className={styles.cancelButton}
                 onClick={handleClose}
+                disabled={isSaving}
               >
                 Abbrechen
               </button>

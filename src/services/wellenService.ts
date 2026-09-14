@@ -1,4 +1,27 @@
 import { API_BASE_URL } from '../config/database';
+import { ApiError, fetchJsonWithErrorCode } from '../utils/apiErrors';
+
+export interface WellePricePreview {
+  welleId: string;
+  welleName: string;
+  token: string;
+  count: number;
+  skippedCount: number;
+  missingOldPriceCount: number;
+  oldTotal: string;
+  newTotal: string;
+  applied: boolean;
+  updatedCount: number;
+  groups: {
+    itemId: string;
+    itemType: string;
+    name: string;
+    oldPrice: string | null;
+    newPrice: string;
+    count: number;
+    quantity: number;
+  }[];
+}
 
 export interface WelleDisplay {
   id: string;
@@ -317,6 +340,23 @@ class WellenService {
     } catch (error) {
       console.error('Error updating welle:', error);
       throw error;
+    }
+  }
+
+  async submissionPrices(id: string, token?: string): Promise<WellePricePreview> {
+    const fallback = token
+      ? { code: 'MR-WELLE-PRICE-APPLY-001', message: 'Die Übernahme konnte nicht bestätigt werden. Bitte den Preisvergleich erneut laden.' }
+      : { code: 'MR-WELLE-PRICE-PREVIEW-001', message: 'Die Welle ist gespeichert, aber die Buchungspreise konnten nicht geprüft werden.' };
+    try {
+      return await fetchJsonWithErrorCode<WellePricePreview>(`${this.baseUrl}/${encodeURIComponent(id)}/submission-prices`, {
+        method: token ? 'POST' : 'GET',
+        headers: token ? { 'Content-Type': 'application/json' } : undefined,
+        body: token ? JSON.stringify({ token }) : undefined,
+        cache: 'no-store',
+      }, fallback);
+    } catch (error) {
+      if (error instanceof ApiError && (!token || error.code !== 'MR-NETWORK-001')) throw error;
+      throw new ApiError({ ...fallback, cause: error });
     }
   }
 
