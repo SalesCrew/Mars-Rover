@@ -78,6 +78,7 @@ class ExportService {
         { id: 'internal_id', label: 'Interne ID', type: 'string', default: true },
         { id: 'name', label: 'Name', type: 'string', default: true },
         { id: 'chain', label: 'Kette', type: 'string', default: true },
+        { id: 'banner', label: 'Banner', type: 'string', default: true },
         { id: 'address', label: 'Adresse', type: 'string', default: true },
         { id: 'city', label: 'Stadt', type: 'string', default: true },
         { id: 'postal_code', label: 'PLZ', type: 'string', default: true },
@@ -91,7 +92,6 @@ class ExportService {
         { id: 'phone', label: 'Telefon', type: 'string', default: false },
         { id: 'email', label: 'Email', type: 'string', default: false },
         { id: 'channel', label: 'Kanal', type: 'string', default: false },
-        { id: 'banner', label: 'Banner', type: 'string', default: false },
         { id: 'subgroup', label: 'Subgroup', type: 'string', default: false },
         { id: 'created_at', label: 'Erstellt am', type: 'datetime', default: false }
       ]

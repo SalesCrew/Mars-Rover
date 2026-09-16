@@ -11,8 +11,8 @@ export const MARKET_FREQUENCY_HEADERS = [
   'Kundentyp', 'Telefon (alt)', 'E-Mail (alt)', 'Breitengrad', 'Längengrad',
 ] as const;
 
-export const CHAIN_FREQUENCY_HEADERS = ['Handelskette', 'Märkte', 'Ist-Frequenz', 'Soll-Frequenz'] as const;
-export const GL_FREQUENCY_HEADERS = ['Gebietsleiter', 'GL-ID', 'Märkte', 'Ist-Frequenz', 'Soll-Frequenz'] as const;
+export const CHAIN_FREQUENCY_HEADERS = ['Handelskette', 'Banner', 'Märkte', 'Ist-Frequenz', 'Soll-Frequenz'] as const;
+export const GL_FREQUENCY_HEADERS = ['Gebietsleiter', 'GL-ID', 'Banner', 'Märkte', 'Ist-Frequenz', 'Soll-Frequenz'] as const;
 
 const text = (value: string | undefined): string => value ?? '';
 
@@ -42,31 +42,34 @@ export function buildMarketFrequencyRows(
 }
 
 export function buildChainFrequencyRows(markets: AdminMarket[]): ExportValue[][] {
-  const groups = new Map<string, { count: number; actual: number; target: number }>();
+  const groups = new Map<string, { chain: string; banner: string; count: number; actual: number; target: number }>();
   for (const market of markets) {
     const chain = market.chain?.trim() || 'Ohne Handelskette';
-    const group = groups.get(chain) ?? { count: 0, actual: 0, target: 0 };
-    group.count += 1;
-    group.actual += market.currentVisits ?? 0;
-    group.target += market.frequency ?? 0;
-    groups.set(chain, group);
-  }
-  return Array.from(groups, ([chain, group]) => [chain, group.count, group.actual, group.target])
-    .sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'de'));
-}
-
-export function buildGlFrequencyRows(markets: AdminMarket[]): ExportValue[][] {
-  const groups = new Map<string, { name: string; id: string; count: number; actual: number; target: number }>();
-  for (const market of markets) {
-    const name = market.gebietsleiterName?.trim() || 'Nicht zugeordnet';
-    const id = market.gebietsleiter?.trim() || '';
-    const key = id || `name:${name}`;
-    const group = groups.get(key) ?? { name, id, count: 0, actual: 0, target: 0 };
+    const banner = market.banner?.trim() || '';
+    const key = JSON.stringify([chain, banner]);
+    const group = groups.get(key) ?? { chain, banner, count: 0, actual: 0, target: 0 };
     group.count += 1;
     group.actual += market.currentVisits ?? 0;
     group.target += market.frequency ?? 0;
     groups.set(key, group);
   }
-  return Array.from(groups.values(), group => [group.name, group.id, group.count, group.actual, group.target])
-    .sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'de'));
+  return Array.from(groups.values(), group => [group.chain, group.banner, group.count, group.actual, group.target])
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'de') || String(a[1]).localeCompare(String(b[1]), 'de'));
+}
+
+export function buildGlFrequencyRows(markets: AdminMarket[]): ExportValue[][] {
+  const groups = new Map<string, { name: string; id: string; banner: string; count: number; actual: number; target: number }>();
+  for (const market of markets) {
+    const name = market.gebietsleiterName?.trim() || 'Nicht zugeordnet';
+    const id = market.gebietsleiter?.trim() || '';
+    const banner = market.banner?.trim() || '';
+    const key = JSON.stringify([id || `name:${name}`, banner]);
+    const group = groups.get(key) ?? { name, id, banner, count: 0, actual: 0, target: 0 };
+    group.count += 1;
+    group.actual += market.currentVisits ?? 0;
+    group.target += market.frequency ?? 0;
+    groups.set(key, group);
+  }
+  return Array.from(groups.values(), group => [group.name, group.id, group.banner, group.count, group.actual, group.target])
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'de') || String(a[2]).localeCompare(String(b[2]), 'de'));
 }

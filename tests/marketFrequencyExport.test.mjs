@@ -8,7 +8,7 @@ import {
 
 test('market export keeps all columns, numeric frequencies and private admin note', () => {
   const market = {
-    id: 'markt-1', internalId: '0012', name: 'Testmarkt', chain: 'Billa',
+    id: 'markt-1', internalId: '0012', name: 'Testmarkt', chain: 'Billa', banner: 'Billa Plus',
     address: 'Hauptstraße 1', postalCode: '0101', city: 'Wien',
     frequency: 12, currentVisits: 0, isActive: true,
     lastVisitDate: '2026-09-16',
@@ -17,6 +17,7 @@ test('market export keeps all columns, numeric frequencies and private admin not
   assert.equal(rows[0].length, MARKET_FREQUENCY_HEADERS.length);
   assert.equal(rows[0][12], 0);
   assert.equal(rows[0][13], 12);
+  assert.equal(rows[0][4], 'Billa Plus');
   assert.equal(rows[0][20], 'Nur Admins');
 
   const sheet = XLSX.utils.aoa_to_sheet([Array.from(MARKET_FREQUENCY_HEADERS), ...rows], { cellDates: true });
@@ -32,16 +33,24 @@ test('market export keeps all columns, numeric frequencies and private admin not
   assert.equal(result.M2.t, 'n');
   assert.equal(result.M2.v, 0);
   assert.equal(result.N2.v, 12);
+  assert.equal(result.E1.v, 'Banner');
+  assert.equal(result.E2.v, 'Billa Plus');
   assert.equal(result.U2.v, 'Nur Admins');
   assert.ok(result.O2.v instanceof Date);
 });
 
-test('chain and GL summaries add actual and target visits independently', () => {
+test('chain and GL summaries separate banners while preserving visit totals', () => {
   const markets = [
-    { id: '1', chain: 'Billa', gebietsleiter: 'gl-1', gebietsleiterName: 'Anna', currentVisits: 0, frequency: 12 },
-    { id: '2', chain: 'Billa', gebietsleiter: 'gl-1', gebietsleiterName: 'Anna', currentVisits: 5, frequency: 8 },
-    { id: '3', chain: 'Spar', gebietsleiter: 'gl-2', gebietsleiterName: 'Ben', currentVisits: 2, frequency: 10 },
+    { id: '1', chain: 'Spar', banner: 'SPAR-Spar SM Fil.', gebietsleiter: 'gl-1', gebietsleiterName: 'Anna', currentVisits: 0, frequency: 12 },
+    { id: '2', chain: 'Spar', banner: 'SPAR-Spar SM Fil.', gebietsleiter: 'gl-1', gebietsleiterName: 'Anna', currentVisits: 5, frequency: 8 },
+    { id: '3', chain: 'Spar', banner: 'SPAR-Spar SM Privat', gebietsleiter: 'gl-1', gebietsleiterName: 'Anna', currentVisits: 2, frequency: 10 },
   ];
-  assert.deepEqual(buildChainFrequencyRows(markets).find(row => row[0] === 'Billa'), ['Billa', 2, 5, 20]);
-  assert.deepEqual(buildGlFrequencyRows(markets).find(row => row[1] === 'gl-1'), ['Anna', 'gl-1', 2, 5, 20]);
+  assert.deepEqual(buildChainFrequencyRows(markets), [
+    ['Spar', 'SPAR-Spar SM Fil.', 2, 5, 20],
+    ['Spar', 'SPAR-Spar SM Privat', 1, 2, 10],
+  ]);
+  assert.deepEqual(buildGlFrequencyRows(markets), [
+    ['Anna', 'gl-1', 'SPAR-Spar SM Fil.', 2, 5, 20],
+    ['Anna', 'gl-1', 'SPAR-Spar SM Privat', 1, 2, 10],
+  ]);
 });
