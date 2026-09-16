@@ -136,6 +136,36 @@
   gap: 8px;
 }
 
+.marketExportButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.marketExportButton:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.marketExportButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.marketExportError {
+  max-width: 220px;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
 .statsWrapper .backfillButton {
   display: flex;
   align-items: center;

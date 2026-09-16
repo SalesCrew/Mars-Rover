@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Play, House, Car, Clock, MapPin, Timer, Check, Warning, ArrowRight, Gauge } from '@phosphor-icons/react';
 import styles from './DayTrackingModal.module.css';
+import { VerticalTimePicker } from './VerticalTimePicker';
 
 type ModalMode = 'start' | 'end' | 'force_close' | 'km_pending' | 'close_previous';
 
@@ -32,103 +33,6 @@ interface DayTrackingModalProps {
     marketsVisited: number;
   };
 }
-
-// Time Picker Component (reused from ZusatzZeiterfassungModal pattern)
-const TimePicker: React.FC<{
-  value: string;
-  onChange: (time: string) => void;
-  onClose: () => void;
-}> = ({ value, onChange, onClose }) => {
-  const [hours, setHours] = useState(() => {
-    if (value) {
-      const h = parseInt(value.split(':')[0], 10);
-      return Math.max(7, Math.min(21, h));
-    }
-    const now = new Date();
-    return Math.max(7, Math.min(21, now.getHours()));
-  });
-  const [minutes, setMinutes] = useState(() => {
-    if (value) {
-      return parseInt(value.split(':')[1], 10) || 0;
-    }
-    return new Date().getMinutes();
-  });
-  const pickerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
-
-  const handleNow = () => {
-    const now = new Date();
-    const h = Math.max(7, Math.min(21, now.getHours()));
-    setHours(h);
-    setMinutes(now.getMinutes());
-  };
-
-  const handleConfirm = () => {
-    const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    onChange(timeStr);
-    onClose();
-  };
-
-  return (
-    <div ref={pickerRef} className={styles.timePicker}>
-      <div className={styles.timePickerDisplay}>
-        <span className={styles.timePickerDigit}>{hours.toString().padStart(2, '0')}</span>
-        <span className={styles.timePickerColon}>:</span>
-        <span className={styles.timePickerDigit}>{minutes.toString().padStart(2, '0')}</span>
-      </div>
-
-      <div className={styles.timePickerSlider}>
-        <label>Stunden</label>
-        <input
-          type="range"
-          min={7}
-          max={21}
-          value={hours}
-          onChange={(e) => setHours(parseInt(e.target.value, 10))}
-          className={styles.timePickerRange}
-        />
-        <div className={styles.timePickerRangeLabels}>
-          <span>7</span>
-          <span>21</span>
-        </div>
-      </div>
-
-      <div className={styles.timePickerSlider}>
-        <label>Minuten</label>
-        <input
-          type="range"
-          min={0}
-          max={59}
-          value={minutes}
-          onChange={(e) => setMinutes(parseInt(e.target.value, 10))}
-          className={styles.timePickerRange}
-        />
-        <div className={styles.timePickerRangeLabels}>
-          <span>00</span>
-          <span>59</span>
-        </div>
-      </div>
-
-      <div className={styles.timePickerActions}>
-        <button type="button" className={styles.timePickerNow} onClick={handleNow}>
-          Jetzt
-        </button>
-        <button type="button" className={styles.timePickerConfirm} onClick={handleConfirm}>
-          OK
-        </button>
-      </div>
-    </div>
-  );
-};
 
 // Format time input with auto-colon
 const formatTimeInput = (value: string): string => {
@@ -543,7 +447,7 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
                             <Clock size={20} weight="regular" />
                           </button>
                           {showTimePicker && (
-                            <TimePicker
+                            <VerticalTimePicker
                               value={endTime}
                               onChange={setEndTime}
                               onClose={() => setShowTimePicker(false)}
@@ -627,7 +531,7 @@ export const DayTrackingModal: React.FC<DayTrackingModalProps> = ({
                         <Clock size={20} weight="regular" />
                       </button>
                       {showTimePicker && (
-                        <TimePicker
+                        <VerticalTimePicker
                           value={endTime}
                           onChange={setEndTime}
                           onClose={() => setShowTimePicker(false)}

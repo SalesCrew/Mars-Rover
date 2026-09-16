@@ -111,6 +111,18 @@ export interface WellePhoto {
   createdAt: string;
 }
 
+export interface PhotoFacets {
+  waves: Array<{ id: string; name: string; startDate: string; endDate: string }>;
+  gls: Array<{ id: string; name: string }>;
+  glsBySource: {
+    fotowelle: Array<{ id: string; name: string }>;
+    fotofragen: Array<{ id: string; name: string }>;
+  };
+  markets: Array<{ id: string; name: string; fullAddress: string }>;
+  tags: string[];
+  frageboegen: Array<{ id: string; name: string }>;
+}
+
 export interface Welle {
   id: string;
   name: string;
@@ -659,6 +671,19 @@ class WellenService {
       console.error('Error fetching photos:', error);
       throw error;
     }
+  }
+
+  async getPhotoFacets(): Promise<PhotoFacets> {
+    const response = await fetch(`${this.baseUrl}/photos/facets`);
+    if (!response.ok) throw new Error('Failed to fetch photo filter options');
+    return response.json();
+  }
+
+  async getOriginalPhotoUrl(id: string): Promise<string> {
+    const response = await fetch(`${this.baseUrl}/photos/${encodeURIComponent(id)}/original-url`);
+    if (!response.ok) throw new Error('Failed to fetch original photo');
+    const data = await response.json();
+    return data.url;
   }
 
   async downloadPhotosZip(

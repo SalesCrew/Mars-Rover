@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { X, CaretDown, ClockCounterClockwise, Info, Package, ShoppingCart, Storefront, ArrowsLeftRight, Spinner, Trash } from '@phosphor-icons/react';
 import type { AdminMarket } from '../../types/market-types';
+import { marketService } from '../../services/marketService';
 import { API_BASE_URL } from '../../config/database';
 import styles from './MarketDetailsModal.module.css';
 
@@ -10,7 +11,7 @@ interface MarketDetailsModalProps {
   allMarkets: AdminMarket[];
   availableGLs: Array<{ id: string; name: string; email: string }>;
   onClose: () => void;
-  onSave: (updatedMarket: AdminMarket) => Promise<boolean>;
+  onSave: (updatedMarket: AdminMarket, adminComment: string | undefined, marketChanged: boolean) => Promise<boolean>;
   onDelete?: (marketId: string) => Promise<boolean>;
 }
 
@@ -43,6 +44,12 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('details');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [adminComment, setAdminComment] = useState('');
+  const [originalAdminComment, setOriginalAdminComment] = useState('');
+  const [isLoadingAdminComment, setIsLoadingAdminComment] = useState(true);
+  const [adminCommentError, setAdminCommentError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [commentRetryKey, setCommentRetryKey] = useState(0);
   const [expandedHistoryItems, setExpandedHistoryItems] = useState<Set<string>>(new Set());
 
   // Handle delete with double-click safety (must click twice within 2 seconds)
@@ -83,6 +90,25 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingAdminComment(true);
+    setAdminCommentError(null);
+    marketService.getAdminComment(market.id)
+      .then((comment) => {
+        if (cancelled) return;
+        setAdminComment(comment);
+        setOriginalAdminComment(comment);
+      })
+      .catch(() => {
+        if (!cancelled) setAdminCommentError('Admin-Kommentar konnte nicht geladen werden.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingAdminComment(false);
+      });
+    return () => { cancelled = true; };
+  }, [market.id, commentRetryKey]);
 
   const toggleHistoryItem = (id: string) => {
     setExpandedHistoryItems(prev => {
@@ -242,11 +268,17 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   };
 
   const handleSave = async () => {
+    if (isLoadingAdminComment || adminCommentError) return;
     setIsSaving(true);
+    setSaveError(null);
     try {
-      await onSave(formData);
+      const changedComment = adminComment !== originalAdminComment ? adminComment : undefined;
+      const marketChanged = JSON.stringify(formData) !== JSON.stringify(market);
+      const saved = await onSave(formData, changedComment, marketChanged);
+      if (!saved) setSaveError('Markt oder Admin-Kommentar konnte nicht gespeichert werden. Bitte erneut versuchen.');
     } catch (error) {
       console.error('Error saving market:', error);
+      setSaveError('Markt oder Admin-Kommentar konnte nicht gespeichert werden. Bitte erneut versuchen.');
     } finally {
       setIsSaving(false);
     }
@@ -567,6 +599,26 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
                   />
                 </div>
               </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="market-admin-comment">Admin-Kommentar</label>
+                <textarea
+                  id="market-admin-comment"
+                  className={`${styles.input} ${styles.commentInput}`}
+                  value={adminComment}
+                  onChange={(event) => setAdminComment(event.target.value)}
+                  maxLength={5000}
+                  disabled={isLoadingAdminComment || Boolean(adminCommentError)}
+                  placeholder={isLoadingAdminComment ? 'Lade Kommentar...' : 'Interne Informationen zu diesem Markt'}
+                />
+                <p className={styles.commentHint}>Nur für Admins sichtbar · {adminComment.length}/5000 Zeichen</p>
+                {adminCommentError && (
+                  <div className={styles.commentError} role="alert">
+                    {adminCommentError}{' '}
+                    <button type="button" onClick={() => setCommentRetryKey((key) => key + 1)}>Erneut laden</button>
+                  </div>
+                )}
+              </div>
+              {saveError && <p className={styles.commentError} role="alert">{saveError}</p>}
             </>
           ) : (
             /* Verlauf Tab */
@@ -672,7 +724,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
               <button 
                 className={`${styles.saveButton} ${isSaving ? styles.saveButtonLoading : ''}`} 
                 onClick={handleSave}
-                disabled={isSaving || isDeleting}
+                disabled={isSaving || isDeleting || isLoadingAdminComment || Boolean(adminCommentError)}
               >
                 {isSaving ? 'Speichern...' : 'Speichern'}
               </button>

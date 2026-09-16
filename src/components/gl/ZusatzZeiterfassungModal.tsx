@@ -26,108 +26,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../config/database';
 import styles from './ZusatzZeiterfassungModal.module.css';
-
-// Time Picker Component
-interface TimePickerProps {
-  value: string;
-  onChange: (time: string) => void;
-  onClose: () => void;
-}
-
-const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, onClose }) => {
-  const [hours, setHours] = useState(() => {
-    if (value && value.includes(':')) {
-      const parsed = parseInt(value.split(':')[0]) || 7;
-      return Math.min(21, Math.max(7, parsed));
-    }
-    return Math.min(21, Math.max(7, new Date().getHours()));
-  });
-  const [minutes, setMinutes] = useState(() => {
-    if (value && value.includes(':')) {
-      return parseInt(value.split(':')[1]) || 0;
-    }
-    return new Date().getMinutes();
-  });
-  const [activeSlider, setActiveSlider] = useState<'hours' | 'minutes'>('hours');
-  const pickerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
-
-  const handleConfirm = () => {
-    const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    onChange(timeStr);
-    onClose();
-  };
-
-  const handleNow = () => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    // Clamp hours to 7-21 range
-    setHours(Math.min(21, Math.max(7, currentHour)));
-    setMinutes(now.getMinutes());
-  };
-
-  return (
-    <div ref={pickerRef} className={styles.timePicker} onClick={(e) => e.stopPropagation()}>
-      <div className={styles.timePickerDisplay}>
-        <button 
-          className={`${styles.timePickerDigit} ${activeSlider === 'hours' ? styles.timePickerDigitActive : ''}`}
-          onClick={() => setActiveSlider('hours')}
-        >
-          {hours.toString().padStart(2, '0')}
-        </button>
-        <span className={styles.timePickerColon}>:</span>
-        <button 
-          className={`${styles.timePickerDigit} ${activeSlider === 'minutes' ? styles.timePickerDigitActive : ''}`}
-          onClick={() => setActiveSlider('minutes')}
-        >
-          {minutes.toString().padStart(2, '0')}
-        </button>
-      </div>
-
-      <div className={styles.timePickerSlider}>
-        <span className={styles.timePickerSliderLabel}>
-          {activeSlider === 'hours' ? 'Stunden' : 'Minuten'}
-        </span>
-        <input
-          type="range"
-          min={activeSlider === 'hours' ? 7 : 0}
-          max={activeSlider === 'hours' ? 21 : 59}
-          value={activeSlider === 'hours' ? hours : minutes}
-          onChange={(e) => {
-            const val = parseInt(e.target.value);
-            if (activeSlider === 'hours') setHours(val);
-            else setMinutes(val);
-          }}
-          className={styles.timePickerRange}
-        />
-        <div className={styles.timePickerRangeLabels}>
-          <span>{activeSlider === 'hours' ? '7' : '0'}</span>
-          <span>{activeSlider === 'hours' ? '14' : '30'}</span>
-          <span>{activeSlider === 'hours' ? '21' : '59'}</span>
-        </div>
-      </div>
-
-      <div className={styles.timePickerActions}>
-        <button className={styles.timePickerNow} onClick={handleNow}>
-          Jetzt
-        </button>
-        <button className={styles.timePickerConfirm} onClick={handleConfirm}>
-          <Check size={16} weight="bold" />
-          OK
-        </button>
-      </div>
-    </div>
-  );
-};
+import { VerticalTimePicker } from './VerticalTimePicker';
 
 // Format time input: auto-insert colon, only allow numbers
 const formatTimeInput = (value: string): string => {
@@ -736,7 +635,8 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
                       <Clock size={16} weight="regular" />
                     </button>
                     {activeTimePicker === 'von' && (
-                      <TimePicker
+                      <VerticalTimePicker
+                        variant="extra"
                         value={von}
                         onChange={setVon}
                         onClose={() => setActiveTimePicker(null)}
@@ -766,7 +666,8 @@ export const ZusatzZeiterfassungModal: React.FC<ZusatzZeiterfassungModalProps> =
                       <Clock size={16} weight="regular" />
                     </button>
                     {activeTimePicker === 'bis' && (
-                      <TimePicker
+                      <VerticalTimePicker
+                        variant="extra"
                         value={bis}
                         onChange={setBis}
                         onClose={() => setActiveTimePicker(null)}

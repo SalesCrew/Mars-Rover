@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { MapPin, FunnelSimple, X, CaretDown, CaretUp, WarningCircle, SortAscending, SortDescending, LinkSimple, CheckCircle } from '@phosphor-icons/react';
+import { MapPin, FunnelSimple, X, CaretDown, CaretUp, WarningCircle, SortAscending, SortDescending, LinkSimple, CheckCircle, DownloadSimple } from '@phosphor-icons/react';
 import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
 import { MarketListItem } from './MarketListItem';
 import { MarketListSkeleton } from './MarketListSkeleton';
@@ -13,6 +13,10 @@ import { actionHistoryService } from '../../services/actionHistoryService';
 import { gebietsleiterService } from '../../services/gebietsleiterService';
 import type { AdminMarket } from '../../types/market-types';
 import { API_BASE_URL } from '../../config/database';
+import {
+  buildMarketFrequencyRows, buildChainFrequencyRows, buildGlFrequencyRows,
+  MARKET_FREQUENCY_HEADERS, CHAIN_FREQUENCY_HEADERS, GL_FREQUENCY_HEADERS,
+} from '../../utils/marketFrequencyExport';
 import styles from './MarketsPage.module.css';
 
 type FilterType = 'chain' | 'id' | 'adresse' | 'gebietsleiter' | 'subgroup' | 'status' | 'frequency';
@@ -28,6 +32,8 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
   const [markets, setMarkets] = useState<AdminMarket[]>([]);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isExportingMarkets, setIsExportingMarkets] = useState(false);
+  const [marketExportError, setMarketExportError] = useState<string | null>(null);
   const [glNames, setGlNames] = useState<string[]>([]);
   const [glsData, setGlsData] = useState<any[]>([]); // Store full GL data
   const [selectedMarket, setSelectedMarket] = useState<AdminMarket | null>(null);
@@ -631,15 +637,18 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
     setSelectedMarket(null);
   };
 
-  const handleSaveMarket = async (updatedMarket: AdminMarket): Promise<boolean> => {
+  const handleSaveMarket = async (updatedMarket: AdminMarket, adminComment: string | undefined, marketChanged: boolean): Promise<boolean> => {
     try {
-      // Save to database
-      await marketService.updateMarket(updatedMarket.id, updatedMarket);
+      if (marketChanged) await marketService.updateMarket(updatedMarket.id, updatedMarket);
+      if (adminComment !== undefined) {
+        await marketService.saveAdminComment(updatedMarket.id, adminComment);
+      }
       
-      // Update local state
-      setMarkets(prevMarkets => 
-        prevMarkets.map(m => m.id === updatedMarket.id ? updatedMarket : m)
-      );
+      if (marketChanged) {
+        setMarkets(prevMarkets =>
+          prevMarkets.map(m => m.id === updatedMarket.id ? updatedMarket : m)
+        );
+      }
       
       // Close modal on success
       setSelectedMarket(null);
@@ -647,10 +656,51 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
     } catch (error) {
       console.error('Failed to save market:', error);
       return false;
-      // Still update local state as fallback
-      setMarkets(prevMarkets => 
-        prevMarkets.map(m => m.id === updatedMarket.id ? updatedMarket : m)
-      );
+    }
+  };
+
+  const handleMarketFrequencyExport = async () => {
+    setIsExportingMarkets(true);
+    setMarketExportError(null);
+    try {
+      // Fetch a fresh, complete snapshot; the visible list may be filtered or contain fallback data.
+      const [allMarkets, adminComments] = await Promise.all([
+        marketService.getAllMarkets(),
+        marketService.getAllAdminComments(),
+      ]);
+      const XLSX = (await import('xlsx-js-style')).default;
+      const workbook = XLSX.utils.book_new();
+      const sheets: Array<{
+        name: string;
+        headers: readonly string[];
+        rows: Array<Array<string | number | boolean | Date>>;
+      }> = [
+        { name: 'Märkte', headers: MARKET_FREQUENCY_HEADERS, rows: buildMarketFrequencyRows(allMarkets, adminComments) },
+        { name: 'Handelsketten', headers: CHAIN_FREQUENCY_HEADERS, rows: buildChainFrequencyRows(allMarkets) },
+        { name: 'Gebietsleiter', headers: GL_FREQUENCY_HEADERS, rows: buildGlFrequencyRows(allMarkets) },
+      ];
+      for (const { name, headers, rows } of sheets) {
+        const worksheet = XLSX.utils.aoa_to_sheet([Array.from(headers), ...rows], { cellDates: true });
+        worksheet['!cols'] = headers.map((header) => ({ wch: Math.min(Math.max(header.length + 3, 14), 34) }));
+        worksheet['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(headers.length - 1)}${rows.length + 1}` };
+        headers.forEach((_, column) => {
+          const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: column })];
+          if (cell) cell.s = {
+            fill: { fgColor: { rgb: '1E3A8A' } },
+            font: { bold: true, color: { rgb: 'FFFFFF' } },
+            alignment: { vertical: 'center' },
+          };
+        });
+        worksheet['!rows'] = [{ hpt: 26 }];
+        XLSX.utils.book_append_sheet(workbook, worksheet, name);
+      }
+      const date = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Vienna' }).format(new Date());
+      XLSX.writeFile(workbook, `Mars_ROVER_Maerkte_Frequenzen_${date}.xlsx`);
+    } catch (error) {
+      console.error('Failed to export market frequencies:', error);
+      setMarketExportError('Der Marktexport konnte nicht erstellt werden. Bitte erneut versuchen.');
+    } finally {
+      setIsExportingMarkets(false);
     }
   };
 
@@ -897,6 +947,16 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
             )}
           </div>
           <div className={styles.statsWrapper}>
+            <button
+              className={styles.marketExportButton}
+              onClick={handleMarketFrequencyExport}
+              disabled={isExportingMarkets || isLoadingMarkets}
+              title="Alle Märkte mit Ist- und Soll-Frequenz als Excel exportieren"
+            >
+              <DownloadSimple size={16} weight="bold" />
+              <span>{isExportingMarkets ? 'Exportiere…' : 'Alle Märkte exportieren'}</span>
+            </button>
+            {marketExportError && <span className={styles.marketExportError} role="alert">{marketExportError}</span>}
             <button
               className={`${styles.backfillButton} ${!hasMarketsWithoutGLId ? styles.backfillButtonDisabled : ''}`}
               onClick={handleBackfillGLIds}
@@ -1508,4 +1568,3 @@ const UnmatchedMarketRow: React.FC<{
     </div>
   );
 };
-

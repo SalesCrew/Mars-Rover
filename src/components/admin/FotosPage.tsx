@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { Camera, CircleNotch, CaretLeft, CaretRight, Trash, X, Image as ImageIcon, DownloadSimple, CheckCircle, CaretDown, MagnifyingGlass, Funnel } from '@phosphor-icons/react';
-import { wellenService, type WellePhoto, type Welle } from '../../services/wellenService';
+import { wellenService, type WellePhoto, type PhotoFacets } from '../../services/wellenService';
 import { CustomDatePicker } from './CustomDatePicker';
 import styles from './FotosPage.module.css';
 
-interface GLOption { id: string; name: string; }
-interface FragebogenOption { id: string; name: string; }
 type PhotoSourceFilter = 'all' | 'fotowelle' | 'fotofragen';
+const PHOTO_PAGE_SIZE = 30;
 
 const getPhotoSource = (photo: WellePhoto): 'fotowelle' | 'fotofragen' => (
   photo.source === 'fotofragen' ? 'fotofragen' : 'fotowelle'
@@ -16,9 +15,11 @@ const getSourceLabel = (source: 'fotowelle' | 'fotofragen'): string => (
   source === 'fotofragen' ? 'Fotofragen' : 'Fotowelle'
 );
 
-const LazyImage: React.FC<{ src: string; className: string }> = memo(({ src, className }) => {
+const LazyImage: React.FC<{ src: string; className: string; fallbackPhotoId?: string }> = memo(({ src, className, fallbackPhotoId }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [fallback, setFallback] = useState<{ source: string; url: string } | null>(null);
+  const isResolvingFallback = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -33,7 +34,21 @@ const LazyImage: React.FC<{ src: string; className: string }> = memo(({ src, cla
 
   return (
     <div ref={ref} className={className}>
-      {isVisible && <img src={src} alt="" decoding="async" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+      {isVisible && <img
+        src={fallback?.source === src ? fallback.url : src}
+        alt=""
+        decoding="async"
+        loading="lazy"
+        onError={() => {
+          if (!fallbackPhotoId || isResolvingFallback.current || fallback?.source === src) return;
+          isResolvingFallback.current = true;
+          wellenService.getOriginalPhotoUrl(fallbackPhotoId)
+            .then(url => setFallback({ source: src, url }))
+            .catch(error => console.error('Failed to load photo preview fallback:', error))
+            .finally(() => { isResolvingFallback.current = false; });
+        }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />}
     </div>
   );
 });
@@ -48,7 +63,7 @@ const PhotoCard = memo<PhotoCardProps>(({ photo, onClick, formatDate }) => {
   const source = getPhotoSource(photo);
   return (
     <div className={styles.photoCard} onClick={onClick}>
-      <LazyImage src={photo.photoUrl} className={styles.photoThumb} />
+      <LazyImage src={photo.photoUrl} className={styles.photoThumb} fallbackPhotoId={source === 'fotowelle' ? photo.id : undefined} />
       <div className={styles.photoInfo}>
         <div className={`${styles.sourceBadge} ${source === 'fotofragen' ? styles.sourceBadgeFotofragen : styles.sourceBadgeFotowelle}`}>
           {getSourceLabel(source)}
@@ -67,10 +82,13 @@ const PhotoCard = memo<PhotoCardProps>(({ photo, onClick, formatDate }) => {
 
 export const FotosPage: React.FC = () => {
   const [photos, setPhotos] = useState<WellePhoto[]>([]);
-  const [waves, setWaves] = useState<Welle[]>([]);
-  const [gls, setGls] = useState<GLOption[]>([]);
+  const [facets, setFacets] = useState<PhotoFacets | null>(null);
+  const [facetError, setFacetError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
   const [total, setTotal] = useState(0);
+  const photoRequestVersion = useRef(0);
 
   // Filters
   const [filterSource, setFilterSource] = useState<PhotoSourceFilter>('all');
@@ -87,22 +105,29 @@ export const FotosPage: React.FC = () => {
 
   // Lightbox
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [originalPhoto, setOriginalPhoto] = useState<{ id: string; url: string } | null>(null);
 
-  // Fetch waves for filter dropdown
-  useEffect(() => {
-    (async () => {
-      try {
-        const allWaves = await wellenService.getAllWellen();
-        setWaves(allWaves.filter(w => w.fotoEnabled));
-      } catch (e) { console.error(e); }
-    })();
+  const loadFacets = useCallback(async () => {
+    try {
+      const options = await wellenService.getPhotoFacets();
+      setFacets(options);
+      setFacetError(false);
+    } catch (error) {
+      console.error('Failed to load photo filters:', error);
+      setFacetError(true);
+    }
   }, []);
 
+  useEffect(() => { loadFacets(); }, [loadFacets]);
+
   // Fetch photos
-  const fetchPhotos = useCallback(async () => {
-    setLoading(true);
+  const fetchPhotos = useCallback(async (offset = 0, append = false) => {
+    const version = ++photoRequestVersion.current;
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    setPhotoError(false);
     try {
-      const params: any = { limit: 200 };
+      const params: Parameters<typeof wellenService.getPhotos>[0] = { limit: PHOTO_PAGE_SIZE, offset };
       params.source = filterSource;
       if (filterWelle) params.welle_id = filterWelle;
       if (filterGL) params.gl_id = filterGL;
@@ -112,39 +137,32 @@ export const FotosPage: React.FC = () => {
       if (filterEndDate) params.end_date = filterEndDate;
 
       const result = await wellenService.getPhotos(params);
-      const strictPhotos = result.photos.filter((photo) =>
-        filterSource === 'all' ? true : getPhotoSource(photo) === filterSource
-      );
-      setPhotos(strictPhotos);
-      setTotal(filterSource === 'all' ? result.total : strictPhotos.length);
-
-      // Extract unique GLs for filter
-      const glMap = new Map<string, string>();
-      strictPhotos.forEach(p => { if (p.glId && p.glName) glMap.set(p.glId, p.glName); });
-      setGls(Array.from(glMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)));
+      if (version !== photoRequestVersion.current) return;
+      setPhotos(previous => append ? [...previous, ...result.photos] : result.photos);
+      setTotal(result.total);
     } catch (e) {
       console.error(e);
-      setPhotos([]);
-      setTotal(0);
-      setGls([]);
+      if (version !== photoRequestVersion.current) return;
+      if (!append) { setPhotos([]); setTotal(0); }
+      setPhotoError(true);
     }
-    finally { setLoading(false); }
+    finally {
+      if (version === photoRequestVersion.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    }
   }, [filterSource, filterWelle, filterGL, filterMarket, filterTags, filterStartDate, filterEndDate]);
 
-  useEffect(() => { fetchPhotos(); }, [fetchPhotos]);
-
   useEffect(() => {
-    if (filterSource === 'fotofragen' && filterWelle) {
-      setFilterWelle('');
-    }
-  }, [filterSource, filterWelle]);
+    fetchPhotos();
+    return () => { photoRequestVersion.current += 1; };
+  }, [fetchPhotos]);
 
-  // All unique tags from photos
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    photos.forEach(p => p.tags?.forEach(t => tagSet.add(t)));
-    return Array.from(tagSet).sort();
-  }, [photos]);
+  const allTags = facets?.tags ?? [];
+  const gls = facets?.gls ?? [];
+  const allMarkets = facets?.markets ?? [];
+  const waves = facets?.waves ?? [];
 
   const toggleTag = (tag: string) => {
     setFilterTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
@@ -157,20 +175,6 @@ export const FotosPage: React.FC = () => {
   };
 
   const hasFilters = filterSource !== 'all' || filterWelle || filterGL || filterMarket || filterTags.length > 0 || filterStartDate || filterEndDate;
-
-  // Unique markets from photos for dropdown
-  const allMarkets = useMemo(() => {
-    const mMap = new Map<string, { id: string; name: string; fullAddress: string }>();
-    photos.forEach(p => {
-      if (!p.marketId || !p.marketName) return;
-      const fullAddress = p.marketAddress || [
-        p.marketAddressLine,
-        [p.marketPostalCode, p.marketCity].filter(Boolean).join(' ')
-      ].filter(Boolean).join(', ');
-      mMap.set(p.marketId, { id: p.marketId, name: p.marketName, fullAddress });
-    });
-    return Array.from(mMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [photos]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -217,9 +221,6 @@ export const FotosPage: React.FC = () => {
   const [exportProgress, setExportProgress] = useState(0);
   const [exportDone, setExportDone] = useState(false);
   const [openExportDropdown, setOpenExportDropdown] = useState<string | null>(null);
-  const [exportFotowelleGLs, setExportFotowelleGLs] = useState<GLOption[]>([]);
-  const [exportFotofragenGLs, setExportFotofragenGLs] = useState<GLOption[]>([]);
-  const [exportFrageboegen, setExportFrageboegen] = useState<FragebogenOption[]>([]);
 
   const parseDateValue = (value?: string | null): number => {
     if (!value) return 0;
@@ -227,74 +228,24 @@ export const FotosPage: React.FC = () => {
     return Number.isNaN(ts) ? 0 : ts;
   };
 
-  const wavesNewestFirst = useMemo(() => {
-    return [...waves].sort((a, b) => {
+  const wavesNewestFirst = [...waves].sort((a, b) => {
       const aDate = parseDateValue(a.startDate || a.endDate);
       const bDate = parseDateValue(b.startDate || b.endDate);
       return bDate - aDate;
     });
-  }, [waves]);
 
-  const getUniqueGLOptions = (items: WellePhoto[]): GLOption[] => {
-    const glMap = new Map<string, string>();
-    items.forEach((item) => {
-      if (item.glId && item.glName) glMap.set(item.glId, item.glName);
-    });
-    return Array.from(glMap.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  };
-
-  const getUniqueFragebogenOptions = (items: WellePhoto[]): FragebogenOption[] => {
-    const fragebogenMap = new Map<string, string>();
-    items.forEach((item) => {
-      if (item.fragebogenId && item.fragebogenName) fragebogenMap.set(item.fragebogenId, item.fragebogenName);
-    });
-    return Array.from(fragebogenMap.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  };
-
-  const openExportModal = () => {
+  const openExportModal = useCallback(() => {
     const today = new Date().toISOString().split('T')[0];
     setZipName(`Fotos_${today}`);
-    setExportSource(filterSource);
-    setExportWelleId(filterSource === 'fotofragen' ? '' : filterWelle);
+    setExportSource(filterWelle ? 'fotowelle' : filterSource);
+    setExportWelleId(filterWelle);
     setExportFragebogenId('');
     setExportGLId(filterGL);
     setOpenExportDropdown(null);
     setExportDone(false);
     setExportProgress(0);
     setShowExportModal(true);
-  };
-
-  useEffect(() => {
-    if (!showExportModal) return;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const [fotowelleResult, fotofragenResult] = await Promise.all([
-          wellenService.getPhotos({ source: 'fotowelle', limit: 1000 }),
-          wellenService.getPhotos({ source: 'fotofragen', limit: 1000 })
-        ]);
-        if (cancelled) return;
-        setExportFotowelleGLs(getUniqueGLOptions(fotowelleResult.photos || []));
-        setExportFotofragenGLs(getUniqueGLOptions(fotofragenResult.photos || []));
-        setExportFrageboegen(getUniqueFragebogenOptions(fotofragenResult.photos || []));
-      } catch (e) {
-        console.error('Failed to load export dropdown options:', e);
-        if (cancelled) return;
-        setExportFotowelleGLs([]);
-        setExportFotofragenGLs([]);
-        setExportFrageboegen([]);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [showExportModal]);
+  }, [filterSource, filterWelle, filterGL]);
 
   useEffect(() => {
     if (exportSource !== 'fotowelle') setExportWelleId('');
@@ -302,14 +253,10 @@ export const FotosPage: React.FC = () => {
   }, [exportSource]);
 
   const exportGLOptions = useMemo(() => {
-    if (exportSource === 'fotowelle') return exportFotowelleGLs;
-    if (exportSource === 'fotofragen') return exportFotofragenGLs;
-    const glMap = new Map<string, string>();
-    [...exportFotowelleGLs, ...exportFotofragenGLs].forEach((g) => glMap.set(g.id, g.name));
-    return Array.from(glMap.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [exportSource, exportFotowelleGLs, exportFotofragenGLs]);
+    if (exportSource === 'fotowelle') return facets?.glsBySource.fotowelle ?? [];
+    if (exportSource === 'fotofragen') return facets?.glsBySource.fotofragen ?? [];
+    return facets?.gls ?? [];
+  }, [exportSource, facets]);
 
   useEffect(() => {
     if (!openExportDropdown) return;
@@ -324,7 +271,7 @@ export const FotosPage: React.FC = () => {
   }, [openExportDropdown]);
 
   const handleExportZip = async () => {
-    if (photos.length === 0 || !zipName.trim()) return;
+    if (!zipName.trim()) return;
     setIsExporting(true);
     setExportProgress(15);
 
@@ -362,10 +309,26 @@ export const FotosPage: React.FC = () => {
     };
     window.addEventListener('fotos:export', handleExportEvent);
     return () => window.removeEventListener('fotos:export', handleExportEvent);
-  }, []);
+  }, [openExportModal]);
 
   const lightboxPhoto = lightboxIndex !== null ? photos[lightboxIndex] : null;
   const lightboxSource = lightboxPhoto ? getPhotoSource(lightboxPhoto) : null;
+  const lightboxPhotoId = lightboxPhoto?.id;
+  const lightboxPreviewUrl = lightboxPhoto?.photoUrl;
+  useEffect(() => {
+    if (!lightboxPhotoId || !lightboxPreviewUrl || lightboxSource !== 'fotowelle') return;
+    let cancelled = false;
+    wellenService.getOriginalPhotoUrl(lightboxPhotoId)
+      .then(url => { if (!cancelled) setOriginalPhoto({ id: lightboxPhotoId, url }); })
+      .catch(error => {
+        console.error('Failed to load original photo:', error);
+        if (!cancelled) setOriginalPhoto({ id: lightboxPhotoId, url: lightboxPreviewUrl });
+      });
+    return () => { cancelled = true; };
+  }, [lightboxPhotoId, lightboxPreviewUrl, lightboxSource]);
+  const lightboxUrl = lightboxSource === 'fotowelle'
+    ? (originalPhoto && originalPhoto.id === lightboxPhoto?.id ? originalPhoto.url : null)
+    : lightboxPhoto?.photoUrl;
 
   return (
     <div className={styles.page}>
@@ -380,6 +343,13 @@ export const FotosPage: React.FC = () => {
         </div>
         <span className={styles.photoCount}>{total} Fotos</span>
       </div>
+
+      {facetError && (
+        <div className={styles.loadNotice} role="alert">
+          Filteroptionen konnten nicht geladen werden.
+          <button onClick={loadFacets}>Erneut versuchen</button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className={styles.filters}>
@@ -398,7 +368,7 @@ export const FotosPage: React.FC = () => {
           </button>
           <button
             className={`${styles.sourceToggleBtn} ${filterSource === 'fotofragen' ? styles.sourceToggleBtnActive : ''}`}
-            onClick={() => setFilterSource('fotofragen')}
+            onClick={() => { setFilterWelle(''); setFilterSource('fotofragen'); }}
           >
             Fotofragen
           </button>
@@ -533,17 +503,32 @@ export const FotosPage: React.FC = () => {
           <CircleNotch size={32} weight="bold" className={styles.spinner} />
           <span>Lade Fotos...</span>
         </div>
+      ) : photoError && photos.length === 0 ? (
+        <div className={styles.emptyState} role="alert">
+          <span>Fotos konnten nicht geladen werden.</span>
+          <button onClick={() => fetchPhotos()}>Erneut versuchen</button>
+        </div>
       ) : photos.length === 0 ? (
         <div className={styles.emptyState}>
           <ImageIcon size={48} weight="regular" />
           <span>Keine Fotos gefunden</span>
         </div>
       ) : (
-        <div className={styles.grid}>
-          {photos.map((photo, idx) => (
-            <PhotoCard key={photo.id} photo={photo} onClick={() => setLightboxIndex(idx)} formatDate={formatDate} />
-          ))}
-        </div>
+        <>
+          <div className={styles.grid}>
+            {photos.map((photo, idx) => (
+              <PhotoCard key={`${photo.source}-${photo.id}`} photo={photo} onClick={() => setLightboxIndex(idx)} formatDate={formatDate} />
+            ))}
+          </div>
+          {photos.length < total && (
+            <div className={styles.loadMoreWrap}>
+              {photoError && <span role="alert">Weitere Fotos konnten nicht geladen werden.</span>}
+              <button onClick={() => fetchPhotos(photos.length, true)} disabled={loadingMore}>
+                {loadingMore ? 'Lade weitere Fotos…' : `Weitere Fotos laden (${photos.length} von ${total})`}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Lightbox */}
@@ -551,7 +536,7 @@ export const FotosPage: React.FC = () => {
         <div className={styles.lightboxOverlay} onClick={() => setLightboxIndex(null)}>
           <div className={styles.lightboxContent} onClick={e => e.stopPropagation()}>
             <div className={styles.lightboxImage}>
-              <img src={lightboxPhoto.photoUrl} alt="" />
+              {lightboxUrl ? <img src={lightboxUrl} alt="" /> : <CircleNotch size={32} className={styles.spinner} />}
               {lightboxIndex > 0 && (
                 <button className={`${styles.lightboxNav} ${styles.lightboxPrev}`} onClick={() => setLightboxIndex(lightboxIndex - 1)}>
                   <CaretLeft size={18} weight="bold" />
@@ -714,7 +699,7 @@ export const FotosPage: React.FC = () => {
                       onClick={() => setOpenExportDropdown(openExportDropdown === 'export-fragebogen' ? null : 'export-fragebogen')}
                       disabled={isExporting}
                     >
-                      <span>{exportFragebogenId ? exportFrageboegen.find(f => f.id === exportFragebogenId)?.name || 'Fragebogen' : 'Alle Fragebogen'}</span>
+                      <span>{exportFragebogenId ? facets?.frageboegen.find(f => f.id === exportFragebogenId)?.name || 'Fragebogen' : 'Alle Fragebogen'}</span>
                       <CaretDown size={12} weight="bold" className={`${styles.dropdownCaret} ${openExportDropdown === 'export-fragebogen' ? styles.caretOpen : ''}`} />
                     </button>
                     {openExportDropdown === 'export-fragebogen' && (
@@ -726,7 +711,7 @@ export const FotosPage: React.FC = () => {
                           >
                             Alle Fragebogen
                           </button>
-                          {exportFrageboegen.map(f => (
+                          {facets?.frageboegen.map(f => (
                             <button
                               key={f.id}
                               className={`${styles.dropdownItem} ${exportFragebogenId === f.id ? styles.dropdownItemActive : ''}`}

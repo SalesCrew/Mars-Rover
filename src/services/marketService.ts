@@ -84,6 +84,29 @@ class MarketService {
     }
   }
 
+  async getAdminComment(id: string): Promise<string> {
+    const response = await fetch(`${API_ENDPOINTS.markets.getById(id)}/admin-comment`);
+    if (!response.ok) throw new Error(`Marktkommentar konnte nicht geladen werden (${response.status})`);
+    const data = await response.json();
+    return typeof data.comment === 'string' ? data.comment : '';
+  }
+
+  async getAllAdminComments(): Promise<Record<string, string>> {
+    const response = await fetch(`${API_ENDPOINTS.markets.getAll}/admin-comments`);
+    if (!response.ok) throw new Error(`Marktkommentare konnten nicht geladen werden (${response.status})`);
+    const data = await response.json() as Array<{ market_id: string; comment: string }>;
+    return Object.fromEntries(data.map(({ market_id, comment }) => [market_id, comment]));
+  }
+
+  async saveAdminComment(id: string, comment: string): Promise<void> {
+    const response = await fetch(`${API_ENDPOINTS.markets.getById(id)}/admin-comment`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment }),
+    });
+    if (!response.ok) throw new Error(`Marktkommentar konnte nicht gespeichert werden (${response.status})`);
+  }
+
   /**
    * Create a new market
    */
@@ -233,8 +256,8 @@ class MarketService {
       city: dbMarket.city || '', // Row K (Stadt)
       postalCode: dbMarket.postal_code || '', // Row I (PLZ)
       chain: dbMarket.chain || '', // Row F: Handelskette
-      frequency: dbMarket.frequency || 12, // Row Q
-      currentVisits: dbMarket.current_visits || 0,
+      frequency: dbMarket.frequency ?? 12, // Row Q
+      currentVisits: dbMarket.current_visits ?? 0,
       lastVisitDate: dbMarket.last_visit_date,
       isCompleted: dbMarket.is_completed || false,
       isActive: dbMarket.is_active ?? true, // Row O: Status
@@ -315,4 +338,3 @@ class MarketService {
 
 // Export singleton instance
 export const marketService = new MarketService();
-

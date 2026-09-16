@@ -151,6 +151,34 @@
   color: rgba(107, 114, 128, 0.5);
 }
 
+.commentInput {
+  min-height: 108px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.commentHint {
+  margin: 6px 0 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.commentError {
+  margin: 8px 0 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.commentError button {
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* Dropdown */
 .dropdown {
   display: flex;
