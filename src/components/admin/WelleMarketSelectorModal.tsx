@@ -4,6 +4,7 @@ import { X, FunnelSimple, MagnifyingGlass, CheckCircle, Storefront, CaretDown, C
 import { marketService } from '../../services/marketService';
 import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
 import type { AdminMarket } from '../../types/market-types';
+import { getBulkSelectableMarketIds, toggleBulkActiveMarketSelection } from '../../utils/marketSelection';
 import { FragebogenMarketImportMapperModal } from './FragebogenMarketImportMapperModal';
 import styles from './WelleMarketSelectorModal.module.css';
 
@@ -47,7 +48,7 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
     chain: [],
     gebietsleiter: [],
     subgroup: [],
-    status: []
+    status: ['Aktiv']
   });
 
   const filterRefs = {
@@ -156,16 +157,12 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
   };
 
   const handleSelectAllFiltered = () => {
-    const filteredMarketIds = filteredMarkets.map(m => m.id);
-    const allFilteredSelected = filteredMarketIds.every(id => tempSelectedIds.includes(id));
-    if (allFilteredSelected) {
-      // Deselect all filtered markets
-      setTempSelectedIds(prev => prev.filter(id => !filteredMarketIds.includes(id)));
-    } else {
-      // Select all filtered markets (add to existing selection)
-      setTempSelectedIds(prev => [...new Set([...prev, ...filteredMarketIds])]);
-    }
+    setTempSelectedIds(prev => toggleBulkActiveMarketSelection(prev, filteredMarkets));
   };
+
+  const bulkSelectableIds = getBulkSelectableMarketIds(filteredMarkets);
+  const allBulkSelectableSelected = bulkSelectableIds.length > 0 &&
+    bulkSelectableIds.every(id => tempSelectedIds.includes(id));
 
   const handleConfirm = () => {
     onConfirm(tempSelectedIds);
@@ -409,9 +406,9 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
             <button 
               className={styles.selectAllButton}
               onClick={handleSelectAllFiltered}
-              disabled={filteredMarkets.length === 0}
+              disabled={bulkSelectableIds.length === 0}
             >
-              Alle auswählen
+              {allBulkSelectableSelected ? 'Alle abwählen' : 'Alle auswählen'}
             </button>
             <div className={styles.selectedCount}>
               {tempSelectedIds.length} ausgewählt

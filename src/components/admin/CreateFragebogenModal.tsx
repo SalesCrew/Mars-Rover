@@ -7,6 +7,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Module } from './FragebogenPage';
 import { marketService } from '../../services/marketService';
 import type { AdminMarket } from '../../types/market-types';
+import { getBulkSelectableMarketIds, toggleBulkActiveMarketSelection } from '../../utils/marketSelection';
 import { FragebogenMarketImportMapperModal } from './FragebogenMarketImportMapperModal';
 import styles from './CreateFragebogenModal.module.css';
 
@@ -182,7 +183,7 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
     adresse: [],
     gebietsleiter: [],
     subgroup: [],
-    status: []
+    status: ['Aktiv']
   });
 
   // Refs for click outside handlers
@@ -266,7 +267,7 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
       adresse: [],
       gebietsleiter: [],
       subgroup: [],
-      status: []
+      status: ['Aktiv']
     });
   };
 
@@ -506,6 +507,8 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
 
     return filtered;
   }, [markets, selectedFilters, marketSearchTerm]);
+
+  const bulkSelectableIds = getBulkSelectableMarketIds(filteredMarkets);
 
   const handleToggleMarket = (marketId: string, event?: React.MouseEvent) => {
     if (event) {
@@ -1227,20 +1230,13 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
                       </div>
 
                       {/* Select / Deselect all visible markets */}
-                      {filteredMarkets.length > 0 && (() => {
-                        const allSelected = filteredMarkets.every(m => selectedMarkets.includes(m.id));
+                      {bulkSelectableIds.length > 0 && (() => {
+                        const allSelected = bulkSelectableIds.every(id => selectedMarkets.includes(id));
                         return (
                           <button
                             type="button"
                             className={styles.selectAllButton}
-                            onClick={() => {
-                              if (allSelected) {
-                                setSelectedMarkets(prev => prev.filter(id => !filteredMarkets.find(m => m.id === id)));
-                              } else {
-                                const newIds = filteredMarkets.map(m => m.id);
-                                setSelectedMarkets(prev => [...new Set([...prev, ...newIds])]);
-                              }
-                            }}
+                            onClick={() => setSelectedMarkets(prev => toggleBulkActiveMarketSelection(prev, filteredMarkets))}
                           >
                             {allSelected ? 'Alle abwählen' : 'Alle auswählen'}
                           </button>
@@ -1455,4 +1451,3 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
     </>
   );
 };
-
