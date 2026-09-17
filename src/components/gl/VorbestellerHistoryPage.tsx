@@ -40,6 +40,18 @@ interface WaveInfo {
   kartonwareCount: number;
   fotoOnly?: boolean;
   fotoEnabled?: boolean;
+  photoCount?: number;
+}
+
+interface PhotoMarketEntry {
+  marketId: string;
+  marketName: string;
+  marketChain: string;
+  marketAddress: string;
+  marketPostalCode: string;
+  marketCity: string;
+  photoCount: number;
+  lastUploadedAt: string;
 }
 
 interface ProductDetail {
@@ -150,7 +162,7 @@ const formatArticleVeMeta = (item: { artikelNr?: string | null; ve?: number | st
   return parts.join(' · ');
 };
 
-const formatMarketAddress = (entry: SubmissionEntry): string => {
+const formatMarketAddress = (entry: { marketAddress?: string; marketPostalCode?: string; marketCity?: string }): string => {
   const postalCity = [entry.marketPostalCode, entry.marketCity].filter(Boolean).join(' ');
   return [entry.marketAddress, postalCity].filter(Boolean).join(', ');
 };
@@ -186,9 +198,12 @@ export const VorbestellerHistoryPage: React.FC = () => {
   // Data
   const [waves, setWaves] = useState<WaveInfo[]>([]);
   const [submissionsByWave, setSubmissionsByWave] = useState<Record<string, SubmissionEntry[]>>({});
+  const [photoMarketsByWave, setPhotoMarketsByWave] = useState<Record<string, PhotoMarketEntry[]>>({});
   const [waveDefinitions, setWaveDefinitions] = useState<Record<string, Welle>>({});
   const [loading, setLoading] = useState(true);
   const [loadingWave, setLoadingWave] = useState<string | null>(null);
+  const [loadingPhotoWaves, setLoadingPhotoWaves] = useState<Set<string>>(new Set());
+  const [photoMarketErrors, setPhotoMarketErrors] = useState<Record<string, boolean>>({});
 
   // UI
   const [expandedWaves, setExpandedWaves] = useState<Set<string>>(new Set());
@@ -333,6 +348,28 @@ export const VorbestellerHistoryPage: React.FC = () => {
     finally { setLoadingWave(null); }
   }, [user?.id, submissionsByWave]);
 
+  const fetchWavePhotoMarkets = useCallback(async (waveId: string, force = false) => {
+    if (!user?.id || (!force && photoMarketsByWave[waveId])) return;
+    setLoadingPhotoWaves(prev => new Set(prev).add(waveId));
+    setPhotoMarketErrors(prev => ({ ...prev, [waveId]: false }));
+    try {
+      const res = await fetch(`${API_BASE_URL}/wellen/${waveId}/gl-photo-markets/${user.id}`);
+      if (!res.ok) throw new Error('Failed to fetch photo markets');
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error('Unexpected photo market response');
+      setPhotoMarketsByWave(prev => ({ ...prev, [waveId]: data }));
+    } catch (error) {
+      console.error(error);
+      setPhotoMarketErrors(prev => ({ ...prev, [waveId]: true }));
+    } finally {
+      setLoadingPhotoWaves(prev => {
+        const next = new Set(prev);
+        next.delete(waveId);
+        return next;
+      });
+    }
+  }, [user?.id, photoMarketsByWave]);
+
   // ---- REFETCH after mutation ----
   const refetchWave = useCallback(async (waveId: string) => {
     setSubmissionsByWave(prev => { const n = { ...prev }; delete n[waveId]; return n; });
@@ -341,13 +378,19 @@ export const VorbestellerHistoryPage: React.FC = () => {
 
   // ---- TOGGLES ----
   const toggleWave = useCallback((waveId: string) => {
+    const willExpand = !expandedWaves.has(waveId);
     setExpandedWaves(prev => {
       const next = new Set(prev);
-      if (next.has(waveId)) { next.delete(waveId); }
-      else { next.add(waveId); fetchWaveSubmissions(waveId); }
+      if (next.has(waveId)) next.delete(waveId);
+      else next.add(waveId);
       return next;
     });
-  }, [fetchWaveSubmissions]);
+    if (willExpand) {
+      const wave = waves.find(item => item.id === waveId);
+      if (!wave?.fotoOnly) void fetchWaveSubmissions(waveId);
+      if (wave?.fotoOnly || wave?.fotoEnabled) void fetchWavePhotoMarkets(waveId);
+    }
+  }, [expandedWaves, waves, fetchWaveSubmissions, fetchWavePhotoMarkets]);
 
   const toggleItem = useCallback((itemId: string) => {
     setExpandedItems(prev => {
@@ -401,8 +444,8 @@ export const VorbestellerHistoryPage: React.FC = () => {
 
   const handleFotoModalClose = useCallback(async (waveId: string) => {
     setFotoModalWaveId(null);
-    await refetchWave(waveId);
-  }, [refetchWave]);
+    await fetchWavePhotoMarkets(waveId, true);
+  }, [fetchWavePhotoMarkets]);
 
   const toggleSelectItem = useCallback((id: string, name: string, valuePerUnit: number) => {
     setAddState(prev => {
@@ -485,7 +528,10 @@ export const VorbestellerHistoryPage: React.FC = () => {
   }, []);
 
   const getWaveTotal = useCallback((waveId: string, wave: WaveInfo): string => {
-    if (wave.fotoOnly) return 'Foto';
+    if (wave.fotoOnly) {
+      const count = photoMarketsByWave[waveId]?.reduce((sum, market) => sum + market.photoCount, 0) ?? wave.photoCount ?? 0;
+      return `${count} ${count === 1 ? 'Foto' : 'Fotos'}`;
+    }
     const subs = submissionsByWave[waveId];
     if (subs) {
       const total = subs.reduce((s, e) => s + e.value, 0);
@@ -494,7 +540,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
     }
     if (wave.goalType === 'value' && wave.currentValue) return formatValue(wave.currentValue);
     return `${(wave.displayCount || 0) + (wave.kartonwareCount || 0)} Artikel`;
-  }, [submissionsByWave]);
+  }, [submissionsByWave, photoMarketsByWave]);
 
   // ---- RENDER: QUANTITY STEPPER ----
   const renderQuantity = (id: string, qty: number, waveId: string, dayDate: string, isSubItem?: boolean) => {
@@ -858,6 +904,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
                 waves.map(wave => {
                   const isExpanded = expandedWaves.has(wave.id);
                   const subs = submissionsByWave[wave.id];
+                  const photoMarkets = photoMarketsByWave[wave.id] || [];
                   const dayGroups = subs ? getDayGroups(subs) : [];
                   const isFinished = wave.status === 'finished';
 
@@ -886,22 +933,63 @@ export const VorbestellerHistoryPage: React.FC = () => {
 
                       <div className={`${styles.waveBody} ${isExpanded ? styles.open : ''}`}>
                         <div className={styles.waveBodyInner}>
-                          {loadingWave === wave.id ? (
+                          {loadingWave === wave.id || loadingPhotoWaves.has(wave.id) ? (
                             <div className={styles.loadingContainer}>
                               <CircleNotch size={24} weight="bold" className={styles.spinner} />
                               <span>Lade Einträge...</span>
                             </div>
-                          ) : !subs || subs.length === 0 ? (
+                          ) : (
+                            <>
+                              {(wave.fotoOnly || wave.fotoEnabled) && (
+                                <section className={styles.photoHistory} aria-label="Fotowellen-Märkte">
+                                  <div className={styles.photoHistoryHeader}>
+                                    <span className={styles.photoHistoryTitle}>Fotos nach Markt</span>
+                                    <button className={styles.addBtn} onClick={() => setFotoModalWaveId(wave.id)}>
+                                      <Camera size={14} weight="bold" /> Foto hinzufügen
+                                    </button>
+                                  </div>
+                                  {photoMarketErrors[wave.id] ? (
+                                    <div className={styles.photoHistoryMessage}>
+                                      Fotos konnten nicht geladen werden.
+                                      <button className={styles.photoRetryButton} onClick={() => fetchWavePhotoMarkets(wave.id, true)}>
+                                        <ArrowsClockwise size={14} /> Erneut laden
+                                      </button>
+                                    </div>
+                                  ) : photoMarkets.length === 0 ? (
+                                    <div className={styles.photoHistoryMessage}>Noch keine Fotos</div>
+                                  ) : (
+                                    <div className={styles.photoMarketList}>
+                                      {photoMarkets.map(market => {
+                                        const colors = getChainColor(market.marketChain);
+                                        const address = formatMarketAddress(market);
+                                        return (
+                                          <div key={market.marketId} className={styles.photoMarketRow}>
+                                            <div className={`${styles.itemTypeIcon} ${styles.typeFoto}`}><Camera size={16} weight="bold" /></div>
+                                            <div className={styles.itemInfo}>
+                                              <div className={styles.photoMarketName}>{market.marketName}</div>
+                                              <div className={styles.itemMeta}>
+                                                {market.marketChain && (
+                                                  <span className={styles.chainBadge} style={{ background: colors.bg, borderColor: colors.border, color: colors.text }}>
+                                                    {market.marketChain}
+                                                  </span>
+                                                )}
+                                                {address && <span className={styles.photoMarketAddress}>{address}</span>}
+                                              </div>
+                                            </div>
+                                            <div className={styles.photoMarketStats}>
+                                              <strong>{market.photoCount} {market.photoCount === 1 ? 'Foto' : 'Fotos'}</strong>
+                                              <span>{new Date(market.lastUploadedAt).toLocaleDateString('de-AT')}</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </section>
+                              )}
+                              {!wave.fotoOnly && (!subs || subs.length === 0 ? (
                             <div className={styles.emptyState}>
-                              {wave.fotoOnly || (wave.fotoEnabled && !(waveDefinitions[wave.id]?.types?.length)) ? (
-                                <>
-                                  <Camera size={36} weight="regular" />
-                                  <span>Noch keine Fotos</span>
-                                  <button className={styles.addBtn} onClick={() => setFotoModalWaveId(wave.id)} style={{ marginTop: '8px' }}>
-                                    <Camera size={14} weight="bold" /> Foto hinzufügen
-                                  </button>
-                                </>
-                              ) : addState && addState.waveId === wave.id ? (
+                              {addState && addState.waveId === wave.id ? (
                                 renderAddRow(wave.id, { date: addState.dayDate, dateLabel: new Date().toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), entries: [], markets: [], dayTotal: 0 })
                               ) : (
                                 <>
@@ -998,7 +1086,8 @@ export const VorbestellerHistoryPage: React.FC = () => {
 
                                 {renderAddRow(wave.id, day)}
                               </div>
-                            ))
+                            ))))}
+                            </>
                           )}
                         </div>
                       </div>
