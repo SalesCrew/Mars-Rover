@@ -230,6 +230,18 @@ const formatRunDate = (value?: string): string => {
   return parsed.toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
 };
 
+const hasDistributionScore = (value: number | null | undefined): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+const getDistributionTitle = (run: GLHistoryRun): string => {
+  const score = run.distributionScore;
+  if (!hasDistributionScore(score)) return '';
+  if (typeof run.distributionYes === 'number' && typeof run.distributionTotal === 'number' && run.distributionTotal > 0) {
+    return `Perfect Store Distribution: ${score}% (${run.distributionYes} von ${run.distributionTotal} Ja)`;
+  }
+  return `Perfect Store Distribution: ${score}%`;
+};
+
 const formatAnswerDisplay = (question: Question, value: any): string => {
   if (value === undefined || value === null || value === '') return '-';
   if (question.type === 'yesno') return value === true ? 'Ja' : 'Nein';
@@ -798,6 +810,11 @@ const FragebogenHistorySection: React.FC = () => {
                                 </span>
                               </div>
                               <div className={styles.fbHeaderRight}>
+                                {hasDistributionScore(run.distributionScore) ? (
+                                  <span className={styles.fbDistributionScore} title={getDistributionTitle(run)}>
+                                    Distribution {run.distributionScore}%
+                                  </span>
+                                ) : null}
                                 <span className={`${styles.fbRunStatus} ${run.status === 'completed' ? styles.fbRunStatusDone : styles.fbRunStatusOpen}`}>
                                   {run.status === 'completed' ? 'Completed' : 'In Progress'}
                                 </span>

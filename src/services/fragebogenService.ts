@@ -265,6 +265,9 @@ export interface GLHistoryRun extends Response {
   market?: { id: string; name: string; chain: string; address?: string; city?: string };
   modules: GLHistoryModule[];
   answers: ResponseAnswer[];
+  distributionScore?: number | null;
+  distributionYes?: number;
+  distributionTotal?: number;
 }
 
 export type AnswerKind = 'text' | 'numeric' | 'boolean' | 'json' | 'file';
