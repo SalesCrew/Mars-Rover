@@ -3,6 +3,7 @@ import { X, PencilSimple, Stack, Question, Storefront, Check, MagnifyingGlass, F
 import { FragebogenPreviewModal } from './FragebogenPreviewModal';
 import fragebogenService, { type FragebogenMarketStatusRow } from '../../services/fragebogenService';
 import { marketService } from '../../services/marketService';
+import { normalizeMarketChain, matchesMarketChainFilter } from '../../utils/marketChains';
 import type { AdminMarket } from '../../types/market-types';
 import styles from './FragebogenDetailModal.module.css';
 
@@ -325,7 +326,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
   const getMarketInternalId = (market: AdminMarket): string => normalizeMarketValue(market.internalId);
   const getMarketSubgroup = (market: AdminMarket): string => normalizeMarketValue(market.subgroup);
   const getMarketGlLabel = (market: AdminMarket): string => normalizeMarketValue(market.gebietsleiterName || market.gebietsleiter);
-  const getMarketChainLabel = (market: AdminMarket): string => normalizeMarketValue(market.chain) || 'Unbekannt';
+  const getMarketChainLabel = (market: AdminMarket): string => market.chain?.trim() ? normalizeMarketChain(market.chain) : 'Unbekannt';
 
   // Filter markets
   const filteredMarkets = useMemo(() => {
@@ -347,7 +348,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
 
     // Apply filters
     if (selectedFilters.chain.length > 0) {
-      result = result.filter(m => selectedFilters.chain.includes(getMarketChainLabel(m)));
+      result = result.filter(m => matchesMarketChainFilter(getMarketChainLabel(m), selectedFilters.chain));
     }
     if (selectedFilters.plz.length > 0) {
       result = result.filter(m => selectedFilters.plz.includes(normalizeMarketValue(m.postalCode)));

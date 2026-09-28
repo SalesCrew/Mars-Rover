@@ -54,3 +54,24 @@ test('chain and GL summaries separate banners while preserving visit totals', ()
     ['Anna', 'gl-1', 'SPAR-Spar SM Privat', 1, 2, 10],
   ]);
 });
+
+test('chain summaries merge aliases but retain banner distinctions and totals', () => {
+  const markets = [
+    { chain: 'BILLA Plus', banner: 'Public', currentVisits: 1, frequency: 12 },
+    { chain: 'Billa+', banner: 'Public', currentVisits: 2, frequency: 8 },
+    { chain: 'BILLA+ Privat', banner: 'Private', currentVisits: 3, frequency: 10 },
+    { chain: 'BILLA Plus Privat', banner: 'Private', currentVisits: 4, frequency: 12 },
+    { chain: 'Spar Gourmet', banner: 'Gourmet', currentVisits: 5, frequency: 6 },
+    { chain: 'SPAR Privat Popovic', banner: 'Private', currentVisits: 6, frequency: 7 },
+    { chain: 'Wau Miau', banner: '', currentVisits: 0, frequency: 12 },
+    { chain: 'Lezanimo', banner: '', currentVisits: 1, frequency: 12 },
+  ];
+  const rows = buildChainFrequencyRows(markets);
+  assert.ok(rows.some(row => row[0] === 'Billa+' && row[2] === 2 && row[3] === 3 && row[4] === 20));
+  assert.ok(rows.some(row => row[0] === 'BILLA Plus Privat' && row[2] === 2 && row[3] === 7 && row[4] === 22));
+  assert.equal(rows.filter(row => row[0] === 'Spar').length, 2);
+  assert.ok(rows.some(row => row[0] === 'Wau,Miau'));
+  assert.ok(rows.some(row => row[0] === 'Lezanimo'));
+  assert.equal(rows.reduce((sum, row) => sum + row[2], 0), markets.length);
+  assert.equal(rows.reduce((sum, row) => sum + row[3], 0), 22);
+});

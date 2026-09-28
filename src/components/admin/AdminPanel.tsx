@@ -623,7 +623,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
           {selectedPage === 'vorverkauf' && <VorverkaufAdminPage />}
           {selectedPage === 'produktersatz' && <ProduktErsatzPage />}
           {selectedPage === 'nara-incentive' && <NaraIncentivePage />}
-          {selectedPage === 'fragebogen' && <FragebogenPage isCreateModuleModalOpen={isCreateModuleModalOpen} onCloseCreateModuleModal={() => setIsCreateModuleModalOpen(false)} isCreateFragebogenModalOpen={isCreateFragebogenModalOpen} onCloseCreateFragebogenModal={() => setIsCreateFragebogenModalOpen(false)} />}
+          {selectedPage === 'fragebogen' && <FragebogenPage allMarkets={allMarkets} isCreateModuleModalOpen={isCreateModuleModalOpen} onCloseCreateModuleModal={() => setIsCreateModuleModalOpen(false)} isCreateFragebogenModalOpen={isCreateFragebogenModalOpen} onCloseCreateFragebogenModal={() => setIsCreateFragebogenModalOpen(false)} />}
           {selectedPage === 'zeiterfassung' && <ZeiterfassungPage viewMode={zeiterfassungViewMode} />}
           {selectedPage === 'fotos' && <FotosPage />}
           {selectedPage === 'produkte' && <ProductsPage />}
@@ -1224,4 +1224,3 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
     </div>
   );
 };
-

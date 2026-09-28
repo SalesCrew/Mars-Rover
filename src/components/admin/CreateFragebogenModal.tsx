@@ -6,6 +6,7 @@ import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } 
 import { CSS } from '@dnd-kit/utilities';
 import type { Module } from './FragebogenPage';
 import { marketService } from '../../services/marketService';
+import { marketChainFilterOptions, matchesMarketChainFilter } from '../../utils/marketChains';
 import type { AdminMarket } from '../../types/market-types';
 import { getBulkSelectableMarketIds, toggleBulkActiveMarketSelection } from '../../utils/marketSelection';
 import { FragebogenMarketImportMapperModal } from './FragebogenMarketImportMapperModal';
@@ -418,7 +419,7 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
 
   // Markets filtering - matching MarketsPage logic
   const uniqueChains = useMemo(() => {
-    return [...new Set(markets.map(m => m.chain))].sort();
+    return marketChainFilterOptions(markets.map(m => m.chain));
   }, [markets]);
 
   const uniquePLZs = useMemo(() => {
@@ -471,7 +472,7 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
 
     // Chain filter
     if (selectedFilters.chain.length > 0) {
-      filtered = filtered.filter(m => selectedFilters.chain.includes(m.chain));
+      filtered = filtered.filter(m => matchesMarketChainFilter(m.chain, selectedFilters.chain));
     }
 
     // PLZ filter

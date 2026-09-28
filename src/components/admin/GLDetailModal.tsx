@@ -4,6 +4,7 @@ import { X, User, Phone, Envelope, MapPin, TrendUp, TrendDown, Plus } from '@pho
 import { MarketListItem } from './MarketListItem';
 import type { AdminMarket } from '../../types/market-types';
 import { actionHistoryService } from '../../services/actionHistoryService';
+import { marketChainFilterOptions, matchesMarketChainFilter, normalizeMarketChain } from '../../utils/marketChains';
 import styles from './GLDetailModal.module.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -345,19 +346,12 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
     fetchChainPerformance();
   }, [gl.id]);
 
-  // Mock markets data for GL (will be replaced with real data)
-  const mockGLMarkets: AdminMarket[] = [
-    { id: '1', internalId: 'B001', chain: 'Billa+', banner: '', name: 'Hauptstraße', address: 'Hauptstraße 10', postalCode: '1010', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 5, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-11-15' },
-    { id: '2', internalId: 'B002', chain: 'BILLA Plus Privat', banner: '', name: 'Mariahilfer Straße', address: 'Mariahilfer Straße 20', postalCode: '1060', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 8, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-12-01' },
-    { id: '3', internalId: 'S001', chain: 'Spar', banner: '', name: 'Landstraße', address: 'Landstraße 30', postalCode: '1030', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 6, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-11-28' },
-    { id: '4', internalId: 'E001', chain: 'Eurospar', banner: '', name: 'Favoriten', address: 'Favoritenstraße 40', postalCode: '1100', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 4, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-10-20' },
-    { id: '5', internalId: 'H001', chain: 'Hofer', banner: '', name: 'Döbling', address: 'Döblinger Hauptstraße 50', postalCode: '1190', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 7, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-12-05' },
-    { id: '6', internalId: 'M001', chain: 'Merkur', banner: '', name: 'Meidling', address: 'Meidlinger Hauptstraße 60', postalCode: '1120', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 9, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-11-10' },
-    { id: '7', internalId: 'I001', chain: 'Interspar', banner: '', name: 'Hernals', address: 'Hernalser Hauptstraße 70', postalCode: '1170', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 5, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-11-22' },
-    { id: '8', internalId: 'A001', chain: 'Adeg', banner: '', name: 'Ottakring', address: 'Ottakringer Straße 80', postalCode: '1160', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 10, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-12-08' },
-    { id: '9', internalId: 'F001', chain: 'Futterhaus', banner: '', name: 'Leopoldstadt', address: 'Praterstraße 90', postalCode: '1020', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 6, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-11-18' },
-    { id: '10', internalId: 'Z001', chain: 'Zoofachhandel', banner: '', name: 'Brigittenau', address: 'Brigittenauer Lände 100', postalCode: '1200', city: 'Wien', isActive: true, branch: '', frequency: 12, currentVisits: 3, channel: '', customerType: '', phone: '', email: '', maingroup: '', subgroup: '', gebietsleiter: gl.name, lastVisitDate: '2024-10-15' },
-  ];
+  // Use actual assignments, not synthetic markets that invent filter options.
+  const glMarkets = allMarkets
+    .filter(market => market.gebietsleiter
+      ? market.gebietsleiter === gl.id
+      : market.gebietsleiterName === gl.name)
+    .map(market => ({ ...market, chain: market.chain ? normalizeMarketChain(market.chain) : '' }));
 
   // Get chain color (matching MarketListItem colors)
   const getChainColor = (chain: string): string => {
@@ -440,17 +434,17 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
   };
 
   // Get unique chains from markets
-  const uniqueChains = Array.from(new Set(mockGLMarkets.map(m => m.chain)));
+  const uniqueChains = marketChainFilterOptions(glMarkets.map(m => m.chain));
 
   // Filter markets based on search and chain filter
-  const filteredMarkets = mockGLMarkets.filter(market => {
+  const filteredMarkets = glMarkets.filter(market => {
     const matchesSearch = marketSearchTerm === '' || 
       market.name.toLowerCase().includes(marketSearchTerm.toLowerCase()) ||
       market.address.toLowerCase().includes(marketSearchTerm.toLowerCase()) ||
       market.city.toLowerCase().includes(marketSearchTerm.toLowerCase()) ||
       market.postalCode.includes(marketSearchTerm);
     
-    const matchesChain = selectedChainFilter.length === 0 || selectedChainFilter.includes(market.chain);
+    const matchesChain = matchesMarketChainFilter(market.chain, selectedChainFilter);
     
     return matchesSearch && matchesChain;
   });

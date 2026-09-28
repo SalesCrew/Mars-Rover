@@ -7,7 +7,8 @@ import { CreateFragebogenModal } from './CreateFragebogenModal';
 import { QUESTION_TYPES } from './questionTypes';
 import fragebogenService from '../../services/fragebogenService';
 import type { Module as ApiModule, Question as ApiQuestion } from '../../services/fragebogenService';
-import { adminMarkets } from '../../data/adminMarketsData';
+import type { AdminMarket } from '../../types/market-types';
+import { marketChainFilterOptions } from '../../utils/marketChains';
 import { FragebogenDistributionExportModal, type DistributionFragebogenOption, type DistributionQuestionOption } from './FragebogenDistributionExportModal';
 import styles from './FragebogenPage.module.css';
 
@@ -121,6 +122,7 @@ interface Fragebogen {
 }
 
 interface FragebogenPageProps {
+  allMarkets: AdminMarket[];
   isCreateModuleModalOpen: boolean;
   onCloseCreateModuleModal: () => void;
   isCreateFragebogenModalOpen: boolean;
@@ -128,6 +130,7 @@ interface FragebogenPageProps {
 }
 
 export const FragebogenPage: React.FC<FragebogenPageProps> = ({
+  allMarkets,
   isCreateModuleModalOpen,
   onCloseCreateModuleModal,
   isCreateFragebogenModalOpen,
@@ -1153,13 +1156,8 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
   const distributionExportOptions = useMemo<DistributionFragebogenOption[]>(() => {
     return fragebogenList.map((fragebogen) => {
       const marketIdSet = new Set(fragebogen.marketIds || []);
-      const chains = Array.from(
-        new Set(
-          adminMarkets
-            .filter(market => marketIdSet.has(market.id))
-            .map(market => market.chain)
-            .filter(Boolean)
-        )
+      const chains = marketChainFilterOptions(
+        allMarkets.filter(market => marketIdSet.has(market.id)).map(market => market.chain)
       );
 
       return {
@@ -1169,7 +1167,7 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
         availableChains: chains
       };
     });
-  }, [fragebogenList, distributionQuestionsByFragebogenId]);
+  }, [fragebogenList, distributionQuestionsByFragebogenId, allMarkets]);
 
   const handleDistributionExport = async (selection: {
     fragebogenIds: string[];

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { X, FunnelSimple, MagnifyingGlass, CheckCircle, Storefront, CaretDown, CaretUp, UploadSimple } from '@phosphor-icons/react';
 import { marketService } from '../../services/marketService';
+import { marketChainFilterOptions, matchesMarketChainFilter } from '../../utils/marketChains';
 import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
 import type { AdminMarket } from '../../types/market-types';
 import { getBulkSelectableMarketIds, toggleBulkActiveMarketSelection } from '../../utils/marketSelection';
@@ -125,7 +126,7 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
 
   const filteredMarkets = useMemo(() => {
     return markets.filter(market => {
-      if (selectedFilters.chain.length > 0 && !selectedFilters.chain.includes(market.chain)) return false;
+      if (!matchesMarketChainFilter(market.chain, selectedFilters.chain)) return false;
       if (selectedFilters.gebietsleiter.length > 0 && !selectedFilters.gebietsleiter.includes(market.gebietsleiterName || '')) return false;
       if (selectedFilters.subgroup.length > 0 && !selectedFilters.subgroup.includes(market.subgroup || '')) return false;
       if (selectedFilters.status.length > 0) {
@@ -143,7 +144,7 @@ export const WelleMarketSelectorModal: React.FC<WelleMarketSelectorModalProps> =
     return map;
   }, [filteredMarkets]);
 
-  const uniqueChains = Array.from(new Set(markets.map(m => m.chain).filter((c): c is string => Boolean(c))));
+  const uniqueChains = marketChainFilterOptions(markets.map(m => m.chain));
   const uniqueGLs = Array.from(new Set(markets.map(m => m.gebietsleiterName).filter((n): n is string => Boolean(n))));
   const uniqueSubgroups = Array.from(new Set(markets.map(m => m.subgroup).filter((s): s is string => Boolean(s))));
   const statusOptions = ['Aktiv', 'Inaktiv'];

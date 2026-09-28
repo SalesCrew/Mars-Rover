@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { X, CheckSquare, Square, DownloadSimple } from '@phosphor-icons/react';
+import { marketChainFilterOptions } from '../../utils/marketChains';
 import styles from './FragebogenDistributionExportModal.module.css';
 
 export interface DistributionQuestionOption {
@@ -121,9 +122,7 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
   }, [selectedFragebogen, targetFilter]);
 
   const availableChains = useMemo(() => {
-    const set = new Set<string>();
-    selectedFragebogen.forEach(f => f.availableChains.forEach(c => set.add(c)));
-    return Array.from(set.values()).sort((a, b) => a.localeCompare(b, 'de'));
+    return marketChainFilterOptions(selectedFragebogen.flatMap(f => f.availableChains));
   }, [selectedFragebogen]);
 
   const isQuestionSelected = (question: DistributionQuestionOption): boolean =>

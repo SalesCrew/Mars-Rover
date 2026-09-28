@@ -7,8 +7,8 @@ import { MarketDetailsModal } from './MarketDetailsModal';
 import { CreateMarketModal } from './CreateMarketModal';
 import { GLFilterCard } from './GLFilterCard';
 import type { ActionLogEntry } from './GLFilterCard';
-import { adminMarkets } from '../../data/adminMarketsData';
 import { marketService } from '../../services/marketService';
+import { marketChainFilterOptions, matchesMarketChainFilter } from '../../utils/marketChains';
 import { actionHistoryService } from '../../services/actionHistoryService';
 import { gebietsleiterService } from '../../services/gebietsleiterService';
 import type { AdminMarket } from '../../types/market-types';
@@ -115,9 +115,9 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
         setMarkets(fetchedMarkets);
       } catch (error) {
         console.error('Failed to load markets:', error);
-        setLoadError('Fehler beim Laden der Märkte. Verwende lokale Daten.');
-        // Fallback to local data if API fails
-        setMarkets(adminMarkets);
+        setLoadError('Fehler beim Laden der Märkte. Bitte versuchen Sie es erneut.');
+        // Do not invent markets or chains when the real data cannot be loaded.
+        setMarkets([]);
       } finally {
         setIsLoadingMarkets(false);
       }
@@ -197,7 +197,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
   // marketIds not needed anymore - using otherMarkets.map directly
 
   // Get unique values for each filter
-  const uniqueChains = [...new Set(markets.map(m => m.chain))].sort();
+  const uniqueChains = marketChainFilterOptions(markets.map(m => m.chain));
   const uniqueIDs = [...new Set(markets.map(m => m.internalId))].sort();
   const uniqueAddresses = [...new Set(markets.map(m => `${m.address}, ${m.postalCode} ${m.city}`))].sort();
   
@@ -259,7 +259,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
       // DON'T filter by GL here anymore - we'll separate them in the render
 
       // Check chain filter
-      if (selectedFilters.chain.length > 0 && !selectedFilters.chain.includes(market.chain)) {
+      if (!matchesMarketChainFilter(market.chain, selectedFilters.chain)) {
         return false;
       }
 

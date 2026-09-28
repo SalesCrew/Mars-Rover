@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { X, Storefront, MapPin, Check, Clock, CaretLeft, Package, ArrowsLeftRight, ShoppingCart, Spinner, CalendarBlank, MagnifyingGlass, Funnel, CaretDown } from '@phosphor-icons/react';
 import type { Market } from '../../types/market-types';
 import { API_BASE_URL } from '../../config/database';
+import { marketChainFilterOptions, matchesMarketChainFilter, normalizeMarketChain } from '../../utils/marketChains';
 import styles from './MarketsVisitedModal.module.css';
 
 interface MarketsVisitedModalProps {
@@ -138,9 +139,7 @@ export const MarketsVisitedModal: React.FC<MarketsVisitedModalProps> = ({
   }, [chainDropdownOpen]);
 
   const uniqueChains = useMemo(() => {
-    const chains = new Set<string>();
-    markets.forEach(m => { if (m.chain) chains.add(m.chain); });
-    return Array.from(chains).sort((a, b) => a.localeCompare(b));
+    return marketChainFilterOptions(markets.map(m => m.chain));
   }, [markets]);
 
   const fetchHistory = useCallback(async (marketId: string) => {
@@ -182,13 +181,13 @@ export const MarketsVisitedModal: React.FC<MarketsVisitedModalProps> = ({
   const filteredMarkets = useMemo(() => {
     let result = sortedMarkets;
     if (chainFilter) {
-      result = result.filter(m => m.chain === chainFilter);
+      result = result.filter(m => matchesMarketChainFilter(m.chain, [chainFilter]));
     }
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase().trim();
       result = result.filter(m =>
         m.name.toLowerCase().includes(q) ||
-        m.chain?.toLowerCase().includes(q) ||
+        normalizeMarketChain(m.chain || '').toLowerCase().includes(q) ||
         m.city?.toLowerCase().includes(q) ||
         m.address?.toLowerCase().includes(q) ||
         m.postalCode?.toLowerCase().includes(q) ||
@@ -306,7 +305,7 @@ export const MarketsVisitedModal: React.FC<MarketsVisitedModalProps> = ({
                     <div className={styles.marketInfo}>
                       <span className={styles.marketName}>{market.name}</span>
                       <span className={styles.marketMeta}>
-                        {market.chain} • {market.address ? `${market.address}, ` : ''}{market.city}
+                        {market.chain ? normalizeMarketChain(market.chain) : ''} • {market.address ? `${market.address}, ` : ''}{market.city}
                       </span>
                     </div>
                     <div className={styles.marketStatusArea}>
@@ -348,7 +347,7 @@ export const MarketsVisitedModal: React.FC<MarketsVisitedModalProps> = ({
               </button>
               <div className={styles.detailHeaderInfo}>
                 <h2 className={styles.detailTitle}>{selectedMarket.name}</h2>
-                <span className={styles.detailMeta}>{selectedMarket.chain} • {selectedMarket.city}</span>
+                <span className={styles.detailMeta}>{selectedMarket.chain ? normalizeMarketChain(selectedMarket.chain) : ''} • {selectedMarket.city}</span>
               </div>
               <button className={styles.closeButton} onClick={onClose}>
                 <X size={20} weight="bold" />

@@ -1,4 +1,5 @@
 import type { AdminMarket } from '../types/market-types';
+import { normalizeMarketChain } from './marketChains';
 
 type ExportValue = string | number | boolean | Date;
 
@@ -29,7 +30,7 @@ export function buildMarketFrequencyRows(
   adminComments: Record<string, string>,
 ): ExportValue[][] {
   return markets.map((market) => [
-    market.id, text(market.internalId), market.name, market.chain, text(market.banner), text(market.channel),
+    market.id, text(market.internalId), market.name, market.chain ? normalizeMarketChain(market.chain) : '', text(market.banner), text(market.channel),
     market.address, market.postalCode, market.city, text(market.gebietsleiterName),
     text(market.gebietsleiterEmail), text(market.gebietsleiter),
     market.currentVisits, market.frequency, excelDate(market.lastVisitDate),
@@ -44,7 +45,7 @@ export function buildMarketFrequencyRows(
 export function buildChainFrequencyRows(markets: AdminMarket[]): ExportValue[][] {
   const groups = new Map<string, { chain: string; banner: string; count: number; actual: number; target: number }>();
   for (const market of markets) {
-    const chain = market.chain?.trim() || 'Ohne Handelskette';
+    const chain = market.chain?.trim() ? normalizeMarketChain(market.chain) : 'Ohne Handelskette';
     const banner = market.banner?.trim() || '';
     const key = JSON.stringify([chain, banner]);
     const group = groups.get(key) ?? { chain, banner, count: 0, actual: 0, target: 0 };
