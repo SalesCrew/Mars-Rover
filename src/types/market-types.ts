@@ -8,7 +8,7 @@ export interface Market {
   postalCode: string;
   chain: 'Adeg' | 'Billa+' | 'BILLA+' | 'BILLA Plus' | 'BILLA+ Privat' | 'BILLA Plus Privat' | 
          'BILLA Privat' | 'Eurospar' | 'Futterhaus' | 'Hagebau' | 'Interspar' | 'Spar' | 
-         'Spar Gourmet' | 'Zoofachhandel' | 'Hofer' | 'Merkur' | string;
+         'Spar Gourmet' | 'Zoofachhandel' | 'Lezanimo' | 'Wau,Miau' | 'Hofer' | 'Merkur' | string;
   frequency: number; // visits per year
   currentVisits: number;
   lastVisitDate?: string; // ISO date
@@ -64,4 +64,3 @@ export interface AdminMarket extends Market {
   maingroup?: string; // No longer imported
   subgroup?: string; // No longer imported
 }
-

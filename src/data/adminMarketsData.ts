@@ -41,7 +41,7 @@ const maingroups = [
 const chainTypes = [
   'Adeg', 'Billa+', 'BILLA Plus', 'BILLA+ Privat', 'BILLA Privat', 'Eurospar', 
   'Futterhaus', 'Hagebau', 'Interspar', 'Spar', 'SPAR Privat Popovic', 'Spar Gourmet', 
-  'Zoofachhandel', 'Hofer', 'Merkur'
+  'Zoofachhandel', 'Lezanimo', 'Wau,Miau', 'Hofer', 'Merkur'
 ];
 
 // Channels (Row D)
@@ -102,4 +102,3 @@ export const adminMarkets: AdminMarket[] = expandedMarkets.map((market, index) =
     // Note: phone field exists but is NOT displayed in UI anymore
   } as AdminMarket;
 });
-

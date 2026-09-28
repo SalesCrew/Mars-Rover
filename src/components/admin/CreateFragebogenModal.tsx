@@ -575,6 +575,10 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
         return '#F97316'; // Orange
       case 'Hagebau':
         return '#0EA5E9'; // Sky Blue
+      case 'Lezanimo':
+        return '#7C3AED'; // Purple
+      case 'Wau,Miau':
+        return '#0F766E'; // Teal
       case 'Zoofachhandel':
         return '#EC4899'; // Pink
       default:
@@ -616,6 +620,10 @@ export const CreateFragebogenModal: React.FC<CreateFragebogenModalProps> = ({
         return 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)';
       case 'Hagebau':
         return 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)';
+      case 'Lezanimo':
+        return 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)';
+      case 'Wau,Miau':
+        return 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)';
       case 'Zoofachhandel':
         return 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)';
       default:

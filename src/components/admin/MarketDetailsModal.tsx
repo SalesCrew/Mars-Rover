@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { X, CaretDown, ClockCounterClockwise, Info, Package, ShoppingCart, Storefront, ArrowsLeftRight, Spinner, Trash } from '@phosphor-icons/react';
 import type { AdminMarket } from '../../types/market-types';
+import { marketChainOptions } from '../../utils/marketChains';
 import { marketService } from '../../services/marketService';
 import { API_BASE_URL } from '../../config/database';
 import styles from './MarketDetailsModal.module.css';
@@ -197,7 +198,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
 
   // Get unique values
   const uniqueBanners = Array.from(new Set(allMarkets.map(m => m.banner).filter((b): b is string => Boolean(b)))).sort();
-  const uniqueChains = Array.from(new Set(allMarkets.map(m => m.chain).filter((c): c is string => Boolean(c)))).sort();
+  const uniqueChains = marketChainOptions(allMarkets.map(m => m.chain));
   const uniqueBranches = Array.from(new Set(allMarkets.map(m => m.branch).filter((b): b is string => Boolean(b)))).sort();
   const statusOptions = ['Aktiv', 'Inaktiv'];
 

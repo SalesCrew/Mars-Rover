@@ -124,6 +124,8 @@ const chainColors: Record<string, { bg: string; border: string; text: string }> 
   'PENNY': { bg: 'rgba(249, 115, 22, 0.08)', border: 'rgba(249, 115, 22, 0.3)', text: '#EA580C' },
   'HOFER': { bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.3)', text: '#2563EB' },
   'FRESSNAPF': { bg: 'rgba(124, 58, 237, 0.08)', border: 'rgba(124, 58, 237, 0.3)', text: '#7C3AED' },
+  'LEZANIMO': { bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.3)', text: '#7C3AED' },
+  'WAU,MIAU': { bg: 'rgba(20, 184, 166, 0.08)', border: 'rgba(20, 184, 166, 0.3)', text: '#0F766E' },
   'default': { bg: 'rgba(100, 116, 139, 0.08)', border: 'rgba(100, 116, 139, 0.3)', text: '#475569' },
 };
 

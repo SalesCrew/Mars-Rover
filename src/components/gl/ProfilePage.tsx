@@ -87,6 +87,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile }) => {
       'MERKUR': 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
       'ADEG': 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
       'FUTTERHAUS': 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
+      'LEZANIMO': 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+      'WAU,MIAU': 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',
       'HAGEBAU': 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
       'ZOOFACHHANDEL': 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
       'PENNY': 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',

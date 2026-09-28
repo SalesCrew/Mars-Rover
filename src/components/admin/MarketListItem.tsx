@@ -39,6 +39,10 @@ const getChainColor = (chain: string): string => {
       return '#8B5CF6'; // Purple
     case 'Futterhaus':
       return '#F97316'; // Orange
+    case 'Lezanimo':
+      return '#8B5CF6'; // Purple
+    case 'Wau,Miau':
+      return '#14B8A6'; // Teal
     case 'Hagebau':
       return '#0EA5E9'; // Sky Blue
     case 'Zoofachhandel':
@@ -75,6 +79,10 @@ const getChainBadgeClass = (chain: string): string => {
       return styles.adeg;
     case 'Futterhaus':
       return styles.futterhaus;
+    case 'Lezanimo':
+      return styles.lezanimo;
+    case 'Wau,Miau':
+      return styles.wauMiau;
     case 'Hagebau':
       return styles.hagebau;
     case 'Zoofachhandel':
@@ -195,4 +203,3 @@ export const MarketListItem: React.FC<MarketListItemProps> = ({ market, onClick 
     </div>
   );
 };
-

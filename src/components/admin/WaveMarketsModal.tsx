@@ -100,6 +100,10 @@ const getChainColors = (chain: string): { bg: string; text: string; border: stri
       return { bg: '#EF4444', text: '#FFFFFF', border: '#EF4444' };
     case 'Futterhaus':
       return { bg: '#F97316', text: '#FFFFFF', border: '#F97316' };
+    case 'Lezanimo':
+      return { bg: '#8B5CF6', text: '#FFFFFF', border: '#8B5CF6' };
+    case 'Wau,Miau':
+      return { bg: '#14B8A6', text: '#FFFFFF', border: '#14B8A6' };
     case 'Hagebau':
       return { bg: '#0EA5E9', text: '#FFFFFF', border: '#0EA5E9' };
     case 'Zoofachhandel':

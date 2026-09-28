@@ -81,6 +81,12 @@ export const VorgemerktModal: React.FC<VorgemerktModalProps> = ({
     if (chainLower.includes('hagebau')) {
       return 'linear-gradient(135deg, #06B6D4, #0891B2)';
     }
+    if (chainLower.includes('lezanimo')) {
+      return 'linear-gradient(135deg, #8B5CF6, #7C3AED)';
+    }
+    if (chainLower.replace(/[^a-z0-9]+/g, '').includes('waumiau')) {
+      return 'linear-gradient(135deg, #14B8A6, #0F766E)';
+    }
     return 'linear-gradient(135deg, #6B7280, #4B5563)';
   };
 

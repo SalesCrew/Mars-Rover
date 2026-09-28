@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from '../config/database';
 import type { AdminMarket } from '../types/market-types';
+import { normalizeMarketChain } from '../utils/marketChains';
 
 export interface VisitCrmItem {
   id: string;
@@ -255,7 +256,7 @@ class MarketService {
       address: dbMarket.address || '', // Row J (Straße)
       city: dbMarket.city || '', // Row K (Stadt)
       postalCode: dbMarket.postal_code || '', // Row I (PLZ)
-      chain: dbMarket.chain || '', // Row F: Handelskette
+      chain: dbMarket.chain ? normalizeMarketChain(dbMarket.chain) : '', // Row F: Handelskette
       frequency: dbMarket.frequency ?? 12, // Row Q
       currentVisits: dbMarket.current_visits ?? 0,
       lastVisitDate: dbMarket.last_visit_date,
@@ -307,7 +308,7 @@ class MarketService {
       address: market.address, // Row J (Straße)
       city: market.city, // Row K (Stadt)
       postal_code: market.postalCode, // Row I (PLZ)
-      chain: market.chain, // Row F: Handelskette
+      chain: market.chain === undefined ? undefined : normalizeMarketChain(market.chain), // Row F: Handelskette
       frequency: market.frequency, // Row Q
       current_visits: market.currentVisits,
       last_visit_date: market.lastVisitDate,

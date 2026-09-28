@@ -1,5 +1,8 @@
 import type { AdminMarket } from '../types/market-types';
 import { readExcelRows } from './excelReader';
+import { normalizeMarketChain } from './marketChains';
+
+export const normalizeChainName = normalizeMarketChain;
 
 export interface MarketColumnMapping {
   marketId: string;       // required
@@ -228,32 +231,6 @@ const parseMarketRow = (row: any[], rowIndex: number): AdminMarket | null => {
 const generateMarketId = (internalId: string, rowIndex: number): string => {
   // Use internal ID if available, otherwise generate one
   return internalId || `IMPORT-${String(rowIndex).padStart(4, '0')}`;
-};
-
-const normalizeChainName = (chain: string): string => {
-  if (!chain) return 'Sonstige';
-  
-  const chainLower = chain.toLowerCase().trim();
-  
-  // Map common variations to standard names
-  const chainMap: Record<string, string> = {
-    'adeg': 'Adeg',
-    'billa+': 'Billa+',
-    'billa plus': 'Billa+',
-    'billa+ privat': 'BILLA+ Privat',
-    'billa privat': 'BILLA Privat',
-    'eurospar': 'Eurospar',
-    'futterhaus': 'Futterhaus',
-    'hagebau': 'Hagebau',
-    'interspar': 'Interspar',
-    'spar': 'Spar',
-    'spar gourmet': 'Spar Gourmet',
-    'zoofachhandel': 'Zoofachhandel',
-    'hofer': 'Hofer',
-    'merkur': 'Merkur',
-  };
-
-  return chainMap[chainLower] || chain;
 };
 
 export const validateImportFile = (file: File): { valid: boolean; error?: string } => {

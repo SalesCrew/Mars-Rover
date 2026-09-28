@@ -266,8 +266,10 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
       'Futterhaus': 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
       'Hagebau': 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
       'Interspar': 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)',
+      'Lezanimo': 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
       'Spar': 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
       'Spar Gourmet': 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+      'Wau,Miau': 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',
       'Zoofachhandel': 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
       'Hofer': 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
       'Merkur': 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)'

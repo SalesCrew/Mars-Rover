@@ -102,6 +102,14 @@
   background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%);
 }
 
+.lezanimo {
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+}
+
+.wauMiau {
+  background: linear-gradient(135deg, #14B8A6 0%, #0F766E 100%);
+}
+
 .default {
   background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
 }
@@ -230,4 +238,3 @@
 .statusInactive {
   color: #6B7280;
 }
-

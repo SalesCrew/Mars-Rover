@@ -392,6 +392,10 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
         return '#8B5CF6'; // Purple
       case 'Futterhaus':
         return '#F97316'; // Orange
+      case 'Lezanimo':
+        return '#8B5CF6'; // Purple
+      case 'Wau,Miau':
+        return '#14B8A6'; // Teal
       case 'Hagebau':
         return '#0EA5E9'; // Sky Blue
       case 'Zoofachhandel':
@@ -426,6 +430,8 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
         return '#FFFFFF'; // White for purple
       case 'Futterhaus':
         return '#FFFFFF'; // White for orange
+      case 'Lezanimo':
+      case 'Wau,Miau':
       case 'Zoofachhandel':
         return '#FFFFFF'; // White for pink
       default:
