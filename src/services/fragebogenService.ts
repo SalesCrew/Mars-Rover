@@ -1017,6 +1017,8 @@ export const exportApi = {
     questionIds: string[];
     chains?: string[];
     targetFilter?: 'all' | 'distribution' | 'quality';
+    startDate?: string;
+    endDate?: string;
     quarterCompression?: {
       enabled: boolean;
       year: number;
@@ -1031,6 +1033,8 @@ export const exportApi = {
         question_ids: payload.questionIds,
         chains: payload.chains || [],
         target_filter: payload.targetFilter || 'all',
+        start_date: payload.startDate || null,
+        end_date: payload.endDate || null,
         quarter_compression: payload.quarterCompression || { enabled: false }
       })
     });

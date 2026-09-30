@@ -23,6 +23,8 @@ interface DistributionExportSelection {
   questionIds: string[];
   chains: string[];
   targetFilter: 'all' | 'distribution' | 'quality';
+  startDate?: string;
+  endDate?: string;
   quarterCompression?: {
     enabled: boolean;
     year: number;
@@ -76,6 +78,8 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
   const [selectedChains, setSelectedChains] = useState<string[]>([]);
   const [targetFilter, setTargetFilter] = useState<'all' | 'distribution' | 'quality'>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [compressToQuarter, setCompressToQuarter] = useState(false);
   const [targetQuarterYear, setTargetQuarterYear] = useState(defaultTargetQuarter.year);
   const [targetQuarter, setTargetQuarter] = useState<1 | 2 | 3 | 4>(defaultTargetQuarter.quarter);
@@ -191,6 +195,10 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
   };
 
   const handleExport = async () => {
+    if (startDate && endDate && startDate > endDate) {
+      setError('Das Beginn-Datum darf nicht nach dem Ende-Datum liegen.');
+      return;
+    }
     if (selectedFragebogenIds.length === 0) {
       setError('Bitte mindestens einen Fragebogen auswählen.');
       return;
@@ -214,6 +222,8 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
       questionIds: validQuestionIds,
       chains: validChains,
       targetFilter,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
       quarterCompression: {
         enabled: compressToQuarter,
         year: targetQuarterYear,
@@ -361,45 +371,83 @@ export const FragebogenDistributionExportModal: React.FC<FragebogenDistributionE
               <h3>Zeitraum</h3>
             </div>
             <div className={styles.optionBody}>
-              <label className={styles.optionToggle}>
-                <input
-                  type="checkbox"
-                  checked={compressToQuarter}
-                  onChange={(event) => setCompressToQuarter(event.target.checked)}
-                  disabled={isExporting}
-                />
-                <span>Alles in ein Quartal komprimieren</span>
-              </label>
+              <div className={styles.dateRange}>
+                <label className={styles.dateField}>
+                  <span>Von</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    max={endDate || undefined}
+                    onChange={(event) => { setStartDate(event.target.value); setError(null); }}
+                    disabled={isExporting}
+                  />
+                </label>
+                <label className={styles.dateField}>
+                  <span>Bis</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={startDate || undefined}
+                    onChange={(event) => { setEndDate(event.target.value); setError(null); }}
+                    disabled={isExporting}
+                  />
+                </label>
+                {(startDate || endDate) && (
+                  <button type="button" className={styles.toggleAllButton}
+                    onClick={() => { setStartDate(''); setEndDate(''); setError(null); }}
+                    disabled={isExporting}>
+                    Zeitraum zurücksetzen
+                  </button>
+                )}
+              </div>
+              <p className={styles.dateHint}>
+                Filtert nach dem Antwortdatum, inklusive Beginn und Ende (Europe/Vienna).
+                Ohne Datum wird der gesamte Zeitraum exportiert.
+              </p>
+              <p className={styles.dateHint}>
+                In der Quartalsansicht bleiben verlängerte Perfect-Store-Fragebögen in ihrem ursprünglichen Quartal.
+              </p>
+              <div className={styles.compressionOptions}>
+                <label className={styles.optionToggle}>
+                  <input
+                    type="checkbox"
+                    checked={compressToQuarter}
+                    onChange={(event) => setCompressToQuarter(event.target.checked)}
+                    disabled={isExporting}
+                  />
+                  <span>Alles in ein Quartal komprimieren</span>
+                </label>
 
-              {compressToQuarter && (
-                <div className={styles.quarterControls}>
-                  <label className={styles.selectField}>
-                    <span>Quartal</span>
-                    <select
-                      value={targetQuarter}
-                      onChange={(event) => setTargetQuarter(Number(event.target.value) as 1 | 2 | 3 | 4)}
-                      disabled={isExporting}
-                    >
-                      <option value={1}>Q1</option>
-                      <option value={2}>Q2</option>
-                      <option value={3}>Q3</option>
-                      <option value={4}>Q4</option>
-                    </select>
-                  </label>
-                  <label className={styles.selectField}>
-                    <span>Jahr</span>
-                    <select
-                      value={targetQuarterYear}
-                      onChange={(event) => setTargetQuarterYear(Number(event.target.value))}
-                      disabled={isExporting}
-                    >
-                      {availableQuarterYears.map(year => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              )}
+                {compressToQuarter && (
+                  <div className={styles.quarterControls}>
+                    <label className={styles.selectField}>
+                      <span>Quartal</span>
+                      <select
+                        value={targetQuarter}
+                        onChange={(event) => setTargetQuarter(Number(event.target.value) as 1 | 2 | 3 | 4)}
+                        disabled={isExporting}
+                      >
+                        <option value={1}>Q1</option>
+                        <option value={2}>Q2</option>
+                        <option value={3}>Q3</option>
+                        <option value={4}>Q4</option>
+                      </select>
+                    </label>
+                    <label className={styles.selectField}>
+                      <span>Jahr</span>
+                      <select
+                        value={targetQuarterYear}
+                        onChange={(event) => setTargetQuarterYear(Number(event.target.value))}
+                        disabled={isExporting}
+                      >
+                        {availableQuarterYears.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
         </div>

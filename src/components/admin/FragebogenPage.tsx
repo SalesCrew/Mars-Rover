@@ -1174,6 +1174,8 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
     questionIds: string[];
     chains: string[];
     targetFilter: 'all' | 'distribution' | 'quality';
+    startDate?: string;
+    endDate?: string;
     quarterCompression?: {
       enabled: boolean;
       year: number;
