@@ -8,6 +8,9 @@ interface MarketFrequencyAlertsProps {
   alerts: MarketFrequencyAlert[];
   onViewAll?: () => void;
   onMarketClick?: (marketId: string) => void;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 // Get badge color class based on priority reason
@@ -24,8 +27,11 @@ const getPriorityBadgeClass = (reason: string): string => {
 export const MarketFrequencyAlerts: React.FC<MarketFrequencyAlertsProps> = ({
   alerts,
   onMarketClick,
+  isLoading = false,
+  error = null,
+  onRetry,
 }) => {
-  if (alerts.length === 0) {
+  if (alerts.length === 0 && !isLoading && !error) {
     return null;
   }
 
@@ -37,48 +43,61 @@ export const MarketFrequencyAlerts: React.FC<MarketFrequencyAlertsProps> = ({
         <h2 className={styles.title}>Vorschläge für heute</h2>
       </div>
 
-      <AnimatedList
-        items={alertItems}
-        onItemSelect={(item) => onMarketClick?.(item)}
-        showGradients={false}
-        enableArrowNavigation={false}
-        displayScrollbar={false}
-        className={styles.animatedListContainer}
-      >
-        {(_item, index) => {
-          const alert = alerts[index];
-          const priorityReason = alert.priorityReason || 'Regelmäßiger Besuch';
-          const badgeClass = getPriorityBadgeClass(priorityReason);
-          
-          return (
-            <button
-              className={styles.alertCard}
-              onClick={() => onMarketClick?.(alert.marketId)}
-              aria-label={`${alert.name} - ${priorityReason}`}
-            >
-              <div className={styles.marketInfo}>
-                <span className={styles.marketName}>{alert.name}</span>
-                <span className={styles.marketAddress}>{alert.address}</span>
-              </div>
-
-              <div className={styles.prioritySection}>
-                <span className={`${styles.priorityBadge} ${badgeClass}`}>
-                  {priorityReason}
-                </span>
-              </div>
-
-              <div className={styles.progressContainer}>
-                <ProgressRing
-                  current={alert.visits.current}
-                  required={alert.visits.required}
-                  status={alert.status}
-                />
-                <CaretRight size={20} weight="bold" className={styles.chevron} />
-              </div>
+      {isLoading ? (
+        <p className={styles.statusMessage} role="status">Marktvorschläge werden geladen …</p>
+      ) : error ? (
+        <div className={styles.alertsList} role="alert">
+          <p className={styles.statusMessage}>{error}</p>
+          {onRetry && (
+            <button type="button" className={styles.viewAllButton} onClick={onRetry}>
+              Erneut versuchen
             </button>
-          );
-        }}
-      </AnimatedList>
+          )}
+        </div>
+      ) : (
+        <AnimatedList
+          items={alertItems}
+          onItemSelect={(item) => onMarketClick?.(item)}
+          showGradients={false}
+          enableArrowNavigation={false}
+          displayScrollbar={false}
+          className={styles.animatedListContainer}
+        >
+          {(_item, index) => {
+            const alert = alerts[index];
+            const priorityReason = alert.priorityReason || 'Regelmäßiger Besuch';
+            const badgeClass = getPriorityBadgeClass(priorityReason);
+          
+            return (
+              <button
+                className={styles.alertCard}
+                onClick={() => onMarketClick?.(alert.marketId)}
+                aria-label={`${alert.name} - ${priorityReason}`}
+              >
+                <div className={styles.marketInfo}>
+                  <span className={styles.marketName}>{alert.name}</span>
+                  <span className={styles.marketAddress}>{alert.address}</span>
+                </div>
+
+                <div className={styles.prioritySection}>
+                  <span className={`${styles.priorityBadge} ${badgeClass}`}>
+                    {priorityReason}
+                  </span>
+                </div>
+
+                <div className={styles.progressContainer}>
+                  <ProgressRing
+                    current={alert.visits.current}
+                    required={alert.visits.required}
+                    status={alert.status}
+                  />
+                  <CaretRight size={20} weight="bold" className={styles.chevron} />
+                </div>
+              </button>
+            );
+          }}
+        </AnimatedList>
+      )}
     </div>
   );
 };

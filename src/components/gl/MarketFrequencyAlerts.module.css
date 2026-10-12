@@ -50,6 +50,12 @@
   gap: var(--space-sm);
 }
 
+.statusMessage {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
 .alertCard {
   display: flex;
   align-items: center;

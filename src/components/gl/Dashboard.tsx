@@ -128,6 +128,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [realMarkets, setRealMarkets] = useState<Market[]>([]);
   const [realBonuses, setRealBonuses] = useState<Bonuses | null>(null);
   const [realAlerts, setRealAlerts] = useState<MarketFrequencyAlert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [alertsError, setAlertsError] = useState<string | null>(null);
+  const [alertsRetryCount, setAlertsRetryCount] = useState(0);
   const { isMobile } = useResponsive();
   const { logout, user } = useAuth();
 
@@ -576,30 +579,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
   // Fetch suggested markets with smart priority scoring
   useEffect(() => {
+    const controller = new AbortController();
+    setRealAlerts([]);
+    setAlertsError(null);
+    setAlertsLoading(Boolean(user?.id));
+
     const fetchSuggestedMarkets = async () => {
       if (!user?.id) return;
       
       try {
-        const response = await fetch(`${API_BASE_URL}/gebietsleiter/${user.id}/suggested-markets`);
-        if (response.ok) {
-          const suggestions = await response.json();
-          setRealAlerts(suggestions.map((s: any) => ({
-            marketId: s.marketId,
-            name: s.name,
-            address: s.address,
-            visits: s.visits,
-            status: s.status,
-            lastVisitWeeks: s.lastVisitWeeks,
-            priorityReason: s.priorityReason || 'Regelmäßiger Besuch',
-            priorityScore: s.priorityScore || 0
-          })));
+        const response = await fetch(`${API_BASE_URL}/gebietsleiter/${user.id}/suggested-markets`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`Suggested markets request failed: ${response.status}`);
         }
+        const suggestions = await response.json();
+        if (!Array.isArray(suggestions)) {
+          throw new Error('Invalid suggested markets response');
+        }
+        if (controller.signal.aborted) return;
+        setRealAlerts(suggestions.map((s: any) => ({
+          marketId: s.marketId,
+          name: s.name,
+          address: s.address,
+          visits: s.visits,
+          status: s.status,
+          lastVisitWeeks: s.lastVisitWeeks,
+          priorityReason: s.priorityReason || 'Regelmäßiger Besuch',
+          priorityScore: s.priorityScore || 0
+        })));
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error('Error fetching suggested markets:', error);
+        setAlertsError('Marktvorschläge konnten nicht geladen werden.');
+      } finally {
+        if (!controller.signal.aborted) setAlertsLoading(false);
       }
     };
     fetchSuggestedMarkets();
-  }, [user?.id]);
+    return () => controller.abort();
+  }, [user?.id, alertsRetryCount]);
 
   // Fetch real profile stats
   const [profileStats, setProfileStats] = useState<any>(null);
@@ -1037,10 +1057,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
               </section>
 
               {/* Market Frequency Alerts - Vorschläge für heute */}
-              {(realAlerts.length > 0 || data.frequencyAlerts.length > 0) && (
+              {(alertsLoading || alertsError || realAlerts.length > 0) && (
                 <section className={styles.section}>
                   <MarketFrequencyAlerts
-                    alerts={realAlerts.length > 0 ? realAlerts : data.frequencyAlerts}
+                    alerts={realAlerts}
+                    isLoading={alertsLoading}
+                    error={alertsError}
+                    onRetry={() => setAlertsRetryCount(count => count + 1)}
                     onViewAll={handleViewAllFrequencies}
                     onMarketClick={handleMarketClick}
                   />
