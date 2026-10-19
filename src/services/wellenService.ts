@@ -415,21 +415,16 @@ class WellenService {
     skipVisitUpdate?: boolean;
   }): Promise<{ message: string; items_updated: number; already_processed?: boolean }> {
     try {
-      const response = await fetch(`${this.baseUrl}/${welleId}/progress/batch`, {
+      return await fetchJsonWithErrorCode(`${this.baseUrl}/${welleId}/progress/batch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
+      }, {
+        code: 'MR-WELLE-SAVE-001',
+        message: 'Fehler beim Speichern. Bitte versuche es erneut.'
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to update progress: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      return result;
     } catch (error) {
       console.error('Error updating progress batch:', error);
       throw error;

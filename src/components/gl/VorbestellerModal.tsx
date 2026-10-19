@@ -12,6 +12,7 @@ import { VorbestellerDeliveryPhotoModal } from './VorbestellerDeliveryPhotoModal
 import { getAllProducts } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
 import { getProductArticleLabel, productMatchesSearch } from '../../utils/productArticle';
+import { ApiError } from '../../utils/apiErrors';
 
 interface VorbestellerModalProps {
   isOpen: boolean;
@@ -834,7 +835,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
       submissionInFlightRef.current = false;
       setIsSubmitting(false);
       setPendingCreateNewVisit(null);
-      alert('Fehler beim Speichern. Bitte versuche es erneut.');
+      alert(error instanceof ApiError ? `${error.message}\n\nFehlercode: ${error.code}` : 'Fehler beim Speichern. Bitte versuche es erneut.');
     }
   };
 

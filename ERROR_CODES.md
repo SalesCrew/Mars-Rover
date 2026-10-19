@@ -52,6 +52,13 @@ Beispiele: `MR-AUTH-001`, `MR-NETWORK-001`, `MR-VISIT-TIME-END-001`.
 | `MR-VISIT-UPDATE-001` | Bestehender Marktbesuch konnte serverseitig nicht aktualisiert werden. | Erneut versuchen; bei Wiederholung Support mit Code informieren. |
 | `MR-VISIT-SAVE-001` | Unerwarteter Abschlussfehler ohne spezifischeren Code. | Erneut versuchen und den Code melden. |
 
+## Wellen-Erfassung
+
+| Code | Bedeutung | Meldung / Reaktion |
+| --- | --- | --- |
+| `MR-WELLE-PRODUCT-ID-001` | Eine Produktkennung passt nicht zum Speicherschema. HTTP 422; die gesamte Eingabe wird vor Schreibzugriffen abgelehnt. | Betroffenen Artikel nennen. Mengen notieren, Rover neu laden und erneut erfassen. |
+| `MR-WELLE-SAVE-001` | Speichern schlug ohne spezifischere Ursache fehl. | Erneut versuchen; bei Wiederholung Code melden. |
+
 ## Wellen-Preiskorrektur
 
 | Code | Bedeutung | Meldung / Reaktion |
