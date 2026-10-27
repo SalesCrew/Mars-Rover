@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { CalendarPlus, X, CheckCircle, Package, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash, PencilSimple, Calendar, TrendUp, Clock, CheckCircle as CheckCircleFilled, Storefront, Stack, ShoppingBag, Cube, Camera, MagnifyingGlass } from '@phosphor-icons/react';
+import { CalendarPlus, X, CheckCircle, Package, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash, PencilSimple, Copy, Calendar, TrendUp, Clock, CheckCircle as CheckCircleFilled, Storefront, Stack, ShoppingBag, Cube, Camera, MagnifyingGlass } from '@phosphor-icons/react';
 import styles from './VorbestellerPage.module.css';
 import { CustomDatePicker } from './CustomDatePicker';
 import { WelleDetailModal } from './WelleDetailModal';
@@ -10,6 +10,7 @@ import { wellenService, type Welle } from '../../services/wellenService';
 import { getAllProducts, type Product } from '../../data/productsData';
 import { API_BASE_URL } from '../../config/database';
 import { productMatchesSearch } from '../../utils/productArticle';
+import { createWelleCopy } from '../../utils/welleCopy';
 
 // Helper function to upload image to Supabase Storage
 const uploadImageToStorage = async (file: File, folder: string): Promise<string | null> => {
@@ -54,6 +55,7 @@ interface DisplayItem {
   name: string;
   targetNumber: string;
   picture: File | null;
+  pictureUrl?: string | null;
   itemValue?: string; // Only used when wave goalType is 'value'
 }
 
@@ -62,6 +64,7 @@ interface KartonwareItem {
   name: string;
   targetNumber: string;
   picture: File | null;
+  pictureUrl?: string | null;
   itemValue?: string; // Only used when wave goalType is 'value'
 }
 
@@ -79,6 +82,7 @@ interface PaletteItem {
   name: string;
   size: string;
   picture: File | null;
+  pictureUrl?: string | null;
   products: PaletteProductItem[];
 }
 
@@ -87,6 +91,7 @@ interface SchutteItem {
   name: string;
   size: string;
   picture: File | null;
+  pictureUrl?: string | null;
   products: PaletteProductItem[]; // Same structure as palette
 }
 
@@ -95,6 +100,7 @@ interface EinzelproduktItem {
   name: string;
   targetNumber: string;
   picture: File | null;
+  pictureUrl?: string | null;
   itemValue?: string; // Only used when wave goalType is 'value'
   artikelNr?: string;
   ve?: string;
@@ -204,6 +210,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 
   const [selectedWelle, setSelectedWelle] = useState<Welle | null>(null);
   const [editingWelle, setEditingWelle] = useState<Welle | null>(null);
+  const [duplicatingWelle, setDuplicatingWelle] = useState<Welle | null>(null);
   const [isPastItemsModalOpen, setIsPastItemsModalOpen] = useState<boolean>(false);
   const [pastItemType, setPastItemType] = useState<'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt' | null>(null);
   const [pastItemSearch, setPastItemSearch] = useState('');
@@ -258,6 +265,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   
   // Saving state
   const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
   const [priceCorrectionWelle, setPriceCorrectionWelle] = useState<{ id: string; name: string } | null>(null);
 
   // Auto-populate all products when noLimitWelle is ON and user steps into a product step
@@ -687,7 +695,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   };
 
   const handleCreateWelle = async () => {
-    if (isSaving) return; // Prevent double-click
+    if (savingRef.current) return;
 
     if (!isFotoOnly && selectedTypes.includes('einzelprodukt') && (!hasValidEinzelprodukt() || hasInvalidEinzelprodukt())) {
       alert('Bitte bei jedem Einzelprodukt Produktname, Artikelnummer, VE und Ziel ausfüllen.');
@@ -695,18 +703,21 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     }
 
     // Guard against saving when loaded assignments are already truncated.
-    if (editingWelle && typeof editingWelle.assignedMarketCount === 'number') {
-      const loadedAssignmentLength = editingWelle.assignedMarketIds?.length || 0;
-      if (loadedAssignmentLength !== editingWelle.assignedMarketCount) {
+    const assignmentSource = editingWelle || duplicatingWelle;
+    if (assignmentSource && typeof assignmentSource.assignedMarketCount === 'number') {
+      const loadedAssignmentLength = assignmentSource.assignedMarketIds?.length || 0;
+      if (loadedAssignmentLength !== assignmentSource.assignedMarketCount) {
         alert(
-          `Marktzuteilung unvollständig geladen (${loadedAssignmentLength}/${editingWelle.assignedMarketCount}). ` +
+          `Marktzuteilung unvollständig geladen (${loadedAssignmentLength}/${assignmentSource.assignedMarketCount}). ` +
           'Bitte Seite neu laden und erneut versuchen, damit keine Märkte überschrieben werden.'
         );
         return;
       }
     }
 
+    savingRef.current = true;
     setIsSaving(true);
+    let wasCreated = false;
     
     try {
       // Upload wave image if a new file was selected
@@ -733,7 +744,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         return parseInt(d.targetNumber) > 0;
       });
       const processedDisplays = await Promise.all(validDisplays.map(async (d) => {
-        let pictureUrl: string | null = null;
+        let pictureUrl: string | null = d.pictureUrl || null;
         if (d.picture) {
           pictureUrl = await uploadImageToStorage(d.picture, 'displays');
         }
@@ -756,7 +767,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         return parseInt(k.targetNumber) > 0;
       });
       const processedKartonware = await Promise.all(validKartonware.map(async (k) => {
-        let pictureUrl: string | null = null;
+        let pictureUrl: string | null = k.pictureUrl || null;
         if (k.picture) {
           pictureUrl = await uploadImageToStorage(k.picture, 'kartonware');
         }
@@ -773,7 +784,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       // IMPORTANT: Include id for existing items to preserve them on update
       const validPalettes = paletteItems.filter(p => p.name.trim() && p.products.length > 0);
       const processedPalettes = await Promise.all(validPalettes.map(async (p) => {
-        let pictureUrl: string | null = null;
+        let pictureUrl: string | null = p.pictureUrl || null;
         if (p.picture) {
           pictureUrl = await uploadImageToStorage(p.picture, 'palettes');
         }
@@ -801,7 +812,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       // IMPORTANT: Include id for existing items to preserve them on update
       const validSchuetten = schutteItems.filter(s => s.name.trim() && s.products.length > 0);
       const processedSchuetten = await Promise.all(validSchuetten.map(async (s) => {
-        let pictureUrl: string | null = null;
+        let pictureUrl: string | null = s.pictureUrl || null;
         if (s.picture) {
           pictureUrl = await uploadImageToStorage(s.picture, 'schuetten');
         }
@@ -828,7 +839,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       // Process einzelprodukt items - same logic as displays/kartonware
       const validEinzelprodukte = einzelprodukte.filter(isEinzelproduktComplete);
       const processedEinzelprodukte = await Promise.all(validEinzelprodukte.map(async (e) => {
-        let pictureUrl: string | null = null;
+        let pictureUrl: string | null = e.pictureUrl || null;
         if (e.picture) {
           pictureUrl = await uploadImageToStorage(e.picture, 'einzelprodukte');
         }
@@ -879,23 +890,29 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       } else {
         // Create new welle
         await wellenService.createWelle(welleData);
+        wasCreated = true;
       }
 
-      // Reload wellen list
+      // Close after a confirmed save so a failed list refresh cannot resubmit it.
+      handleClose();
       const fetchedWellen = await wellenService.getAllWellen();
       setWellenList(fetchedWellen);
-      
-      handleClose();
     } catch (error) {
       console.error('Error saving welle:', error);
-      alert('Fehler beim Speichern der Welle');
+      alert(wasCreated
+        ? 'Die Welle wurde gespeichert. Die Liste konnte nicht aktualisiert werden. Bitte die Seite neu laden.'
+        : 'Fehler beim Speichern der Welle');
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
 
-  const handleEditWelle = (welle: Welle) => {
-    setEditingWelle(welle);
+  const handleEditWelle = (welle: Welle, mode: 'edit' | 'duplicate' = 'edit') => {
+    setEditingWelle(mode === 'edit' ? welle : null);
+    setDuplicatingWelle(mode === 'duplicate' ? welle : null);
+    if (mode === 'duplicate') welle = createWelleCopy(welle);
+    setWaveImageFile(null);
     setWaveName(welle.name);
     setStartDate(welle.startDate);
     setEndDate(welle.endDate);
@@ -914,6 +931,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         name: d.name,
         targetNumber: (d.targetNumber || 0).toString(),
         picture: null,
+        pictureUrl: d.picture,
         itemValue: d.itemValue?.toString()
       })));
     }
@@ -925,6 +943,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         name: k.name,
         targetNumber: (k.targetNumber || 0).toString(),
         picture: null,
+        pictureUrl: k.picture,
         itemValue: k.itemValue?.toString()
       })));
     }
@@ -936,6 +955,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         name: p.name,
         size: p.size || '',
         picture: null,
+        pictureUrl: p.picture,
         products: (p.products || []).map(prod => ({
           id: prod.id, // IMPORTANT: Keep the real database UUID
           name: prod.name,
@@ -953,6 +973,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         name: s.name,
         size: s.size || '',
         picture: null,
+        pictureUrl: s.picture,
         products: (s.products || []).map(prod => ({
           id: prod.id, // IMPORTANT: Keep the real database UUID
           name: prod.name,
@@ -970,6 +991,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         name: e.name,
         targetNumber: (e.targetNumber || 0).toString(),
         picture: null,
+        pictureUrl: e.picture,
         itemValue: e.itemValue?.toString(),
         artikelNr: e.artikelNr || '',
         ve: e.ve !== null && e.ve !== undefined ? e.ve.toString() : ''
@@ -990,6 +1012,21 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     // Open the modal
     onOpenCreateWelleModal();
   };
+
+  const renderWelleActions = (welle: Welle) => (
+    <div className={styles.welleActions}>
+      <button type="button" className={styles.welleEditButton}
+        title="Welle duplizieren" aria-label={`${welle.name} duplizieren`}
+        onClick={event => { event.stopPropagation(); handleEditWelle(welle, 'duplicate'); }}>
+        <Copy size={18} weight="bold" />
+      </button>
+      <button type="button" className={styles.welleEditButton}
+        title="Welle bearbeiten" aria-label={`${welle.name} bearbeiten`}
+        onClick={event => { event.stopPropagation(); handleEditWelle(welle); }}>
+        <PencilSimple size={18} weight="bold" />
+      </button>
+    </div>
+  );
 
   // Get all past displays/kartonware from past wellen
   const getAllPastDisplays = (): WelleDisplayItem[] => {
@@ -1194,6 +1231,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     setIsFotoOnly(false);
     setNoLimitWelle(false);
     setEditingWelle(null);
+    setDuplicatingWelle(null);
     setSelectedWelle(null);
     onCloseCreateWelleModal();
   };
@@ -1211,9 +1249,10 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   };
 
   const getStepTitle = () => {
-    const prefix = editingWelle ? 'Welle bearbeiten' : 'Neue Welle erstellen';
+    const prefix = duplicatingWelle ? 'Welle duplizieren' : editingWelle ? 'Welle bearbeiten' : 'Neue Welle erstellen';
     if (currentStep === 1) return prefix;
     if (currentStep === 2) {
+      if (duplicatingWelle) return 'Welle duplizieren – Details';
       if (isFotoOnly) return editingWelle ? 'Foto-Welle bearbeiten' : 'Foto-Welle Details';
       return editingWelle ? 'Welle bearbeiten - Details' : 'Welle Details';
     }
@@ -1287,15 +1326,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                         <span>Gesamtliste</span>
                       </div>
                     )}
-                    <button 
-                      className={styles.welleEditButton}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditWelle(welle);
-                      }}
-                    >
-                      <PencilSimple size={18} weight="bold" />
-                    </button>
+                    {renderWelleActions(welle)}
                   </div>
 
                   <div className={`${styles.welleImage} ${welle.image ? styles.hasImage : ''}`}>
@@ -1380,15 +1411,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                         <span>Gesamtliste</span>
                       </div>
                     )}
-                    <button 
-                      className={styles.welleEditButton}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditWelle(welle);
-                      }}
-                    >
-                      <PencilSimple size={18} weight="bold" />
-                    </button>
+                    {renderWelleActions(welle)}
                   </div>
 
                   <div className={`${styles.welleImage} ${welle.image ? styles.hasImage : ''}`}>
@@ -1473,15 +1496,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                         <span>Gesamtliste</span>
                       </div>
                     )}
-                    <button 
-                      className={styles.welleEditButton}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditWelle(welle);
-                      }}
-                    >
-                      <PencilSimple size={18} weight="bold" />
-                    </button>
+                    {renderWelleActions(welle)}
                   </div>
 
                   <div className={`${styles.welleImage} ${welle.image ? styles.hasImage : ''}`}>
@@ -1567,9 +1582,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       />}
       {isCreateWelleModalOpen && !priceCorrectionWelle && ReactDOM.createPortal(
         <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
+          <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="welle-editor-title">
             <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>{getStepTitle()}</h3>
+              <h3 className={styles.modalTitle} id="welle-editor-title">{getStepTitle()}</h3>
               <button 
                 className={styles.modalClose}
                 onClick={handleClose}
@@ -1580,6 +1595,12 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
             </div>
 
             <div className={styles.modalContent}>
+              {duplicatingWelle && currentStep === 2 && (
+                <p className={styles.modalDescription}>
+                  Vorlage: {duplicatingWelle.name}. Passe Name, Zeitraum und Preise an.
+                  Die Kopie wird erst mit „Welle erstellen“ gespeichert und beginnt ohne Ergebnisse.
+                </p>
+              )}
               {/* Step Progress Indicator - Hidden on first step */}
               {currentStep > 1 && (
                 <div className={styles.progressIndicatorWrapper}>
@@ -2118,9 +2139,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               id={`displayImage-${display.id}`}
                             />
                             <label htmlFor={`displayImage-${display.id}`} className={styles.imageLabel}>
-                              {display.picture ? (
+                              {(display.picture || display.pictureUrl) ? (
                                 <img 
-                                  src={URL.createObjectURL(display.picture)} 
+                                  src={display.picture ? URL.createObjectURL(display.picture) : display.pictureUrl || undefined}
                                   alt="Display preview" 
                                   className={styles.imagePreview} 
                                 />
@@ -2232,9 +2253,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               id={`kartonwareImage-${item.id}`}
                             />
                             <label htmlFor={`kartonwareImage-${item.id}`} className={styles.imageLabel}>
-                              {item.picture ? (
+                              {(item.picture || item.pictureUrl) ? (
                                 <img 
-                                  src={URL.createObjectURL(item.picture)} 
+                                  src={item.picture ? URL.createObjectURL(item.picture) : item.pictureUrl || undefined}
                                   alt="Kartonware preview" 
                                   className={styles.imagePreview} 
                                 />
@@ -2375,9 +2396,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               id={`paletteImage-${palette.id}`}
                             />
                             <label htmlFor={`paletteImage-${palette.id}`} className={styles.imageLabel}>
-                              {palette.picture ? (
+                              {(palette.picture || palette.pictureUrl) ? (
                                 <img 
-                                  src={URL.createObjectURL(palette.picture)} 
+                                  src={palette.picture ? URL.createObjectURL(palette.picture) : palette.pictureUrl || undefined}
                                   alt="Palette preview" 
                                   className={styles.imagePreview} 
                                 />
@@ -2518,9 +2539,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               id={`schutteImage-${schutte.id}`}
                             />
                             <label htmlFor={`schutteImage-${schutte.id}`} className={styles.imageLabel}>
-                              {schutte.picture ? (
+                              {(schutte.picture || schutte.pictureUrl) ? (
                                 <img 
-                                  src={URL.createObjectURL(schutte.picture)} 
+                                  src={schutte.picture ? URL.createObjectURL(schutte.picture) : schutte.pictureUrl || undefined}
                                   alt="Schütte preview" 
                                   className={styles.imagePreview} 
                                 />
@@ -2647,9 +2668,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               id={`einzelproduktImage-${produkt.id}`}
                             />
                             <label htmlFor={`einzelproduktImage-${produkt.id}`} className={styles.imageLabel}>
-                              {produkt.picture ? (
+                              {(produkt.picture || produkt.pictureUrl) ? (
                                 <img 
-                                  src={URL.createObjectURL(produkt.picture)} 
+                                  src={produkt.picture ? URL.createObjectURL(produkt.picture) : produkt.pictureUrl || undefined}
                                   alt="Produkt preview" 
                                   className={styles.imagePreview} 
                                 />
