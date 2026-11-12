@@ -1,3 +1,5 @@
+import type { WaveCatalogMeta } from '../utils/waveCatalogMeta';
+export { copyCatalogMeta, type WaveCatalogMeta } from '../utils/waveCatalogMeta';
 import { API_BASE_URL } from '../config/database';
 import { ApiError, fetchJsonWithErrorCode } from '../utils/apiErrors';
 
@@ -23,31 +25,34 @@ export interface WellePricePreview {
   }[];
 }
 
-export interface WelleDisplay {
+export interface WelleDisplay extends WaveCatalogMeta {
   id: string;
   name: string;
   targetNumber: number;
   currentNumber?: number;
+  currentValue?: number;
   picture: string | null;
   itemValue?: number | null;
   ve?: number | string | null;
 }
 
-export interface WelleKartonware {
+export interface WelleKartonware extends WaveCatalogMeta {
   id: string;
   name: string;
   targetNumber: number;
   currentNumber?: number;
+  currentValue?: number;
   picture: string | null;
   itemValue?: number | null;
   ve?: number | string | null;
 }
 
-export interface WelleEinzelprodukt {
+export interface WelleEinzelprodukt extends WaveCatalogMeta {
   id: string;
   name: string;
   targetNumber: number;
   currentNumber?: number;
+  currentValue?: number;
   picture: string | null;
   itemValue?: number | null;
   artikelNr?: string | null;
@@ -124,6 +129,7 @@ export interface PhotoFacets {
 }
 
 export interface Welle {
+  catalogPricingRequired?: boolean;
   id: string;
   name: string;
   image: string | null;
@@ -166,13 +172,15 @@ export interface CreateWelleDTO {
   goalType: 'percentage' | 'value';
   goalPercentage?: number | null;
   goalValue?: number | null;
-  displays: Array<{
+  displays: Array<WaveCatalogMeta & {
+    id?: string;
     name: string;
     targetNumber: number;
     picture: string | null;
     itemValue?: number | null;
   }>;
-  kartonwareItems: Array<{
+  kartonwareItems: Array<WaveCatalogMeta & {
+    id?: string;
     name: string;
     targetNumber: number;
     picture: string | null;
@@ -200,7 +208,8 @@ export interface CreateWelleDTO {
       ean: string;
     }>;
   }>;
-  einzelproduktItems?: Array<{
+  einzelproduktItems?: Array<WaveCatalogMeta & {
+    id?: string;
     name: string;
     targetNumber: number;
     picture: string | null;

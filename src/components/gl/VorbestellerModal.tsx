@@ -13,6 +13,8 @@ import { getAllProducts } from '../../data/productsData';
 import type { Product } from '../../types/product-types';
 import { getProductArticleLabel, productMatchesSearch } from '../../utils/productArticle';
 import { ApiError } from '../../utils/apiErrors';
+import { quarterCatalogService, hydrateWaveCatalog, type CatalogEntry } from '../../services/quarterCatalogService';
+import type { WaveCatalogMeta } from '../../services/wellenService';
 
 interface VorbestellerModalProps {
   isOpen: boolean;
@@ -84,6 +86,10 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const [showAllProducts, setShowAllProducts] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [submitEinzelprodukteAsVe, setSubmitEinzelprodukteAsVe] = useState(false);
+  const [bookingCatalog, setBookingCatalog] = useState<CatalogEntry[]>([]);
+  const [bookingCatalogError, setBookingCatalogError] = useState('');
+  const [bookingCatalogLoading, setBookingCatalogLoading] = useState(false);
+  const [bookingCatalogRetry, setBookingCatalogRetry] = useState(0);
   const [submittedMarketIds, setSubmittedMarketIds] = useState<Set<string>>(new Set());
   const [allSubmittedMarketIds, setAllSubmittedMarketIds] = useState<Set<string>>(new Set());
   const [visitedMarketIds, setVisitedMarketIds] = useState<Set<string>>(new Set());
@@ -206,12 +212,24 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     return () => el.removeEventListener('wheel', onWheel);
   }, [isOpen, showMarketSelection, showItemSelection, showFotoWelle]);
 
-  const selectedVorbesteller = wellen.find(v => v.id === selectedCardId);
+  const selectedVorbestellerRaw = wellen.find(v => v.id === selectedCardId);
+  const selectedVorbesteller = useMemo(() => selectedVorbestellerRaw ? hydrateWaveCatalog(selectedVorbestellerRaw, bookingCatalog) : undefined, [selectedVorbestellerRaw, bookingCatalog]);
+  useEffect(() => {
+    let active = true;
+    setBookingCatalog([]); setBookingCatalogError('');setBookingCatalogLoading(false);
+    if (isOpen && selectedVorbestellerRaw) {
+      setBookingCatalogLoading(true);
+      void quarterCatalogService.list().then(result => { if (active) setBookingCatalog(result.items); }).catch(() => { if (active) setBookingCatalogError('Aktuelle Quartalspreise konnten nicht geladen werden.'); }).finally(() => { if(active)setBookingCatalogLoading(false); });
+    }
+    return () => { active = false; };
+  }, [isOpen, selectedVorbestellerRaw, bookingCatalogRetry]);
+  const hasCatalogItems = Boolean(selectedVorbestellerRaw?.catalogPricingRequired || [...(selectedVorbestellerRaw?.displays || []),...(selectedVorbestellerRaw?.kartonwareItems || []),...(selectedVorbestellerRaw?.einzelproduktItems || [])].some(item=>item.catalogKey));
+  const selectedPriceMissing = [...(selectedVorbesteller?.displays || []),...(selectedVorbesteller?.kartonwareItems || []),...(selectedVorbesteller?.einzelproduktItems || [])].some(item=>itemQuantities[item.id]>0 && item.catalogKey && item.catalogPriceAvailable===false);
 
   // Fetch master products when wave has einzelprodukt type
   useEffect(() => {
     const loadMasterProducts = async () => {
-      if (!selectedVorbesteller?.types?.includes('einzelprodukt')) {
+      if (!selectedVorbestellerRaw?.types?.includes('einzelprodukt') || selectedVorbestellerRaw.catalogPricingRequired) {
         setMasterProducts([]);
         setShowAllProducts(false);
         setProductSearchQuery('');
@@ -229,11 +247,11 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     if (selectedVorbesteller) {
       loadMasterProducts();
     }
-  }, [selectedVorbesteller]);
+  }, [selectedVorbestellerRaw]);
 
   useEffect(() => {
-    setSubmitEinzelprodukteAsVe(false);
-  }, [selectedCardId]);
+    setSubmitEinzelprodukteAsVe(Boolean(selectedVorbestellerRaw?.catalogPricingRequired));
+  }, [selectedCardId, selectedVorbestellerRaw?.catalogPricingRequired]);
 
   const normalizeProductName = (name: string): string =>
     name
@@ -304,15 +322,15 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     return resolveProductVeValue(product.content, product.palletSize);
   };
 
-  const getEinzelproduktVeUnits = (item: Pick<WelleEinzelprodukt, 'name' | 've'>): number | null =>
-    parseVeUnits(resolveEinzelproduktVe(item.name, item.ve));
+  const getEinzelproduktVeUnits = (item: Pick<WelleEinzelprodukt, 'name' | 've' | 'catalogVeSize' | 'catalogKey'>): number | null =>
+    parseVeUnits(item.catalogVeSize || resolveEinzelproduktVe(item.name, item.ve));
 
   const getMasterProductVeUnits = (product: Product): number | null =>
     parseVeUnits(resolveMasterProductVe(product));
 
-  const getSubmittedEinzelproduktQuantity = (item: Pick<WelleEinzelprodukt, 'name' | 've'>, quantity: number): number => {
+  const getSubmittedEinzelproduktQuantity = (item: Pick<WelleEinzelprodukt, 'name' | 've' | 'catalogVeSize' | 'catalogKey'>, quantity: number): number => {
     const veUnits = getEinzelproduktVeUnits(item);
-    return submitEinzelprodukteAsVe && veUnits !== null ? quantity * veUnits : quantity;
+    return (item.catalogKey || submitEinzelprodukteAsVe) && veUnits !== null ? quantity * veUnits : quantity;
   };
 
   const getSubmittedMasterProductQuantity = (product: Product, quantity: number): number => {
@@ -328,10 +346,14 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   };
 
   const renderItemMeta = (
-    item: { itemValue?: number | null; artikelNr?: string | null },
+    item: WaveCatalogMeta & { itemValue?: number | null },
     ve?: number | string | null
   ): string => {
     const parts: string[] = [];
+    if (item.catalogKey) {
+      if (item.catalogPriceAvailable === false) return `Art.-Nr. ${item.artikelNr} · Preis für aktuelles Quartal fehlt`;
+      return `Art.-Nr. ${item.artikelNr} · ${item.catalogKey.includes(':display:') ? '1 Display' : `1 VE = ${item.catalogVeSize} Stück`} · €${Number(item.catalogOrderPrice || 0).toFixed(2)} / ${item.catalogKey.includes(':display:') ? 'Display' : 'VE'}`;
+    }
     if (item.artikelNr && String(item.artikelNr).trim() !== '') {
       parts.push(`Art.-Nr. ${item.artikelNr}`);
     }
@@ -686,6 +708,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     setIsSubmitting(true);
     
     try {
+      if (hasCatalogItems && (bookingCatalogError || bookingCatalogLoading || selectedPriceMissing)) throw new Error(bookingCatalogError || 'Für die Auswahl fehlen aktuelle Quartalspreise. Bitte erneut laden.');
       // Prepare items array with only items that have quantities > 0
       const items: Array<{
         item_type: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt';
@@ -1329,9 +1352,9 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     {welle.goalType === 'percentage' ? (
                                       `${welle.participatingGLs || 0}/${welle.totalGLs || 0}`
                                     ) : (
-                                      `€${((welle.displays || []).reduce((sum, d) => sum + (d.currentNumber || 0) * (d.itemValue || 0), 0) + 
-                                        (welle.kartonwareItems || []).reduce((sum, k) => sum + (k.currentNumber || 0) * (k.itemValue || 0), 0) +
-                                        (welle.einzelproduktItems || []).reduce((sum, e) => sum + (e.currentNumber || 0) * (e.itemValue || 0), 0)).toLocaleString('de-DE')}`
+                                      `€${((welle.displays || []).reduce((sum, d) => sum + (d.currentValue ?? ( d.currentNumber || 0) * (d.itemValue || 0)), 0) +
+                                        (welle.kartonwareItems || []).reduce((sum, k) => sum + (k.currentValue ?? ( k.currentNumber || 0) * (k.itemValue || 0)), 0) +
+                                        (welle.einzelproduktItems || []).reduce((sum, e) => sum + (e.currentValue ?? ( e.currentNumber || 0) * (e.itemValue || 0)), 0)).toLocaleString('de-DE')}`
                                     )}
                                   </div>
                                 </div>
@@ -1341,18 +1364,18 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                       className={`${styles.coverageProgress} ${
                                         welle.goalType === 'percentage' 
                                           ? ((welle.participatingGLs || 0) / (welle.totalGLs || 1) * 100) >= (welle.goalPercentage || 100)
-                                          : ((welle.displays || []).reduce((sum, d) => sum + (d.currentNumber || 0) * (d.itemValue || 0), 0) + 
-                                            (welle.kartonwareItems || []).reduce((sum, k) => sum + (k.currentNumber || 0) * (k.itemValue || 0), 0) +
-                                            (welle.einzelproduktItems || []).reduce((sum, e) => sum + (e.currentNumber || 0) * (e.itemValue || 0), 0)) >= (welle.goalValue || Infinity)
+                                          : ((welle.displays || []).reduce((sum, d) => sum + (d.currentValue ?? ( d.currentNumber || 0) * (d.itemValue || 0)), 0) +
+                                            (welle.kartonwareItems || []).reduce((sum, k) => sum + (k.currentValue ?? ( k.currentNumber || 0) * (k.itemValue || 0)), 0) +
+                                            (welle.einzelproduktItems || []).reduce((sum, e) => sum + (e.currentValue ?? ( e.currentNumber || 0) * (e.itemValue || 0)), 0)) >= (welle.goalValue || Infinity)
                                           ? styles.coverageComplete 
                                           : ''
                                       }`}
                                       style={{ 
                                         width: welle.goalType === 'percentage'
                                           ? `${Math.min(100, (welle.participatingGLs || 0) / (welle.totalGLs || 1) * 100)}%`
-                                          : `${Math.min(100, ((welle.displays || []).reduce((sum, d) => sum + (d.currentNumber || 0) * (d.itemValue || 0), 0) + 
-                                              (welle.kartonwareItems || []).reduce((sum, k) => sum + (k.currentNumber || 0) * (k.itemValue || 0), 0) +
-                                              (welle.einzelproduktItems || []).reduce((sum, e) => sum + (e.currentNumber || 0) * (e.itemValue || 0), 0)) / (welle.goalValue || 1) * 100)}%`
+                                          : `${Math.min(100, ((welle.displays || []).reduce((sum, d) => sum + (d.currentValue ?? ( d.currentNumber || 0) * (d.itemValue || 0)), 0) +
+                                              (welle.kartonwareItems || []).reduce((sum, k) => sum + (k.currentValue ?? ( k.currentNumber || 0) * (k.itemValue || 0)), 0) +
+                                              (welle.einzelproduktItems || []).reduce((sum, e) => sum + (e.currentValue ?? ( e.currentNumber || 0) * (e.itemValue || 0)), 0)) / (welle.goalValue || 1) * 100)}%`
                                       }}
                                     />
                                   </div>
@@ -1360,9 +1383,9 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     <span className={styles.coverageCurrent}>
                                       {welle.goalType === 'percentage' 
                                         ? `${Math.round((welle.participatingGLs || 0) / (welle.totalGLs || 1) * 100)}%`
-                                        : `€${((welle.displays || []).reduce((sum, d) => sum + (d.currentNumber || 0) * (d.itemValue || 0), 0) + 
-                                            (welle.kartonwareItems || []).reduce((sum, k) => sum + (k.currentNumber || 0) * (k.itemValue || 0), 0) +
-                                            (welle.einzelproduktItems || []).reduce((sum, e) => sum + (e.currentNumber || 0) * (e.itemValue || 0), 0)).toLocaleString('de-DE')}`
+                                        : `€${((welle.displays || []).reduce((sum, d) => sum + (d.currentValue ?? ( d.currentNumber || 0) * (d.itemValue || 0)), 0) +
+                                            (welle.kartonwareItems || []).reduce((sum, k) => sum + (k.currentValue ?? ( k.currentNumber || 0) * (k.itemValue || 0)), 0) +
+                                            (welle.einzelproduktItems || []).reduce((sum, e) => sum + (e.currentValue ?? ( e.currentNumber || 0) * (e.itemValue || 0)), 0)).toLocaleString('de-DE')}`
                                       }
                                     </span>
                                     <span className={styles.coverageGoal}>
@@ -1676,7 +1699,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                       matchesUnifiedItemSearch(e.name, e.artikelNr, e.ve)
                     ).map((item) => {
                       const veUnits = getEinzelproduktVeUnits(item);
-                      const isVeModeItem = submitEinzelprodukteAsVe && veUnits !== null;
+                      const isVeModeItem = (item.catalogKey || submitEinzelprodukteAsVe) && veUnits !== null;
 
                       return (
                         <div
@@ -2162,13 +2185,16 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
             </>
           ) : showItemSelection ? (
             <>
+              {hasCatalogItems && bookingCatalogLoading && <p role="status">Quartalspreise werden geladen …</p>}
+              {hasCatalogItems && bookingCatalogError && <div role="alert">{bookingCatalogError} <button type="button" onClick={()=>setBookingCatalogRetry(n=>n+1)}>Preise erneut laden</button></div>}
+              {selectedPriceMissing && !bookingCatalogLoading && !bookingCatalogError && <p role="alert">Für die Auswahl fehlen freigegebene Quartalspreise. Bitte die Administration kontaktieren.</p>}
               <button className={styles.secondaryButton} onClick={() => setShowItemSelection(false)} disabled={isSubmitting || isSubmitCompleted}>
                 Zurück
               </button>
               <button 
                 className={styles.primaryButton} 
                 onClick={handleFertigClick}
-                disabled={(totalQuantity === 0 && !selectedVorbesteller?.fotoEnabled) || isSubmitting || isSubmitCompleted}
+                disabled={(totalQuantity === 0 && !selectedVorbesteller?.fotoEnabled) || isSubmitting || isSubmitCompleted || (hasCatalogItems && (bookingCatalogLoading || !!bookingCatalogError || selectedPriceMissing))}
               >
                 {isSubmitting ? 'Wird gespeichert...' : (selectedVorbesteller?.fotoEnabled ? 'Weiter' : 'Fertig')}
               </button>

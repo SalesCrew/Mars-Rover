@@ -1,4 +1,5 @@
 import type { Welle } from '../services/wellenService';
+import { copyCatalogMeta } from './waveCatalogMeta';
 
 // Copy configuration only. Database IDs and recorded results belong to the source.
 export const createWelleCopy = (source: Welle): Welle => {
@@ -16,15 +17,15 @@ export const createWelleCopy = (source: Welle): Welle => {
     displayCount: source.displays?.length || 0,
     kartonwareCount: source.kartonwareItems?.length || 0,
     displays: (source.displays || []).map(item => ({
-      id: temporaryId('display'), name: item.name, targetNumber: item.targetNumber,
+      ...copyCatalogMeta(item), id: temporaryId('display'), name: item.name, targetNumber: item.targetNumber,
       picture: item.picture, itemValue: item.itemValue, ve: item.ve,
     })),
     kartonwareItems: (source.kartonwareItems || []).map(item => ({
-      id: temporaryId('kartonware'), name: item.name, targetNumber: item.targetNumber,
+      ...copyCatalogMeta(item), id: temporaryId('kartonware'), name: item.name, targetNumber: item.targetNumber,
       picture: item.picture, itemValue: item.itemValue, ve: item.ve,
     })),
     einzelproduktItems: (source.einzelproduktItems || []).map(item => ({
-      id: temporaryId('einzelprodukt'), name: item.name, targetNumber: item.targetNumber,
+      ...copyCatalogMeta(item), id: temporaryId('einzelprodukt'), name: item.name, targetNumber: item.targetNumber,
       picture: item.picture, itemValue: item.itemValue, artikelNr: item.artikelNr, ve: item.ve,
     })),
     paletteItems: (source.paletteItems || []).map(item => ({

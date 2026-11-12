@@ -1,3 +1,4 @@
+import { hydrateWaveCatalog, quarterCatalogService } from '../../services/quarterCatalogService';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { X, CalendarBlank, Camera, TrendUp, User, Package, CheckCircle, Clock, CalendarDots, Users, Plus, Minus, Trash, CaretDown, CaretLeft, CaretRight, Check, MagnifyingGlass, Storefront, PaperPlaneTilt } from '@phosphor-icons/react';
@@ -504,7 +505,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
         gebietsleiterService.getAllGebietsleiter(),
         marketService.getAllMarkets(),
       ]);
-      setAdminFullWave(fullWave);
+      setAdminFullWave((fullWave.catalogPricingRequired || [...(fullWave.displays || []), ...(fullWave.kartonwareItems || []), ...(fullWave.einzelproduktItems || [])].some(i => i.catalogKey)) ? hydrateWaveCatalog(fullWave, (await quarterCatalogService.list()).items) : fullWave);
       setAdminGLs(gls.filter(g => !g.is_test));
       setAdminMarkets(markets);
     } catch (err) {
@@ -569,12 +570,12 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
     let value = 0;
     if (!adminFullWave) return { count, value };
 
-    const addSimple = (items: Array<{ id: string; itemValue?: number | null }> | undefined) => {
+    const addSimple = (items: Array<{ id: string; itemValue?: number | null; catalogKey?: string | null; catalogVeSize?: number | null; catalogOrderPrice?: number | null }> | undefined) => {
       items?.forEach(item => {
         const qty = adminItemQty[item.id] || 0;
         if (qty > 0) {
           count += qty;
-          value += qty * (item.itemValue || 0);
+          value += qty * (item.catalogOrderPrice ?? item.itemValue ?? 0);
         }
       });
     };
@@ -641,11 +642,11 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
         type ItemType = 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt';
         const items: Array<{ item_type: ItemType; item_id: string; current_number: number; value_per_unit?: number }> = [];
 
-        const addSimple = (type: ItemType, list: Array<{ id: string; itemValue?: number | null }> | undefined) => {
+        const addSimple = (type: ItemType, list: Array<{ id: string; itemValue?: number | null; catalogKey?: string | null; catalogVeSize?: number | null; catalogOrderPrice?: number | null }> | undefined) => {
           list?.forEach(item => {
             const qty = adminItemQty[item.id] || 0;
             if (qty > 0) {
-              items.push({ item_type: type, item_id: item.id, current_number: qty, value_per_unit: item.itemValue || 0 });
+              items.push({ item_type: type, item_id: item.id, current_number: type === 'einzelprodukt' && item.catalogKey ? qty * (item.catalogVeSize || 1) : qty, value_per_unit: item.itemValue || 0 });
             }
           });
         };
@@ -1221,7 +1222,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                           <div key={item.id} className={styles.adminItemRow}>
                             <div className={styles.adminItemRowInfo}>
                               <span className={styles.adminItemRowName}>{item.name}</span>
-                              {(item.itemValue || 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.itemValue || 0).toFixed(2)}/Stk</span>}
+                              {(item.catalogOrderPrice ?? item.itemValue ?? 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.catalogOrderPrice ?? item.itemValue ?? 0).toFixed(2)}/{item.catalogKey ? `VE (${item.catalogVeSize} Stk)` : 'Stk'}</span>}
                             </div>
                             <div className={styles.adminItemRowControls}>
                               <button onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, (p[item.id] || 0) - 1) }))} disabled={(adminItemQty[item.id] || 0) <= 0}><Minus size={14} weight="bold" /></button>
@@ -1239,7 +1240,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                           <div key={item.id} className={styles.adminItemRow}>
                             <div className={styles.adminItemRowInfo}>
                               <span className={styles.adminItemRowName}>{item.name}</span>
-                              {(item.itemValue || 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.itemValue || 0).toFixed(2)}/Stk</span>}
+                              {(item.catalogOrderPrice ?? item.itemValue ?? 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.catalogOrderPrice ?? item.itemValue ?? 0).toFixed(2)}/{item.catalogKey ? `VE (${item.catalogVeSize} Stk)` : 'Stk'}</span>}
                             </div>
                             <div className={styles.adminItemRowControls}>
                               <button onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, (p[item.id] || 0) - 1) }))} disabled={(adminItemQty[item.id] || 0) <= 0}><Minus size={14} weight="bold" /></button>
@@ -1258,7 +1259,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                             <div className={styles.adminItemRowInfo}>
                               <span className={styles.adminItemRowName}>{item.name}</span>
                               {formatArticleVeMeta(item) && <span className={styles.adminItemRowMeta}>{formatArticleVeMeta(item)}</span>}
-                              {(item.itemValue || 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.itemValue || 0).toFixed(2)}/Stk</span>}
+                              {(item.catalogOrderPrice ?? item.itemValue ?? 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.catalogOrderPrice ?? item.itemValue ?? 0).toFixed(2)}/{item.catalogKey ? `VE (${item.catalogVeSize} Stk)` : 'Stk'}</span>}
                             </div>
                             <div className={styles.adminItemRowControls}>
                               <button onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, (p[item.id] || 0) - 1) }))} disabled={(adminItemQty[item.id] || 0) <= 0}><Minus size={14} weight="bold" /></button>

@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { CalendarPlus, X, CheckCircle, Package, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash, PencilSimple, Copy, Calendar, TrendUp, Clock, CheckCircle as CheckCircleFilled, Storefront, Stack, ShoppingBag, Cube, Camera, MagnifyingGlass } from '@phosphor-icons/react';
 import styles from './VorbestellerPage.module.css';
 import { CustomDatePicker } from './CustomDatePicker';
 import { WelleDetailModal } from './WelleDetailModal';
 import { WelleMarketSelectorModal } from './WelleMarketSelectorModal';
-import { WellePriceCorrectionModal } from './WellePriceCorrectionModal';
-import { wellenService, type Welle } from '../../services/wellenService';
+import { QuarterCatalogModal } from './QuarterCatalogModal';
+import { quarterCatalogService, type CatalogEntry, type CatalogItemType } from '../../services/quarterCatalogService';
+import { wellenService, copyCatalogMeta, type WaveCatalogMeta, type Welle } from '../../services/wellenService';
 import { getAllProducts, type Product } from '../../data/productsData';
 import { API_BASE_URL } from '../../config/database';
 import { productMatchesSearch } from '../../utils/productArticle';
@@ -50,7 +51,7 @@ interface VorbestellerPageProps {
   onClearWaveIdToEdit?: () => void;
 }
 
-interface DisplayItem {
+interface DisplayItem extends WaveCatalogMeta {
   id: string;
   name: string;
   targetNumber: string;
@@ -59,7 +60,7 @@ interface DisplayItem {
   itemValue?: string; // Only used when wave goalType is 'value'
 }
 
-interface KartonwareItem {
+interface KartonwareItem extends WaveCatalogMeta {
   id: string;
   name: string;
   targetNumber: string;
@@ -95,14 +96,14 @@ interface SchutteItem {
   products: PaletteProductItem[]; // Same structure as palette
 }
 
-interface EinzelproduktItem {
+interface EinzelproduktItem extends WaveCatalogMeta {
   id: string;
   name: string;
   targetNumber: string;
   picture: File | null;
   pictureUrl?: string | null;
   itemValue?: string; // Only used when wave goalType is 'value'
-  artikelNr?: string;
+  artikelNr?: string | null;
   ve?: string;
 }
 
@@ -111,7 +112,7 @@ interface KWDay {
   days: string[];
 }
 
-interface WelleDisplayItem {
+interface WelleDisplayItem extends WaveCatalogMeta {
   id: string;
   name: string;
   targetNumber?: number;
@@ -120,7 +121,7 @@ interface WelleDisplayItem {
   itemValue?: number | null; // Only used when wave goalType is 'value'
 }
 
-interface WelleKartonwareItem {
+interface WelleKartonwareItem extends WaveCatalogMeta {
   id: string;
   name: string;
   targetNumber?: number;
@@ -129,7 +130,7 @@ interface WelleKartonwareItem {
   itemValue?: number | null; // Only used when wave goalType is 'value'
 }
 
-interface WelleEinzelproduktItem {
+interface WelleEinzelproduktItem extends WaveCatalogMeta {
   id: string;
   name: string;
   targetNumber?: number;
@@ -266,23 +267,39 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   // Saving state
   const [isSaving, setIsSaving] = useState(false);
   const savingRef = useRef(false);
-  const [priceCorrectionWelle, setPriceCorrectionWelle] = useState<{ id: string; name: string } | null>(null);
+  const [catalogSelection, setCatalogSelection] = useState<{ type: CatalogItemType; id?: string } | null>(null);
+  const [catalogManager, setCatalogManager] = useState(false);
+  const closeCatalogSelection = useCallback(() => setCatalogSelection(null), []);
+  const closeCatalogManager = useCallback(() => setCatalogManager(false), []);
+  const [quarterEntries, setQuarterEntries] = useState<CatalogEntry[]>([]);
+  const reloadCatalog = () => quarterCatalogService.list().then(r => setQuarterEntries(r.items));
+  useEffect(() => { void reloadCatalog().catch(() => setQuarterEntries([])); }, []);
+  const selectCatalogItem = (entry: CatalogEntry) => {
+    if (!catalogSelection) return;
+    const meta = { catalogKey: entry.catalog_key, artikelNr: entry.artikel_nr, catalogVeSize: entry.units_per_ve,
+      catalogOrderPrice: Number(entry.price_per_order), itemValue: String(Number(entry.price_per_order) / (entry.item_type === 'einzelprodukt' ? entry.units_per_ve : 1)) };
+    const build = (items: DisplayItem[]): DisplayItem[] => {
+      const previous = items.find(item => item.id === catalogSelection.id);
+      const item = { ...previous, id: previous?.id || crypto.randomUUID(), name: entry.name, targetNumber: previous?.targetNumber || '', picture: previous?.picture || null,
+        ...meta, ve: String(entry.units_per_ve) };
+      return previous ? items.map(old => old.id === previous.id ? item : old) : [...items, item];
+    };
+    if (entry.item_type === 'display') setDisplays(build);
+    else if (entry.item_type === 'kartonware') setKartonwareItems(build);
+    else setEinzelprodukte(build);
+    setCatalogSelection(null);
+  };
 
   // Auto-populate all products when noLimitWelle is ON and user steps into a product step
   useEffect(() => {
     if (!noLimitWelle || !isCreateWelleModalOpen) return;
     const typeForStep = getTypeForStep(currentStep);
-    if (typeForStep === 'display' && displays.length === 0 && productDisplays.length > 0) {
-      setDisplays(productDisplays.map((p, i) => ({
-        id: `auto-${Date.now()}-${i}`,
-        name: p.name,
-        targetNumber: '1',
-        picture: null,
-        itemValue: p.price?.toString() || '',
-        artikelNr: p.artikelNr || '',
-        ve: getProductVeValue(p)
-      })));
-    }
+    const catalogItems = (type: CatalogItemType) => quarterEntries.filter(e => e.item_type === type).map(e => ({
+      id: crypto.randomUUID(), name: e.name, targetNumber: '1', picture: null,
+      catalogKey: e.catalog_key, artikelNr: e.artikel_nr, catalogVeSize: e.units_per_ve, catalogOrderPrice: Number(e.price_per_order),
+      itemValue: String(Number(e.price_per_order) / (type === 'einzelprodukt' ? e.units_per_ve : 1)), ve: String(e.units_per_ve),
+    }));
+    if (typeForStep === 'display' && displays.length === 0) setDisplays(catalogItems('display'));
     if (typeForStep === 'palette' && paletteItems.length === 0 && productPalettes.length > 0) {
       setPaletteItems(productPalettes.map((p, i) => ({
         id: `auto-palette-${Date.now()}-${i}`,
@@ -313,29 +330,10 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         })) || [{ id: `auto-sp-empty-${Date.now()}-${i}`, name: '', value: '', ve: '', ean: '' }]
       })));
     }
-    if (typeForStep === 'einzelprodukt' && einzelprodukte.length === 0 && productStandard.length > 0) {
-      setEinzelprodukte(productStandard.map((p, i) => ({
-        id: `auto-ep-${Date.now()}-${i}`,
-        name: p.name,
-        targetNumber: '1',
-        picture: null,
-        itemValue: p.price?.toString() || ''
-      })));
-    }
-    if (typeForStep === 'kartonware' && kartonwareItems.length === 0) {
-      const allKartonware = getAllPastKartonware();
-      if (allKartonware.length > 0) {
-        setKartonwareItems(allKartonware.map((k, i) => ({
-          id: `auto-kw-${Date.now()}-${i}`,
-          name: k.name,
-          targetNumber: '1',
-          picture: null,
-          itemValue: k.itemValue?.toString() || ''
-        })));
-      }
-    }
+    if (typeForStep === 'einzelprodukt' && einzelprodukte.length === 0) setEinzelprodukte(catalogItems('einzelprodukt'));
+    if (typeForStep === 'kartonware' && kartonwareItems.length === 0) setKartonwareItems(catalogItems('kartonware'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep, noLimitWelle, isCreateWelleModalOpen]);
+  }, [currentStep, noLimitWelle, isCreateWelleModalOpen, quarterEntries]);
 
   const handleToggleType = (type: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt') => {
     // Deselect foto-only when a product type is selected
@@ -386,15 +384,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     }
   };
 
-  const addDisplay = () => {
-    setDisplays(prev => [...prev, {
-      id: `display-${Date.now()}`,
-      name: '',
-      targetNumber: '',
-      picture: null,
-      itemValue: goalType === 'value' ? '' : undefined
-    }]);
-  };
+  const addDisplay = () => setCatalogSelection({ type: 'display' });
 
   const removeDisplay = (id: string) => {
     setDisplays(prev => prev.filter(d => d.id !== id));
@@ -404,15 +394,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     setDisplays(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
   };
 
-  const addKartonware = () => {
-    setKartonwareItems(prev => [...prev, {
-      id: `kartonware-${Date.now()}`,
-      name: '',
-      targetNumber: '',
-      picture: null,
-      itemValue: goalType === 'value' ? '' : undefined
-    }]);
-  };
+  const addKartonware = () => setCatalogSelection({ type: 'kartonware' });
 
   const removeKartonware = (id: string) => {
     setKartonwareItems(prev => prev.filter(k => k.id !== id));
@@ -533,17 +515,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   };
 
   // Einzelprodukt management functions
-  const addEinzelprodukt = () => {
-    setEinzelprodukte(prev => [...prev, {
-      id: `einzelprodukt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: '',
-      targetNumber: '1',
-      picture: null,
-      itemValue: '',
-      artikelNr: '',
-      ve: ''
-    }]);
-  };
+  const addEinzelprodukt = () => setCatalogSelection({ type: 'einzelprodukt' });
 
   const removeEinzelprodukt = (id: string) => {
     setEinzelprodukte(prev => prev.filter(e => e.id !== id));
@@ -751,10 +723,12 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         // For value-based waves, default targetNumber to 1 if not set (DB requires > 0)
         const targetNum = parseInt(d.targetNumber) > 0 ? parseInt(d.targetNumber) : 1;
         return {
+          id: d.id,
+          ...copyCatalogMeta(d),
           name: d.name,
           targetNumber: targetNum,
           picture: pictureUrl,
-          itemValue: goalType === 'value' && d.itemValue ? parseFloat(d.itemValue) : null
+          itemValue: d.itemValue ? parseFloat(d.itemValue) : null
         };
       }));
 
@@ -773,10 +747,12 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         }
         const targetNum = parseInt(k.targetNumber) > 0 ? parseInt(k.targetNumber) : 1;
         return {
+          id: k.id,
+          ...copyCatalogMeta(k),
           name: k.name,
           targetNumber: targetNum,
           picture: pictureUrl,
-          itemValue: goalType === 'value' && k.itemValue ? parseFloat(k.itemValue) : null
+          itemValue: k.itemValue ? parseFloat(k.itemValue) : null
         };
       }));
 
@@ -845,10 +821,12 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         }
         const targetNum = parseInt(e.targetNumber) > 0 ? parseInt(e.targetNumber) : 1;
         return {
+          id: e.id,
+          ...copyCatalogMeta(e),
           name: e.name,
           targetNumber: targetNum,
           picture: pictureUrl,
-          itemValue: goalType === 'value' && e.itemValue ? parseFloat(e.itemValue) : null,
+          itemValue: e.itemValue ? parseFloat(e.itemValue) : null,
           artikelNr: e.artikelNr || null,
           ve: e.ve || null
         };
@@ -884,9 +862,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       if (editingWelle) {
         // Update existing welle
         await wellenService.updateWelle(editingWelle.id, welleData);
-        // Always compare persisted bookings, including prices edited on an earlier occasion.
-        setPriceCorrectionWelle({ id: editingWelle.id, name: waveName });
-        return;
+
       } else {
         // Create new welle
         await wellenService.createWelle(welleData);
@@ -901,7 +877,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       console.error('Error saving welle:', error);
       alert(wasCreated
         ? 'Die Welle wurde gespeichert. Die Liste konnte nicht aktualisiert werden. Bitte die Seite neu laden.'
-        : 'Fehler beim Speichern der Welle');
+        : error instanceof Error ? error.message : 'Fehler beim Speichern der Welle');
     } finally {
       savingRef.current = false;
       setIsSaving(false);
@@ -928,6 +904,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     if (welle.displays) {
       setDisplays(welle.displays.map(d => ({
         id: d.id,
+        ...copyCatalogMeta(d),
         name: d.name,
         targetNumber: (d.targetNumber || 0).toString(),
         picture: null,
@@ -940,6 +917,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     if (welle.kartonwareItems) {
       setKartonwareItems(welle.kartonwareItems.map(k => ({
         id: k.id,
+        ...copyCatalogMeta(k),
         name: k.name,
         targetNumber: (k.targetNumber || 0).toString(),
         picture: null,
@@ -988,6 +966,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
     if (welle.einzelproduktItems) {
       setEinzelprodukte(welle.einzelproduktItems.map(e => ({
         id: e.id,
+        ...copyCatalogMeta(e),
         name: e.name,
         targetNumber: (e.targetNumber || 0).toString(),
         picture: null,
@@ -1059,6 +1038,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   });
 
   const handleOpenPastItems = (type: 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt') => {
+    if (type === 'display' || type === 'kartonware' || type === 'einzelprodukt') { setCatalogSelection({ type }); return; }
     setPastItemSearch('');
     setPastItemType(type);
     setIsPastItemsModalOpen(true);
@@ -1299,6 +1279,10 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 
   return (
     <div className={styles.vorbestellerPage}>
+      <button type="button" className={styles.addItemButton} onClick={() => setCatalogManager(true)}>Quartalspreise und historische Bewertung</button>
+      {catalogManager && <QuarterCatalogModal onClose={closeCatalogManager} onChanged={() => { void reloadCatalog(); }} />}
+      {catalogSelection && <QuarterCatalogModal type={catalogSelection.type} onSelect={selectCatalogItem} onClose={closeCatalogSelection} />}
+
       {/* Active Wellen */}
       {activeWellen.length > 0 && (
         <div className={styles.wellenSection}>
@@ -1571,16 +1555,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
       )}
 
       {/* Create Welle Modal */}
-      {priceCorrectionWelle && <WellePriceCorrectionModal
-        welleId={priceCorrectionWelle.id}
-        welleName={priceCorrectionWelle.name}
-        onDone={() => {
-          setPriceCorrectionWelle(null);
-          handleClose();
-          void wellenService.getAllWellen().then(setWellenList).catch(error => console.error('Error refreshing saved welle:', error));
-        }}
-      />}
-      {isCreateWelleModalOpen && !priceCorrectionWelle && ReactDOM.createPortal(
+      {isCreateWelleModalOpen && ReactDOM.createPortal(
         <div className={styles.modalOverlay}>
           <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="welle-editor-title">
             <div className={styles.modalHeader}>
@@ -2088,8 +2063,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               className={styles.input}
                               placeholder="z.B. Standard Display"
                               value={display.name}
+                              readOnly
                               onChange={(e) => updateDisplay(display.id, 'name', e.target.value)}
                             />
+                            <small>Art.-Nr. {display.artikelNr || 'noch nicht zugeordnet'}{display.catalogOrderPrice != null ? ` · €${Number(display.catalogOrderPrice).toFixed(2)} / Display` : ''}</small>
+                            <button type="button" className={styles.addItemButton} onClick={() => setCatalogSelection({ type: 'display', id: display.id })}>Katalogartikel auswählen</button>
                           </div>
                           <div className={styles.formSection}>
                             <label className={styles.label}>Anzahl Ziel</label>
@@ -2104,7 +2082,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                         </div>
 
                         {/* Item Value (only for value-based goals) */}
-                        {goalType === 'value' && (
+                        {(
                           <div className={styles.formSection}>
                             <label className={styles.label}>Wert pro Display (€)</label>
                             <input
@@ -2112,6 +2090,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               className={styles.input}
                               placeholder="z.B. 300"
                               value={display.itemValue || ''}
+                              readOnly
                               onChange={(e) => updateDisplay(display.id, 'itemValue', e.target.value)}
                               min="0"
                               step="0.01"
@@ -2202,8 +2181,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               className={styles.input}
                               placeholder="z.B. Standard Karton"
                               value={item.name}
+                              readOnly
                               onChange={(e) => updateKartonware(item.id, 'name', e.target.value)}
                             />
+                            <small>Art.-Nr. {item.artikelNr || 'noch nicht zugeordnet'}{item.catalogOrderPrice != null ? ` · €${Number(item.catalogOrderPrice).toFixed(2)} / VE` : ''}</small>
+                            <button type="button" className={styles.addItemButton} onClick={() => setCatalogSelection({ type: 'kartonware', id: item.id })}>Katalogartikel auswählen</button>
                           </div>
                           <div className={styles.formSection}>
                             <label className={styles.label}>Anzahl Ziel</label>
@@ -2218,7 +2200,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                         </div>
 
                         {/* Item Value (only for value-based goals) */}
-                        {goalType === 'value' && (
+                        {(
                           <div className={styles.formSection}>
                             <label className={styles.label}>Wert pro Kartonware (€)</label>
                             <input
@@ -2226,6 +2208,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               className={styles.input}
                               placeholder="z.B. 300"
                               value={item.itemValue || ''}
+                              readOnly
                               onChange={(e) => updateKartonware(item.id, 'itemValue', e.target.value)}
                               min="0"
                               step="0.01"
@@ -2602,8 +2585,11 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               className={styles.input}
                               placeholder="z.B. Whiskas Adult 400g"
                               value={produkt.name}
+                              readOnly
                               onChange={(e) => updateEinzelprodukt(produkt.id, 'name', e.target.value)}
                             />
+                            <small>Art.-Nr. {produkt.artikelNr || 'noch nicht zugeordnet'}{produkt.catalogOrderPrice != null ? ` · €${Number(produkt.catalogOrderPrice).toFixed(2)} / VE` : ''}</small>
+                            <button type="button" className={styles.addItemButton} onClick={() => setCatalogSelection({ type: 'einzelprodukt', id: produkt.id })}>Katalogartikel auswählen</button>
                           </div>
                           <div className={styles.formSection}>
                             <label className={styles.label}>Zielanzahl</label>
@@ -2625,6 +2611,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               className={styles.input}
                               placeholder="z.B. 123456"
                               value={produkt.artikelNr || ''}
+                              readOnly
                               onChange={(e) => updateEinzelprodukt(produkt.id, 'artikelNr', e.target.value)}
                             />
                           </div>
@@ -2635,12 +2622,13 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               className={styles.input}
                               placeholder="z.B. 12"
                               value={produkt.ve || ''}
+                              readOnly
                               onChange={(e) => updateEinzelprodukt(produkt.id, 've', e.target.value)}
                             />
                           </div>
                         </div>
 
-                        {goalType === 'value' && (
+                        {(
                           <div className={styles.formSection}>
                             <label className={styles.label}>Wert pro Stück (€)</label>
                             <input
@@ -2649,6 +2637,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
                               className={styles.input}
                               placeholder="z.B. 2.50"
                               value={produkt.itemValue || ''}
+                              readOnly
                               onChange={(e) => updateEinzelprodukt(produkt.id, 'itemValue', e.target.value)}
                             />
                           </div>
