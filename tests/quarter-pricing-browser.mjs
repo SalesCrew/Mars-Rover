@@ -116,6 +116,26 @@ try{
  assert.deepEqual((await h.db.query('select id from wellen_einzelprodukte where welle_id=$1',[created.id])).rows,previousIds);
  assert.equal(Number((await h.db.query("select value_per_unit from wellen_submissions where welle_id=$1 and item_type='display'",[created.id])).rows[0].value_per_unit),120);
  checks.push('historical preview reports missing evidence without writes, stale confirmation is rejected, editing a wave preserves article IDs and frozen booking prices');
+ // Actual admin UI applies a uniquely named legacy article, then shows no repeat changes.
+ const legacyWave=crypto.randomUUID(),legacyItem=crypto.randomUUID(),legacyBooking=crypto.randomUUID();
+ await h.db.query("insert into wellen(id,name,start_date,end_date,status,types,goal_type,goal_percentage) values($1,'Synthetic Legacy Price Wave',current_date,current_date,'active',ARRAY['display'],'percentage',80)",[legacyWave]);
+ await h.db.query("insert into wellen_displays(id,welle_id,name,item_value,target_number) values($1,$2,'Synthetic Display',null,10)",[legacyItem,legacyWave]);
+ await h.db.query("insert into wellen_submissions(id,welle_id,item_type,item_id,quantity,gebietsleiter_id) values($1,$2,'display',$3,1,$4)",[legacyBooking,legacyWave,legacyItem,actor]);
+ await page.goto(origin+'/tests/quarter-pricing-preview.html');await page.getByRole('button',{name:'Quartalspreise und historische Bewertung',exact:true}).click();
+ await page.getByRole('button',{name:'Historische Buchungspreise prüfen',exact:true}).click();
+ const applyButton=page.getByRole('button',{name:'1 geprüfte Buchungspreise übernehmen',exact:true});await applyButton.waitFor();
+ const [applied]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/catalog/reconciliation')&&r.request().method()==='POST'),applyButton.click()]);assert.equal(applied.status(),200);assert.equal((await applied.json()).updated,1);
+ const restored=(await h.db.query('select * from wellen_submissions where id=$1',[legacyBooking])).rows[0];assert.equal(restored.quantity,1);assert.equal(Number(restored.value_per_unit),120);assert.equal(restored.artikel_nr,'900001');assert.ok(restored.price_source_id);
+ assert.equal((await h.db.query('select count(*)::int as n from wave_quarter_price_audit')).rows[0].n,1);
+ await page.getByRole('button',{name:'Historische Buchungspreise prüfen',exact:true}).click();await page.getByRole('button',{name:'0 geprüfte Buchungspreise übernehmen',exact:true}).waitFor();
+ const approvalDate=`01.${String((period.quarter-1)*3+2).padStart(2,'0')}.${period.year}`,approvalBook=new ExcelJS.Workbook(),approvalSheet=approvalBook.addWorksheet('Einzelitems ab '+approvalDate);
+ for(const [cell,value]of Object.entries({B4:'Artikelbezeichnung',D4:'Inhalt pro VE',G4:'Art. Nr.',J4:'GH VE',B5:'Synthetic Approved Product',D5:6,G5:900099,J5:30}))approvalSheet.getCell(cell).value=value;
+ await page.getByLabel('Preisliste importieren').setInputFiles({name:'synthetic-approved.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(await approvalBook.xlsx.writeBuffer())});
+ const confirm=page.getByRole('button',{name:`Geprüfte Preisliste für Q${period.quarter} ${period.year} übernehmen`,exact:true});await page.getByPlaceholder('Bestätigt von … am …, gilt für …').waitFor();assert.equal(await confirm.isDisabled(),true);
+ const approval='Synthetic admin confirms this file for the entire quarter';await page.getByPlaceholder('Bestätigt von … am …, gilt für …').fill(approval);
+ const [approved]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/catalog/import')&&r.request().method()==='POST'),confirm.click()]);assert.equal(approved.status(),200);
+ assert.equal((await h.db.query("select source_note from quarter_price_imports where filename='synthetic-approved.xlsx'")).rows[0].source_note,approval);
+ checks.push('admin browser performs an audited legacy-price backfill with idempotent preview; a mid-quarter source requires explicit business approval and preserves that approval through API and SQL');
  await page.screenshot({path:output+'/initial.png',fullPage:true});
  checks.push('loopback-only browser loads actual wave editor and local database');
  console.log(JSON.stringify({checks,errors,blocked,dbErrors:h.errors},null,2));

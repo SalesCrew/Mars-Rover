@@ -32,6 +32,7 @@ export async function createQuarterPricingHarness(options = {}) {
       await db.query("update wellen_submissions set delivery_photo_url='data:image/png;base64,aA=='");
       await db.exec('create unique index synthetic_submission_batch on wellen_submissions(welle_id,gebietsleiter_id,submission_batch_id,item_type,item_id) where submission_batch_id is not null');
       await db.exec(await readFile(new URL('../../backend/supabase/migrations/20261112132449_wave_quarter_catalog.sql',import.meta.url),'utf8'));
+      await db.exec(await readFile(new URL('../../backend/supabase/migrations/20261112152854_wave_catalog_validity_and_exact_legacy_matches.sql',import.meta.url),'utf8'));
       const {year,quarter}=(await db.query("select extract(year from now() at time zone 'Europe/Vienna')::int as year,extract(quarter from now() at time zone 'Europe/Vienna')::int as quarter")).rows[0];
       const entries=[
         {department:'food',item_type:'display',artikel_nr:'900001',name:'Synthetic Display',units_per_ve:1,price_per_order:120,source_cell:'Synthetic!E5:H5'},

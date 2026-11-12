@@ -18,7 +18,7 @@ test('rejects the wrong quarter and contradictory duplicates before any API writ
 });
 test('skips hidden legacy sheets and delists; pet display and copack use distinct parent SKU columns',async()=>{
  const w=new ExcelJS.Workbook();const d=w.addWorksheet('Displays ab Q4 2026');d.getCell('H4').value='Art. Nr. Display';d.getCell('K4').value='Preis';d.getCell('A3').value='Gültig ab Q4 2026';d.getCell('A5').value='Synthetic Pet Display';d.getCell('A6').value='1/4 Display';d.getCell('C5').value=900101;d.getCell('H5').value=900102;d.getCell('K5').value=240;
- const c=w.addWorksheet('PC Copacks Sonderartikel Q4 26');c.getCell('J3').value='Artnr.';c.getCell('O3').value='GH*';c.getCell('A2').value='Gültig ab Q4 2026';c.getCell('A4').value='Synthetic Megapack';c.getCell('C4').value='1 Stück';c.getCell('D4').value=900103;c.getCell('J4').value=900104;c.getCell('O4').value=80;c.getCell('M4').value='Synthetic customer';
+ const c=w.addWorksheet('PC Copacks Sonderartikel Q4 26');c.getCell('J3').value='Artnr.';c.getCell('O3').value='GH*';c.getCell('A2').value='Gültig ab Q4 2026';c.getCell('A4').value='Synthetic Megapack';c.getCell('C4').value='1 Stück';c.getCell('D4').value=900103;c.getCell('J4').value=900104;c.getCell('O4').value=80;c.getCell('M3').value='Kunde';c.getCell('M4').value='Synthetic customer';
  w.addWorksheet('Tiernahrungsdisplays Q4',{state:'hidden'}).getCell('A3').value='Gültig ab Q4 2000';w.addWorksheet('DELISTS Q4 2026');
  const r=await parseQuarterPriceWorkbook(await file(w),2026,4);assert.equal(r.rows.length,2);assert.equal(r.rows[0].artikel_nr,'900102');assert.equal(r.rows[1].artikel_nr,'900104');assert.equal(r.rows[1].scope_note,'Synthetic customer');
 });
@@ -31,7 +31,18 @@ test('older pet layouts resolve article and VE price from headers, never mistake
 test('food special display uses row-four parent article and full display price',async()=>{
  const w=food(),s=w.addWorksheet(' Sonderpreisliste ab 01.10.2026');
  s.getCell('A1').value='Sonderpreisliste Nährmittel';s.getCell('E4').value='Artnr.';s.getCell('K4').value='Preis VE';
- s.getCell('A5').value='Synthetic Special Display';s.getCell('B5').value=900001;s.getCell('E5').value=900009;s.getCell('K5').value=132;s.getCell('H5').value='Synthetic customer';
+ s.getCell('A5').value='Synthetic Special Display';s.getCell('B5').value=900001;s.getCell('E5').value=900009;s.getCell('K5').value=132;s.getCell('H4').value='Kunde';s.getCell('H5').value='Synthetic customer';
  const result=await parseQuarterPriceWorkbook(await file(w),2026,4),special=result.rows.find(r=>r.artikel_nr==='900009');
  assert.equal(special.item_type,'display');assert.equal(special.department,'food');assert.equal(special.price_per_order,132);assert.equal(special.units_per_ve,1);assert.equal(special.scope_note,'Synthetic customer');
+});
+test('2025 pet parent columns and missing price are reported without fabricating a zero',async()=>{
+ const w=new ExcelJS.Workbook(),d=w.addWorksheet('Displays ab 01.10.2025');
+ for(const [cell,value]of Object.entries({A1:'Preisliste Tiernahrungsdisplays',A4:'Artikelbezeichnung',C4:'Art.Nr. Bestückung',F4:'Art.Nr. Display',I4:'Preis',A5:'Synthetic Old Display',C5:900001,F5:900777,I5:200}))d.getCell(cell).value=value;
+ const s=w.addWorksheet('PC Sonderartikel 01.10.2025');for(const [cell,value]of Object.entries({A2:'Gültig ab 01.10.2025',G3:'Artnr.',O3:'GH Packung',A5:'Synthetic Pack',C5:'6 Packungen',G5:900778,O5:36,A6:'Synthetic Unpriced',C6:'1 Stück',G6:900779}))s.getCell(cell).value=value;
+ const parsed=await parseQuarterPriceWorkbook(await file(w),2025,4);assert.equal(parsed.rows.length,2);assert.equal(parsed.rows[0].artikel_nr,'900777');assert.equal(parsed.rows[1].price_per_order,36);assert.equal(parsed.rows[1].source_valid_from,'2025-10-01');assert.equal(parsed.warnings.length,1);assert.match(parsed.warnings[0],/900779/);
+});
+test('Food header identifies Food specials; document start date remains separate from the target quarter',async()=>{
+ const w=new ExcelJS.Workbook(),s=w.addWorksheet(' Sonderpreisliste ab 01.02.2026');
+ for(const [cell,value]of Object.entries({A1:'Sonderpreisliste Food',E4:'Artnr.',K4:'Preis VE',A5:'Synthetic Food Display',E5:900888,K5:180}))s.getCell(cell).value=value;
+ const parsed=await parseQuarterPriceWorkbook(await file(w),2026,1);assert.equal(parsed.rows[0].department,'food');assert.equal(parsed.rows[0].source_valid_from,'2026-02-01');assert.equal(parsed.rows[0].price_per_order,180);
 });

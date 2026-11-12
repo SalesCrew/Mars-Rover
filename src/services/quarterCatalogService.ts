@@ -6,6 +6,8 @@ export interface CatalogEntry {
   department: 'food' | 'pets'; item_type: CatalogItemType; artikel_nr: string;
   name: string; units_per_ve: number; price_per_order: number; source_cell: string;
   scope_note?: string;
+  source_valid_from?: string;
+  source_note?: string;
 }
 export interface QuarterReconciliation {
   token: string; count: number; updated: number;

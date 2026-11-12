@@ -9,8 +9,9 @@ export function QuarterCatalogModal({ type, onSelect, onClose, onChanged }: Prop
   const [year,setYear]=useState(Number(current.find(p=>p.type==='year')!.value));
   const [quarter,setQuarter]=useState(Math.ceil(Number(current.find(p=>p.type==='month')!.value)/3));
   const [entries,setEntries]=useState<CatalogEntry[]>([]),[search,setSearch]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
-  const [upload,setUpload]=useState<{filename:string;sha256:string;rows:CatalogEntry[]}|null>(null);
+  const [upload,setUpload]=useState<{filename:string;sha256:string;rows:CatalogEntry[];warnings:string[]}|null>(null);
   const [preview,setPreview]=useState<QuarterReconciliation|null>(null);
+  const [sourceApproval,setSourceApproval]=useState('');
   const input=useRef<HTMLInputElement>(null);
   const dialog=useRef<HTMLElement>(null);
   useEffect(()=>{
@@ -26,10 +27,12 @@ export function QuarterCatalogModal({ type, onSelect, onClose, onChanged }: Prop
     document.addEventListener('keydown',key);
     return()=>{document.removeEventListener('keydown',key);document.body.style.overflow=overflow;if(previous instanceof HTMLElement&&previous.isConnected)previous.focus();};
   },[onClose]);
-  useEffect(()=>{let active=true;setError('');setBusy(true);setUpload(null);quarterCatalogService.list(year,quarter).then(r=>{if(active)setEntries(r.items);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setBusy(false);});return()=>{active=false;};},[year,quarter]);
+  useEffect(()=>{let active=true;setError('');setBusy(true);setUpload(null);setSourceApproval('');quarterCatalogService.list(year,quarter).then(r=>{if(active)setEntries(r.items);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setBusy(false);});return()=>{active=false;};},[year,quarter]);
   const filtered=entries.filter(e=>(!type||e.item_type===type)&&`${e.artikel_nr} ${e.name}`.toLowerCase().includes(search.toLowerCase()));
   const price=(n:number)=>Number(n).toLocaleString('de-AT',{style:'currency',currency:'EUR'});
   const label=type==='display'?'Display':type==='kartonware'?'Kartonware':type==='einzelprodukt'?'Einzelprodukt':'Quartalspreise';
+  const quarterStart=`${year}-${String((quarter-1)*3+1).padStart(2,'0')}-01`;
+  const needsApproval=upload?.rows.some(row=>row.source_valid_from&&row.source_valid_from!==quarterStart);
   const work=async(fn:()=>Promise<void>)=>{setBusy(true);setError('');try{await fn();}catch(e){setError(e instanceof Error?e.message:'Aktion fehlgeschlagen.');}finally{setBusy(false);}};
   const downloadReport=()=>{
     if(!preview)return;
@@ -51,8 +54,10 @@ export function QuarterCatalogModal({ type, onSelect, onClose, onChanged }: Prop
       </div>
       {error&&<p role="alert" className={styles.error}>{error}</p>}{message&&<p role="status">{message}</p>}
       {!type&&<div className={styles.import}>
-        <label>Preisliste importieren<input type="file" accept=".xlsx" disabled={busy} onChange={e=>{const file=e.target.files?.[0];if(file)void work(async()=>{const { parseQuarterPriceWorkbook } = await import('../../utils/quarterPriceWorkbook');const parsed=await parseQuarterPriceWorkbook(file,year,quarter);setUpload({filename:file.name,...parsed});setMessage(`${parsed.rows.length} Katalogeinträge aus ${file.name} geprüft. Noch nicht gespeichert.`);});e.target.value='';}}/></label>
-        {upload&&<button disabled={busy} onClick={()=>void work(async()=>{const result=await quarterCatalogService.import({year,quarter,...upload});setMessage(`${result.inserted} Einträge importiert, ${result.unchanged} bereits identisch vorhanden.`);setUpload(null);setEntries((await quarterCatalogService.list(year,quarter)).items);onChanged?.();})}>Geprüfte Preisliste für Q{quarter} {year} übernehmen</button>}
+        <label>Preisliste importieren<input type="file" accept=".xlsx" disabled={busy} onChange={e=>{const file=e.target.files?.[0];if(file)void work(async()=>{setSourceApproval('');setUpload(null);const { parseQuarterPriceWorkbook } = await import('../../utils/quarterPriceWorkbook');const parsed=await parseQuarterPriceWorkbook(file,year,quarter);setUpload({filename:file.name,...parsed});setMessage(`${parsed.rows.length} Katalogeinträge aus ${file.name} geprüft. Noch nicht gespeichert.${parsed.warnings.length?` ${parsed.warnings.length} Quellenzeilen ohne Preis werden ausgelassen.`:''}`);});e.target.value='';}}/></label>
+        {!!upload?.warnings.length&&<div role="alert">{upload.warnings.map(warning=><p key={warning}>{warning}</p>)}</div>}
+        {needsApproval&&<label>Freigabe für das gesamte Quartal<p>Der Gültigkeitsbeginn der Datei weicht vom Quartalsbeginn ab. Bitte die bestätigte Zuordnung und die Quelle der Freigabe dokumentieren.</p><input value={sourceApproval} maxLength={2000} onChange={e=>setSourceApproval(e.target.value)} placeholder="Bestätigt von … am …, gilt für …"/></label>}
+        {upload&&<button disabled={busy||!!needsApproval&&!sourceApproval.trim()} onClick={()=>void work(async()=>{const result=await quarterCatalogService.import({year,quarter,...upload,rows:upload.rows.map(row=>({...row,source_note:needsApproval?sourceApproval.trim():row.source_note}))});setMessage(`${result.inserted} Einträge importiert, ${result.unchanged} bereits identisch vorhanden.`);setUpload(null);setSourceApproval('');setEntries((await quarterCatalogService.list(year,quarter)).items);onChanged?.();})}>Geprüfte Preisliste für Q{quarter} {year} übernehmen</button>}
         <button disabled={busy} onClick={()=>void work(async()=>{setPreview(await quarterCatalogService.preview());})}>Historische Buchungspreise prüfen</button>
       </div>}
       {preview&&<section className={styles.preview}><h3>Historische Preisvorschau</h3><p>{preview.count} Buchungen können anhand belegter Quartalspreise abgeglichen werden. {preview.unresolved.length} Buchungen bleiben wegen fehlender Zuordnung oder Preisbelege unverändert.</p>
