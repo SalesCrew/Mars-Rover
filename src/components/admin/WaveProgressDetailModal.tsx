@@ -9,6 +9,7 @@ import { marketService } from '../../services/marketService';
 import type { AdminMarket } from '../../types/market-types';
 import { CustomDatePicker } from './CustomDatePicker';
 import styles from './WaveProgressDetailModal.module.css';
+import { orderPieces, parseOrderVe, waveOrderVe } from '../../utils/orderUnits';
 
 const AdminTimePicker: React.FC<{ value: string; onChange: (v: string) => void }> = ({ value, onChange }) => {
   const [open, setOpen] = useState<'hour' | 'minute' | null>(null);
@@ -179,6 +180,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState<number>(0);
+  const [editVeSize, setEditVeSize] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
 
   // Foto-only states
@@ -395,7 +397,10 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
   const startEditing = (progress: GLProgress, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingId(progress.id);
-    setEditQuantity(progress.quantity);
+    const units = progress.itemType === 'einzelprodukt' ? parseOrderVe(progress.ve) : null;
+    const ve = units && progress.quantity % units === 0 ? units : 1;
+    setEditVeSize(ve);
+    setEditQuantity(progress.quantity / ve);
   };
 
   // Cancel editing
@@ -412,18 +417,19 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
     try {
       // For palette/schuette, the ID might be comma-separated
       const ids = progressId.split(',');
+      const pieces = orderPieces(editQuantity, editVeSize);
       
       if (ids.length === 1) {
-        await wellenService.updateSubmission(progressId, editQuantity);
+        await wellenService.updateSubmission(progressId, pieces);
       } else {
         // For grouped entries, update each individually proportionally
         // For now, we'll just handle single entries
-        await wellenService.updateSubmission(ids[0], editQuantity);
+        await wellenService.updateSubmission(ids[0], pieces);
       }
       
       // Update local state
       setProgressData(prev => prev.map(p => 
-        p.id === progressId ? { ...p, quantity: editQuantity } : p
+        p.id === progressId ? { ...p, quantity: pieces, value: p.quantity > 0 ? p.value / p.quantity * pieces : p.value } : p
       ));
       
       setEditingId(null);
@@ -570,18 +576,18 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
     let value = 0;
     if (!adminFullWave) return { count, value };
 
-    const addSimple = (items: Array<{ id: string; itemValue?: number | null; catalogKey?: string | null; catalogVeSize?: number | null; catalogOrderPrice?: number | null }> | undefined) => {
+    const addSimple = (items: Array<{ id: string; itemValue?: number | null; ve?: number | string | null; catalogKey?: string | null; catalogVeSize?: number | null; catalogOrderPrice?: number | null }> | undefined, individual = false) => {
       items?.forEach(item => {
         const qty = adminItemQty[item.id] || 0;
         if (qty > 0) {
           count += qty;
-          value += qty * (item.catalogOrderPrice ?? item.itemValue ?? 0);
+          value += qty * (item.catalogOrderPrice ?? (Number(item.itemValue || 0) * (individual ? waveOrderVe(item) ?? 0 : 1)));
         }
       });
     };
     addSimple(adminFullWave.displays);
     addSimple(adminFullWave.kartonwareItems);
-    addSimple(adminFullWave.einzelproduktItems);
+    addSimple(adminFullWave.einzelproduktItems, true);
 
     const addNested = (groups: Array<{ id: string; products: Array<{ id: string; valuePerVE: number }> }> | undefined) => {
       groups?.forEach(group => {
@@ -642,11 +648,11 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
         type ItemType = 'display' | 'kartonware' | 'palette' | 'schuette' | 'einzelprodukt';
         const items: Array<{ item_type: ItemType; item_id: string; current_number: number; value_per_unit?: number }> = [];
 
-        const addSimple = (type: ItemType, list: Array<{ id: string; itemValue?: number | null; catalogKey?: string | null; catalogVeSize?: number | null; catalogOrderPrice?: number | null }> | undefined) => {
+        const addSimple = (type: ItemType, list: Array<{ id: string; itemValue?: number | null; ve?: number | string | null; catalogKey?: string | null; catalogVeSize?: number | null; catalogOrderPrice?: number | null }> | undefined) => {
           list?.forEach(item => {
             const qty = adminItemQty[item.id] || 0;
             if (qty > 0) {
-              items.push({ item_type: type, item_id: item.id, current_number: type === 'einzelprodukt' && item.catalogKey ? qty * (item.catalogVeSize || 1) : qty, value_per_unit: item.itemValue || 0 });
+              items.push({ item_type: type, item_id: item.id, current_number: type === 'einzelprodukt' ? orderPieces(qty, waveOrderVe(item)) : qty, value_per_unit: item.itemValue || 0 });
             }
           });
         };
@@ -804,7 +810,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                   <button 
                     className={styles.saveBtn}
                     onClick={() => saveQuantity(progress.id)}
-                    disabled={isSaving}
+                    disabled={isSaving || editQuantity < 1}
                     title="Speichern"
                   >
                     <Check size={14} weight="bold" />
@@ -828,7 +834,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
             ) : (
               <>
                 <div className={styles.entryQuantity} onClick={(e) => startEditing(progress, e)}>
-                  <span className={styles.quantityValue}>{progress.quantity}x</span>
+                  <span className={styles.quantityValue}>{progress.itemType === 'einzelprodukt' && parseOrderVe(progress.ve) && progress.quantity % (parseOrderVe(progress.ve) || 1) === 0 ? `${progress.quantity / (parseOrderVe(progress.ve) || 1)} VE` : `${progress.quantity}x`}</span>
                 </div>
                 {progress.value > 0 && (
                   <div className={styles.entryValue}>
@@ -1253,18 +1259,18 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                     )}
                     {adminFullWave?.einzelproduktItems && adminFullWave.einzelproduktItems.length > 0 && (
                       <div className={styles.adminItemGroup}>
-                        <h4 className={styles.adminItemGroupTitle}>Einzelprodukte</h4>
+                        <h4 className={styles.adminItemGroupTitle}>Einzelprodukte · Mengen in VE</h4>
                         {adminFullWave.einzelproduktItems.map(item => (
                           <div key={item.id} className={styles.adminItemRow}>
                             <div className={styles.adminItemRowInfo}>
                               <span className={styles.adminItemRowName}>{item.name}</span>
                               {formatArticleVeMeta(item) && <span className={styles.adminItemRowMeta}>{formatArticleVeMeta(item)}</span>}
-                              {(item.catalogOrderPrice ?? item.itemValue ?? 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.catalogOrderPrice ?? item.itemValue ?? 0).toFixed(2)}/{item.catalogKey ? `VE (${item.catalogVeSize} Stk)` : 'Stk'}</span>}
+                              {waveOrderVe(item) ? <span className={styles.adminItemRowValue}>€{Number(item.catalogOrderPrice ?? Number(item.itemValue || 0) * (waveOrderVe(item) || 0)).toFixed(2)}/VE ({waveOrderVe(item)} Stk)</span> : <span className={styles.adminItemRowValue}>VE fehlt</span>}
                             </div>
                             <div className={styles.adminItemRowControls}>
-                              <button onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, (p[item.id] || 0) - 1) }))} disabled={(adminItemQty[item.id] || 0) <= 0}><Minus size={14} weight="bold" /></button>
-                              <input type="number" value={adminItemQty[item.id] || 0} onChange={e => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, parseInt(e.target.value) || 0) }))} min={0} />
-                              <button onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: (p[item.id] || 0) + 1 }))}><Plus size={14} weight="bold" /></button>
+                              <button onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, (p[item.id] || 0) - 1) }))} disabled={!waveOrderVe(item) || (adminItemQty[item.id] || 0) <= 0}><Minus size={14} weight="bold" /></button>
+                              <input type="number" aria-label="Menge in VE" disabled={!waveOrderVe(item)} value={adminItemQty[item.id] || 0} onChange={e => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, parseInt(e.target.value) || 0) }))} min={0} />
+                              <button disabled={!waveOrderVe(item)} onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: (p[item.id] || 0) + 1 }))}><Plus size={14} weight="bold" /></button>
                             </div>
                           </div>
                         ))}
@@ -1354,7 +1360,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                     <span className={styles.adminSummaryValue}>
                       {adminFullWave?.fotoOnly
                         ? `${adminFotoPhotos.length} Foto${adminFotoPhotos.length !== 1 ? 's' : ''}`
-                        : `${adminItemsTotal.count} Stk – €${adminItemsTotal.value.toLocaleString('de-DE', { minimumFractionDigits: 2 })}`}
+                        : `${adminItemsTotal.count} Bestelleinheiten – €${adminItemsTotal.value.toLocaleString('de-DE', { minimumFractionDigits: 2 })}`}
                     </span>
                   </div>
                 </div>

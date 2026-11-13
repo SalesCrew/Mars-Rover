@@ -22,6 +22,7 @@ import { produktersatzService, type ProduktErsatzEntry } from '../../services/pr
 import { VorbestellerModal } from './VorbestellerModal';
 import FragebogenHistorySection from './FragebogenHistorySection';
 import styles from './VorbestellerHistoryPage.module.css';
+import { orderPieces, parseOrderVe, waveOrderVe } from '../../utils/orderUnits';
 
 // ============================================================================
 // TYPES
@@ -97,6 +98,7 @@ interface SelectedItem {
   name: string;
   valuePerUnit: number;
   quantity: number;
+  veSize?: number;
 }
 
 interface AddState {
@@ -214,6 +216,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
   // Edit
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editQty, setEditQty] = useState(0);
+  const [editVeSize, setEditVeSize] = useState(1);
   const [saving, setSaving] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -403,8 +406,8 @@ export const VorbestellerHistoryPage: React.FC = () => {
   }, []);
 
   // ---- EDIT ----
-  const startEdit = useCallback((id: string, qty: number) => {
-    setEditingId(id); setEditQty(qty); setConfirmDeleteId(null); setAddState(null);
+  const startEdit = useCallback((id: string, qty: number, veSize = 1) => {
+    setEditingId(id); setEditQty(qty); setEditVeSize(veSize); setConfirmDeleteId(null); setAddState(null);
   }, []);
   const cancelEdit = useCallback(() => {
     setEditingId(null); setEditQty(0); setConfirmDeleteId(null);
@@ -414,12 +417,12 @@ export const VorbestellerHistoryPage: React.FC = () => {
     if (editQty < 1) return;
     setSaving(true);
     try {
-      await wellenService.updateSubmission(submissionId, editQty);
+      await wellenService.updateSubmission(submissionId, orderPieces(editQty, editVeSize));
       setEditingId(null);
       await refetchWave(waveId);
     } catch (e) { console.error(e); alert('Fehler beim Speichern'); }
     finally { setSaving(false); }
-  }, [editQty, refetchWave]);
+  }, [editQty, editVeSize, refetchWave]);
 
   const handleDelete = useCallback(async (submissionId: string, waveId: string) => {
     setSaving(true);
@@ -449,14 +452,14 @@ export const VorbestellerHistoryPage: React.FC = () => {
     await fetchWavePhotoMarkets(waveId, true);
   }, [fetchWavePhotoMarkets]);
 
-  const toggleSelectItem = useCallback((id: string, name: string, valuePerUnit: number) => {
+  const toggleSelectItem = useCallback((id: string, name: string, valuePerUnit: number, veSize?: number) => {
     setAddState(prev => {
       if (!prev) return null;
       const exists = prev.selectedItems.find(i => i.id === id);
       if (exists) {
         return { ...prev, selectedItems: prev.selectedItems.filter(i => i.id !== id) };
       }
-      return { ...prev, selectedItems: [...prev.selectedItems, { id, name, valuePerUnit, quantity: 1 }] };
+      return { ...prev, selectedItems: [...prev.selectedItems, { id, name, valuePerUnit, quantity: 1, veSize }] };
     });
   }, []);
 
@@ -477,7 +480,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
         const entry: any = {
           item_type: addState.itemType,
           item_id: i.id,
-          current_number: i.quantity,
+          current_number: addState.itemType === 'einzelprodukt' ? orderPieces(i.quantity, i.veSize) : i.quantity,
         };
         if ((addState.itemType === 'palette' || addState.itemType === 'schuette') && i.valuePerUnit) {
           entry.value_per_unit = i.valuePerUnit;
@@ -545,7 +548,9 @@ export const VorbestellerHistoryPage: React.FC = () => {
   }, [submissionsByWave, photoMarketsByWave]);
 
   // ---- RENDER: QUANTITY STEPPER ----
-  const renderQuantity = (id: string, qty: number, waveId: string, dayDate: string, isSubItem?: boolean) => {
+  const renderQuantity = (id: string, qty: number, waveId: string, dayDate: string, isSubItem?: boolean, units?: number | null) => {
+    const inVe = !!units && qty % units === 0;
+    const shownQty = inVe ? qty / units : qty;
     const editable = isWithinEditWindow(dayDate);
     
     if (editingId === id && editable) {
@@ -565,7 +570,8 @@ export const VorbestellerHistoryPage: React.FC = () => {
                 const n = parseInt(v, 10);
                 if (!isNaN(n) && n >= 0) setEditQty(n);
               }}
-              placeholder="0"
+              placeholder={inVe ? 'VE' : '0'}
+              aria-label={inVe ? 'Menge in VE' : 'Menge'}
             />
             <button className={styles.quantityButton} onClick={() => setEditQty(editQty + 1)}>
               <Plus size={14} weight="bold" />
@@ -588,10 +594,10 @@ export const VorbestellerHistoryPage: React.FC = () => {
     return (
       <span
         className={isSubItem ? styles.subItemQty : styles.itemQuantity}
-        onClick={editable ? () => startEdit(id, qty) : undefined}
+        onClick={editable ? () => startEdit(id, shownQty, inVe ? units : 1) : undefined}
         style={editable ? undefined : { cursor: 'default' }}
       >
-        {qty}x
+        {shownQty}{inVe ? ' VE' : 'x'}
       </span>
     );
   };
@@ -785,11 +791,12 @@ export const VorbestellerHistoryPage: React.FC = () => {
               <button
                 key={item.id}
                 className={`${styles.itemOption} ${selectedIds.has(item.id) ? styles.itemOptionSelected : ''}`}
-                onClick={() => toggleSelectItem(item.id, item.name, item.itemValue || 0)}
+                disabled={addState.itemType === 'einzelprodukt' && waveOrderVe(item) === null}
+                onClick={() => toggleSelectItem(item.id, item.name, addState.itemType === 'einzelprodukt' ? Number(item.catalogOrderPrice ?? (Number(item.itemValue || 0) * (waveOrderVe(item) || 0))) : Number(item.itemValue || 0), addState.itemType === 'einzelprodukt' ? waveOrderVe(item) ?? undefined : undefined)}
               >
                 <span className={styles.itemOptionName}>{item.name}</span>
                 {addState.itemType === 'einzelprodukt' && formatArticleVeMeta(item) ? <span className={styles.itemOptionMeta}>{formatArticleVeMeta(item)}</span> : null}
-                {item.itemValue ? <span className={styles.itemOptionMeta}>{formatValue(item.itemValue)}</span> : null}
+                {addState.itemType === 'einzelprodukt' ? <span className={styles.itemOptionMeta}>{waveOrderVe(item) ? `Menge in VE · ${formatValue(Number(item.catalogOrderPrice ?? Number(item.itemValue || 0) * (waveOrderVe(item) || 0)))}/VE` : 'VE fehlt'}</span> : item.itemValue ? <span className={styles.itemOptionMeta}>{formatValue(item.itemValue)}</span> : null}
                 {selectedIds.has(item.id) && <Check size={14} weight="bold" className={styles.itemOptionCheck} />}
               </button>
             ))}
@@ -817,7 +824,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
             <button className={styles.addRowBack} onClick={() => setAddState(prev => prev ? { ...prev, step: backStep } : null)}>
               <CaretRight size={12} weight="bold" style={{ transform: 'rotate(180deg)' }} />
             </button>
-            <span className={styles.addRowTitle}>Mengen festlegen</span>
+            <span className={styles.addRowTitle}>{addState.itemType === 'einzelprodukt' ? 'Mengen in VE festlegen' : 'Mengen festlegen'}</span>
             <button className={styles.addRowClose} onClick={cancelAdd}><X size={14} weight="bold" /></button>
           </div>
           <div className={styles.addItemsList}>
@@ -1053,7 +1060,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
                                             </div>
                                           )}
                                         </div>
-                                        {!hasSubs && renderQuantity(entry.id, entry.quantity, wave.id, day.date)}
+                                        {!hasSubs && renderQuantity(entry.id, entry.quantity, wave.id, day.date, false, entry.itemType === 'einzelprodukt' ? parseOrderVe(entry.ve) : null)}
                                         <span className={`${styles.itemValue} ${entry.value > 0 ? styles.itemValueCash : styles.itemValueCount}`}>
                                           {entry.value > 0 ? formatValue(entry.value) : `${entry.quantity} Stk`}
                                         </span>

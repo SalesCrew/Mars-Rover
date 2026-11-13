@@ -33,6 +33,7 @@ export async function createQuarterPricingHarness(options = {}) {
       await db.exec('create unique index synthetic_submission_batch on wellen_submissions(welle_id,gebietsleiter_id,submission_batch_id,item_type,item_id) where submission_batch_id is not null');
       await db.exec(await readFile(new URL('../../backend/supabase/migrations/20261112132449_wave_quarter_catalog.sql',import.meta.url),'utf8'));
       await db.exec(await readFile(new URL('../../backend/supabase/migrations/20261112152854_wave_catalog_validity_and_exact_legacy_matches.sql',import.meta.url),'utf8'));
+      await db.exec(await readFile(new URL('../../backend/supabase/migrations/20261113091431_wave_single_products_always_ve.sql',import.meta.url),'utf8'));
       const {year,quarter}=(await db.query("select extract(year from now() at time zone 'Europe/Vienna')::int as year,extract(quarter from now() at time zone 'Europe/Vienna')::int as quarter")).rows[0];
       const entries=[
         {department:'food',item_type:'display',artikel_nr:'900001',name:'Synthetic Display',units_per_ve:1,price_per_order:120,source_cell:'Synthetic!E5:H5'},
@@ -40,6 +41,7 @@ export async function createQuarterPricingHarness(options = {}) {
         {department:'food',item_type:'einzelprodukt',artikel_nr:'900003',name:'Synthetic Single Product',units_per_ve:6,price_per_order:18,source_cell:'Synthetic!H7:K7'},
       ];
       if(options.seedCatalog !== false) await db.query('select import_quarter_prices($1,$2,$3,$4,$5,$6)',[year,quarter,'synthetic-current.xlsx','b'.repeat(64),JSON.stringify(entries),actor]);
+      await options.prepareData?.(db);
     },
     configureApp:async(app,db)=>{
       app.get('/api/markets',async(_req,res)=>res.json((await db.query('select *,gebietsleiter_id as gebietsleiter from markets')).rows.map(r=>({...r,isActive:r.is_active,postalCode:r.postal_code,internalId:r.internal_id}))));
@@ -48,6 +50,7 @@ export async function createQuarterPricingHarness(options = {}) {
       const {default:exports}=await import('../../backend/src/routes/export.ts');
       const {requireAdmin}=await import('../../backend/src/middleware/auth.ts');
       app.use('/api/export',requireAdmin,exports);
+      await options.configureApp?.(app,db);
     },
   });
 }

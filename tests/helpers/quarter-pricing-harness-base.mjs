@@ -76,6 +76,7 @@ export async function createQuarterPricingHarnessBase(options = {}) {
 
   await options.prepareData?.(db);
   const tables=(await db.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows.map(r=>r.tablename);
+  const numericColumns=new Set((await db.query("select table_name,column_name from information_schema.columns where table_schema='public' and data_type='numeric'")).rows.map(r=>r.table_name+'.'+r.column_name));
   const snapshot = async () => Object.fromEntries(await Promise.all(tables.map(async table => [table,
     (await db.query(`select * from ${ident(table)} order by to_jsonb(${ident(table)})::text`)).rows])));
   const writes=[], errors=[], calls=[];
@@ -119,7 +120,7 @@ export async function createQuarterPricingHarnessBase(options = {}) {
       } else throw new Error(`Unexpected fixture mutation: ${req.method}`);
       // PostgREST emits SQL DATE as YYYY-MM-DD, whereas PGlite returns Date objects.
       rows=rows.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[
-        key,['start_date','end_date'].includes(key)&&value instanceof Date?value.toISOString().slice(0,10):value
+        key,['start_date','end_date'].includes(key)&&value instanceof Date?value.toISOString().slice(0,10):numericColumns.has(table+'.'+key)&&value!==null?Number(value):value
       ])));
       const single=req.headers.accept?.includes('application/vnd.pgrst.object');
       res.status(req.method==='POST'?201:200).json(single?rows[0]??null:rows);
@@ -156,7 +157,11 @@ export async function createQuarterPricingHarnessBase(options = {}) {
     if(controls.failList&&req.method==='GET'&&req.path==='/api/wellen')return res.status(503).json({error:'Isolated list failure'});
     next();
   });
-  app.get('/api/products',(_req,res)=>res.json([]));
+  app.get('/api/products',async(_req,res)=>{
+    if(!tables.includes('products'))return res.json([]);
+    const products=(await db.query('select * from products')).rows;
+    res.json(products.map(p=>({...p,price:Number(p.price||0),palletSize:p.pallet_size,artikelNr:p.artikel_nr,productType:p.product_type,isActive:p.is_active})));
+  });
   await options.configureApp?.(app,db);
   app.use('/api/wellen',wellen);
   const api=await listen(app);

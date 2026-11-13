@@ -15,6 +15,7 @@ import { getProductArticleLabel, productMatchesSearch } from '../../utils/produc
 import { ApiError } from '../../utils/apiErrors';
 import { quarterCatalogService, hydrateWaveCatalog, type CatalogEntry } from '../../services/quarterCatalogService';
 import type { WaveCatalogMeta } from '../../services/wellenService';
+import { parseOrderVe } from '../../utils/orderUnits';
 
 interface VorbestellerModalProps {
   isOpen: boolean;
@@ -85,7 +86,6 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   const [masterProducts, setMasterProducts] = useState<Product[]>([]);
   const [showAllProducts, setShowAllProducts] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
-  const [submitEinzelprodukteAsVe, setSubmitEinzelprodukteAsVe] = useState(false);
   const [bookingCatalog, setBookingCatalog] = useState<CatalogEntry[]>([]);
   const [bookingCatalogError, setBookingCatalogError] = useState('');
   const [bookingCatalogLoading, setBookingCatalogLoading] = useState(false);
@@ -249,12 +249,9 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     }
   }, [selectedVorbestellerRaw]);
 
-  useEffect(() => {
-    setSubmitEinzelprodukteAsVe(Boolean(selectedVorbestellerRaw?.catalogPricingRequired));
-  }, [selectedCardId, selectedVorbestellerRaw?.catalogPricingRequired]);
-
   const normalizeProductName = (name: string): string =>
     name
+      .replace(/[™®]/g, '')
       .normalize('NFKD')
       .replace(/[\u2018\u2019`´]/g, "'")
       .replace(/\s+/g, ' ')
@@ -274,37 +271,27 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   };
 
   const parseVeUnits = (value?: string | number | null): number | null => {
-    const normalizedValue = normalizeVeValue(value);
-    if (normalizedValue === null) return null;
-
-    if (typeof normalizedValue === 'number') {
-      return Number.isInteger(normalizedValue) && normalizedValue > 0 ? normalizedValue : null;
-    }
-
-    const numericText = String(normalizedValue).trim();
-    const numericMatch = numericText.match(/^(\d+(?:[.,]\d+)?)(?:\s*(?:stk|stück|stueck|einheit|einheiten))?$/i);
-    if (!numericMatch) return null;
-
-    const parsedValue = Number(numericMatch[1].replace(',', '.'));
-    return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
+    return parseOrderVe(value);
   };
 
-  const resolveProductVeValue = (content?: string | number | null, palletSize?: number): number | string | null => {
+  const resolveProductVeValue = (content?: string | number | null): number | string | null => {
     const veFromContent = normalizeVeValue(content);
     if (parseVeUnits(veFromContent) !== null) {
       return veFromContent;
     }
-    return Number.isInteger(palletSize) && Number(palletSize) > 0 ? Number(palletSize) : null;
+    return null;
   };
 
   const masterProductVeByName = useMemo(() => {
-    const map = new Map<string, string | number>();
+    const map = new Map<string, string | number | null>();
     masterProducts.forEach((product) => {
       const key = normalizeProductName(product.name);
       if (!key) return;
-      const resolvedVe = resolveProductVeValue(product.content, product.palletSize);
+      const resolvedVe = resolveProductVeValue(product.content);
       if (resolvedVe !== null && !map.has(key)) {
         map.set(key, resolvedVe);
+      } else if (resolvedVe !== null && parseVeUnits(map.get(key)) !== parseVeUnits(resolvedVe)) {
+        map.set(key, null);
       }
     });
     return map;
@@ -319,7 +306,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
   };
 
   const resolveMasterProductVe = (product: Product): number | string | null => {
-    return resolveProductVeValue(product.content, product.palletSize);
+    return resolveProductVeValue(product.content);
   };
 
   const getEinzelproduktVeUnits = (item: Pick<WelleEinzelprodukt, 'name' | 've' | 'catalogVeSize' | 'catalogKey'>): number | null =>
@@ -330,19 +317,19 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
 
   const getSubmittedEinzelproduktQuantity = (item: Pick<WelleEinzelprodukt, 'name' | 've' | 'catalogVeSize' | 'catalogKey'>, quantity: number): number => {
     const veUnits = getEinzelproduktVeUnits(item);
-    return (item.catalogKey || submitEinzelprodukteAsVe) && veUnits !== null ? quantity * veUnits : quantity;
+    return quantity * (veUnits ?? 0);
   };
 
   const getSubmittedMasterProductQuantity = (product: Product, quantity: number): number => {
     const veUnits = getMasterProductVeUnits(product);
-    return submitEinzelprodukteAsVe && veUnits !== null ? quantity * veUnits : quantity;
+    return quantity * (veUnits ?? 0);
   };
 
   const formatSubmittedQuantity = (quantity: number, submittedQuantity: number, veUnits: number | null): string => {
-    if (submitEinzelprodukteAsVe && veUnits !== null) {
+    if (veUnits !== null) {
       return `${quantity} VE x ${veUnits} = ${submittedQuantity} Stück`;
     }
-    return `${quantity} Stück`;
+    return 'VE fehlt';
   };
 
   const renderItemMeta = (
@@ -358,10 +345,11 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
       parts.push(`Art.-Nr. ${item.artikelNr}`);
     }
     if (item.itemValue !== null && item.itemValue !== undefined) {
-      parts.push(`€${item.itemValue.toFixed(2)} / Stück`);
+      const units = parseOrderVe(ve);
+      parts.push(`€${(Number(item.itemValue) * (units ?? 1)).toFixed(2)} / ${units ? 'VE' : 'Stück'}`);
     }
     if (ve !== null && ve !== undefined && String(ve).trim() !== '') {
-      parts.push(`VE: ${ve}`);
+      parts.push(`1 VE = ${ve} Stück`);
     }
     return parts.join(' · ');
   };
@@ -377,11 +365,11 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     });
     selectedVorbesteller?.einzelproduktItems?.forEach(item => {
       const qty = itemQuantities[item.id] || 0;
-      total += getSubmittedEinzelproduktQuantity(item, qty);
+      total += qty;
     });
     masterProducts.forEach(product => {
       const qty = itemQuantities[`master-${product.id}`] || 0;
-      total += getSubmittedMasterProductQuantity(product, qty);
+      total += qty;
     });
     selectedVorbesteller?.paletteItems?.forEach(palette => {
       palette.products.forEach(product => {
@@ -708,6 +696,9 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     setIsSubmitting(true);
     
     try {
+      const missingVe = selectedVorbesteller?.einzelproduktItems?.some(item => (itemQuantities[item.id] || 0) > 0 && getEinzelproduktVeUnits(item) === null)
+        || masterProducts.some(product => (itemQuantities[`master-${product.id}`] || 0) > 0 && getMasterProductVeUnits(product) === null);
+      if (missingVe) throw new Error('Für einen gewählten Artikel fehlt die VE. Bitte die VE beim Artikel hinterlegen lassen.');
       if (hasCatalogItems && (bookingCatalogError || bookingCatalogLoading || selectedPriceMissing)) throw new Error(bookingCatalogError || 'Für die Auswahl fehlen aktuelle Quartalspreise. Bitte erneut laden.');
       // Prepare items array with only items that have quantities > 0
       const items: Array<{
@@ -914,7 +905,6 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     setSearchQuery('');
     setCapturedPhoto(null);
     setItemSearchQuery('');
-    setSubmitEinzelprodukteAsVe(false);
     setIsSubmitting(false);
     setIsSubmitCompleted(false);
     setShowSuccess(false);
@@ -1010,7 +1000,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                   </div>
                   <div className={styles.successStatInfo}>
                     <div className={styles.successStatValue}>{totalQuantity}</div>
-                    <div className={styles.successStatLabel}>Einheiten</div>
+                    <div className={styles.successStatLabel}>Bestelleinheiten</div>
                   </div>
                 </div>
 
@@ -1585,17 +1575,9 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                 {hasVeSubmittableEinzelprodukte && (
                   <div className={styles.veModeRow}>
                     <div className={styles.veModeText}>
-                      <span className={styles.veModeTitle}>VE erfassen</span>
-                      <span className={styles.veModeDescription}>Einzelprodukte mit VE</span>
+                      <span className={styles.veModeTitle}>Mengen in VE eingeben</span>
+                      <span className={styles.veModeDescription}>Die Stückzahl wird automatisch berechnet.</span>
                     </div>
-                    <button
-                      type="button"
-                      className={`${styles.veModeToggle} ${submitEinzelprodukteAsVe ? styles.veModeToggleActive : ''}`}
-                      onClick={() => setSubmitEinzelprodukteAsVe(value => !value)}
-                      aria-pressed={submitEinzelprodukteAsVe}
-                    >
-                      <span className={styles.veModeKnob} />
-                    </button>
                   </div>
                 )}
 
@@ -1699,7 +1681,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                       matchesUnifiedItemSearch(e.name, e.artikelNr, e.ve)
                     ).map((item) => {
                       const veUnits = getEinzelproduktVeUnits(item);
-                      const isVeModeItem = (item.catalogKey || submitEinzelprodukteAsVe) && veUnits !== null;
+                      const isVeModeItem = veUnits !== null;
 
                       return (
                         <div
@@ -1709,13 +1691,14 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                           <div className={styles.itemInfo}>
                             <div className={styles.itemName}>{item.name}</div>
                             <div className={styles.itemMeta}>
-                              {renderItemMeta(item, resolveEinzelproduktVe(item.name, item.ve))}
+                              {isVeModeItem ? renderItemMeta(item, veUnits) : 'VE fehlt – bitte beim Artikel hinterlegen lassen.'}
                             </div>
                           </div>
                           <div className={styles.quantityControls}>
                             <button
                               className={styles.quantityButton}
                               onClick={() => handleUpdateItemQuantity(item.id, -1)}
+                              disabled={!isVeModeItem}
                               aria-label="Weniger"
                             >
                               <Minus size={14} weight="bold" />
@@ -1725,12 +1708,14 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                               className={styles.quantity}
                               value={itemQuantities[item.id] === 0 || !itemQuantities[item.id] ? '' : itemQuantities[item.id]}
                               onChange={(e) => handleManualItemQuantityChange(item.id, e.target.value)}
-                              placeholder={isVeModeItem ? 'VE' : '0'}
+                              disabled={!isVeModeItem}
+                              placeholder="VE"
                               aria-label={isVeModeItem ? 'Menge in VE' : 'Menge'}
                             />
                             <button
                               className={styles.quantityButton}
                               onClick={() => handleUpdateItemQuantity(item.id, 1)}
+                              disabled={!isVeModeItem}
                               aria-label="Mehr"
                             >
                               <Plus size={14} weight="bold" />
@@ -1778,7 +1763,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                             .map((product) => {
                               const veUnits = getMasterProductVeUnits(product);
                               const masterProductVe = resolveMasterProductVe(product);
-                              const isVeModeItem = submitEinzelprodukteAsVe && veUnits !== null;
+                              const isVeModeItem = veUnits !== null;
 
                               return (
                                 <div
@@ -1792,8 +1777,8 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     <div className={styles.productName}>{product.name}</div>
                                     <div className={styles.productMeta}>
                                       {product.weight && `${product.weight}`}
-                                      {product.price > 0 && ` · €${product.price.toFixed(2)}`}
-                                      {masterProductVe !== null && ` · VE: ${masterProductVe}`}
+                                      {product.price > 0 && veUnits !== null && ` · €${(product.price * veUnits).toFixed(2)} / VE`}
+                                      {masterProductVe !== null ? ` · 1 VE = ${masterProductVe} Stück` : ' · VE fehlt – bitte beim Artikel hinterlegen lassen.'}
                                       {getProductArticleLabel(product) && (
                                         <span className={styles.articleNumber}>
                                           {getProductArticleLabel(product)}
@@ -1805,6 +1790,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     <button
                                       className={styles.quantityButton}
                                       onClick={() => handleUpdateItemQuantity(`master-${product.id}`, -1)}
+                                      disabled={!isVeModeItem}
                                       aria-label="Weniger"
                                     >
                                       <Minus size={14} weight="bold" />
@@ -1814,12 +1800,14 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                       className={styles.quantity}
                                       value={itemQuantities[`master-${product.id}`] === 0 || !itemQuantities[`master-${product.id}`] ? '' : itemQuantities[`master-${product.id}`]}
                                       onChange={(e) => handleManualItemQuantityChange(`master-${product.id}`, e.target.value)}
-                                      placeholder={isVeModeItem ? 'VE' : '0'}
+                                      disabled={!isVeModeItem}
+                                      placeholder="VE"
                                       aria-label={isVeModeItem ? 'Menge in VE' : 'Menge'}
                                     />
                                     <button
                                       className={styles.quantityButton}
                                       onClick={() => handleUpdateItemQuantity(`master-${product.id}`, 1)}
+                                      disabled={!isVeModeItem}
                                       aria-label="Mehr"
                                     >
                                       <Plus size={14} weight="bold" />
