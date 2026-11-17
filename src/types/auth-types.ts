@@ -2,11 +2,12 @@ export interface AuthUser {
   id: string;
   username: string;
   email: string;
-  role: 'gl' | 'admin';
+  role: 'gl' | 'admin' | 'customer';
   firstName: string;
   lastName: string;
   gebietsleiter_id?: string;
   avatarUrl?: string;
+  permissions?: import('../services/customerAccessService').CustomerPermissions;
 }
 
 export interface LoginCredentials {

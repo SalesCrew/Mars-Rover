@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle, ClockCounterClockwise, ArrowRight, ArrowsClockwise, UserMinus, UserPlus, CalendarPlus, Plus, Stack, SignOut, Receipt, TrendUp, DownloadSimple, Clock, Camera, Gift } from '@phosphor-icons/react';
+import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle, ClockCounterClockwise, ArrowRight, ArrowsClockwise, UserMinus, UserPlus, CalendarPlus, Plus, Stack, SignOut, Receipt, TrendUp, DownloadSimple, Clock, Camera, Gift, Eye } from '@phosphor-icons/react';
 import { AdminDashboard } from './AdminDashboard';
 import { MarketsPage } from './MarketsPage';
 import { GebietsleiterPage } from './GebietsleiterPage';
@@ -17,6 +17,8 @@ import { CreatePaletteModal } from './CreatePaletteModal';
 import { CreateSchutteModal } from './CreateSchutteModal';
 import { CreateStandardProductModal } from './CreateStandardProductModal';
 import { MarketImportPreviewModal } from './MarketImportPreviewModal';
+import { CustomerAccessPanel } from './CustomerAccessPanel';
+import accessStyles from './CustomerAccess.module.css';
 import { AdminAccountsModal } from './AdminAccountsModal';
 import { ExcelColumnMapper } from './ExcelColumnMapper';
 import { MarketExcelColumnMapper } from './MarketExcelColumnMapper';
@@ -51,6 +53,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
     return (saved as AdminPage) || 'dashboard';
   });
   const [isExpanded, setIsExpanded] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [customerAccessOpen, setCustomerAccessOpen] = useState(false);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
   const [isAdminAccountsModalOpen, setIsAdminAccountsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isHistorieModalOpen, setIsHistorieModalOpen] = useState(false);
@@ -93,7 +98,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   const [availableGLs, setAvailableGLs] = useState<Array<{ id: string; name: string }>>([]);
   const [zeiterfassungViewMode, setZeiterfassungViewMode] = useState<'date' | 'profile'>('date');
   const [showZeiterfassungExportModal, setShowZeiterfassungExportModal] = useState(false);
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    const close = (e: KeyboardEvent) => { if (e.key === 'Escape') { setProfileMenuOpen(false); profileButtonRef.current?.focus(); } };
+    document.addEventListener('keydown', close);
+    return () => document.removeEventListener('keydown', close);
+  }, [profileMenuOpen]);
 
   // Save selected page to localStorage whenever it changes
   useEffect(() => {
@@ -415,15 +426,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
       >
-        <div 
+        <button type="button" ref={profileButtonRef} aria-label="Profilmenü öffnen" aria-expanded={profileMenuOpen}
           className={styles.logoContainer}
-          onClick={() => setIsAdminAccountsModalOpen(true)}
+          onClick={() => setProfileMenuOpen(open => !open)}
           style={{ cursor: 'pointer' }}
         >
           <span className={styles.logoText}>
             {isExpanded ? 'Mars Rover Admin' : 'MR'}
           </span>
-        </div>
+        </button>
         
         <nav className={styles.menu}>
           {menuItems.map((item) => (
@@ -1193,6 +1204,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
       )}
 
       {/* Admin Accounts Modal */}
+      {profileMenuOpen && ReactDOM.createPortal(<div className={accessStyles.profileBackdrop} onClick={() => setProfileMenuOpen(false)}><div className={accessStyles.profileMenu} role="dialog" aria-label="Profilmenü" onClick={e => e.stopPropagation()}><p>{user?.firstName} {user?.lastName}</p><small>{user?.email}</small><button autoFocus onClick={() => { setProfileMenuOpen(false); setIsAdminAccountsModalOpen(true); }}><Users size={17}/> Mitarbeiter verwalten</button><button onClick={() => { setProfileMenuOpen(false); setCustomerAccessOpen(true); }}><Eye size={17}/> Kundenzugänge</button><button onClick={handleLogout}><SignOut size={17}/> Abmelden</button></div></div>,document.body)}
+      {customerAccessOpen && <CustomerAccessPanel onClose={() => { setCustomerAccessOpen(false); profileButtonRef.current?.focus(); }}/>}
       <AdminAccountsModal
         isOpen={isAdminAccountsModalOpen}
         onClose={() => setIsAdminAccountsModalOpen(false)}

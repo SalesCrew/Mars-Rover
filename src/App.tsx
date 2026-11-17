@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Dashboard } from './components/gl/Dashboard';
+import { CustomerPortal } from './components/admin/CustomerPortal';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { LoginPage } from './LoginPage';
 import { mockDashboardData } from './data/mockData';
@@ -40,7 +41,10 @@ function AppContent() {
     return <AdminPanel />;
   }
 
-  // GL role (or any other role) - show dashboard ONLY
+  if (user.role === 'customer') return <CustomerPortal />;
+  if (user.role !== 'gl') return <LoginPage />;
+
+  // GL role - show dashboard ONLY
   // GLs can NEVER access AdminPanel through any route
   return <Dashboard data={mockDashboardData} />;
 }
