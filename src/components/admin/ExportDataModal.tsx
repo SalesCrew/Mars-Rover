@@ -1,3 +1,4 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect } from 'react';
 import { X, DownloadSimple, CaretRight, CaretDown, DotsSixVertical, CheckCircle, MagnifyingGlass } from '@phosphor-icons/react';
 import { ClipLoader } from 'react-spinners';
@@ -16,6 +17,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   onClose,
   availableGLs
 }) => {
+  const { canWrite, canExport } = useAdminAccess();
   // Dataset selection
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [datasetStats, setDatasetStats] = useState<Record<string, number>>({});
@@ -44,7 +46,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   const [exportSuccess, setExportSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const datasets = exportService.getDatasets();
+  const datasets = exportService.getDatasets().filter(dataset => canWrite || (dataset.id === 'wellen_submissions' ? canExport('dashboard') || canExport('vorbesteller') : dataset.id === 'vorverkauf_entries' ? canExport('dashboard') || canExport('vorverkauf') || canExport('produktersatz') : dataset.id === 'gebietsleiter' ? canExport('gebietsleiter') : canExport('markets')));
 
   // Load dataset stats + wellen list
   useEffect(() => {

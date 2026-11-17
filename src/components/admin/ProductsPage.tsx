@@ -1,3 +1,4 @@
+import { AdminWrite, AdminReadField } from '../../contexts/AdminAccessContext';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FunnelSimple, X, MagnifyingGlass, Package, CaretDown, SortAscending, SortDescending, UploadSimple } from '@phosphor-icons/react';
 import { getAllProducts, deleteProduct, updateProduct } from '../../data/productsData';
@@ -471,15 +472,17 @@ export const ProductsPage: React.FC = () => {
               </div>
             )}
           </div>
-          <button
-            type="button"
-            className={styles.productUpdateButton}
-            onClick={() => setShowUpdateModal(true)}
-            title="Neue Produktliste vormerken oder übernehmen"
-          >
-            <UploadSimple size={18} weight="bold" />
-            <span>Produkt-Update</span>
-          </button>
+          <AdminWrite>
+            <button
+              type="button"
+              className={styles.productUpdateButton}
+              onClick={() => setShowUpdateModal(true)}
+              title="Neue Produktliste vormerken oder übernehmen"
+            >
+              <UploadSimple size={18} weight="bold" />
+              <span>Produkt-Update</span>
+            </button>
+          </AdminWrite>
           <div className={styles.searchStats}>
             <Package size={18} weight="regular" />
             <span>{filteredProducts.length} Produkte</span>
@@ -829,26 +832,30 @@ export const ProductsPage: React.FC = () => {
                 {/* Product Name */}
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>Produktname</label>
-                  <input
-                    type="text"
-                    className={styles.detailInput}
-                    value={editedProduct.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                  />
+                  <AdminReadField value={editedProduct.name}>
+                    <input
+                      type="text"
+                      className={styles.detailInput}
+                      value={editedProduct.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                    />
+                  </AdminReadField>
                 </div>
 
                 {/* Department */}
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>Abteilung</label>
                   <div className={styles.customDropdownWrapper}>
-                    <button
-                      className={styles.customDropdownButton}
-                      onClick={() => setOpenModalDropdown(openModalDropdown === 'department' ? null : 'department')}
-                      type="button"
-                    >
-                      <span>{getDepartmentLabel(editedProduct.department)}</span>
-                      <CaretDown size={16} weight="bold" />
-                    </button>
+                    <AdminReadField value={getDepartmentLabel(editedProduct.department)}>
+                      <button
+                        className={styles.customDropdownButton}
+                        onClick={() => setOpenModalDropdown(openModalDropdown === 'department' ? null : 'department')}
+                        type="button"
+                      >
+                        <span>{getDepartmentLabel(editedProduct.department)}</span>
+                        <CaretDown size={16} weight="bold" />
+                      </button>
+                    </AdminReadField>
                     {openModalDropdown === 'department' && (
                       <div className={styles.customDropdownMenu}>
                         <div
@@ -878,14 +885,16 @@ export const ProductsPage: React.FC = () => {
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>Produkttyp</label>
                   <div className={styles.customDropdownWrapper}>
-                    <button
-                      className={styles.customDropdownButton}
-                      onClick={() => setOpenModalDropdown(openModalDropdown === 'productType' ? null : 'productType')}
-                      type="button"
-                    >
-                      <span>{getProductTypeLabel(editedProduct.productType)}</span>
-                      <CaretDown size={16} weight="bold" />
-                    </button>
+                    <AdminReadField value={getProductTypeLabel(editedProduct.productType)}>
+                      <button
+                        className={styles.customDropdownButton}
+                        onClick={() => setOpenModalDropdown(openModalDropdown === 'productType' ? null : 'productType')}
+                        type="button"
+                      >
+                        <span>{getProductTypeLabel(editedProduct.productType)}</span>
+                        <CaretDown size={16} weight="bold" />
+                      </button>
+                    </AdminReadField>
                     {openModalDropdown === 'productType' && (
                       <div className={styles.customDropdownMenu}>
                         <div
@@ -932,13 +941,15 @@ export const ProductsPage: React.FC = () => {
                 {/* Weight */}
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>Gewicht</label>
-                  <input
-                    type="text"
-                    className={styles.detailInput}
-                    value={editedProduct.weight}
-                    onChange={(e) => handleInputChange('weight', e.target.value)}
-                    placeholder="z.B. 150g, 1kg"
-                  />
+                  <AdminReadField value={editedProduct.weight}>
+                    <input
+                      type="text"
+                      className={styles.detailInput}
+                      value={editedProduct.weight}
+                      onChange={(e) => handleInputChange('weight', e.target.value)}
+                      placeholder="z.B. 150g, 1kg"
+                    />
+                  </AdminReadField>
                 </div>
 
                 {/* Content / Palette or Schütte Products */}
@@ -961,62 +972,72 @@ export const ProductsPage: React.FC = () => {
                 ) : (
                   <div className={styles.detailItem}>
                     <label className={styles.detailLabel}>Inhalt</label>
-                    <input
-                      type="text"
-                      className={styles.detailInput}
-                      value={editedProduct.content || ''}
-                      onChange={(e) => handleInputChange('content', e.target.value)}
-                      placeholder="Optional"
-                    />
+                    <AdminReadField value={editedProduct.content || ''}>
+                      <input
+                        type="text"
+                        className={styles.detailInput}
+                        value={editedProduct.content || ''}
+                        onChange={(e) => handleInputChange('content', e.target.value)}
+                        placeholder="Optional"
+                      />
+                    </AdminReadField>
                   </div>
                 )}
 
                 {/* Price */}
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>Preis (€)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className={styles.detailInput}
-                    value={editedProduct.price}
-                    onChange={(e) => handleInputChange('price', parseFloat(e.target.value))}
-                  />
+                  <AdminReadField value={editedProduct.price}>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className={styles.detailInput}
+                      value={editedProduct.price}
+                      onChange={(e) => handleInputChange('price', parseFloat(e.target.value))}
+                    />
+                  </AdminReadField>
                 </div>
 
                 {/* Pallet Size */}
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>Palettengröße (Stück)</label>
-                  <input
-                    type="number"
-                    className={styles.detailInput}
-                    value={editedProduct.palletSize || ''}
-                    onChange={(e) => handleInputChange('palletSize', parseInt(e.target.value) || 0)}
-                    placeholder="z.B. 120"
-                  />
+                  <AdminReadField value={editedProduct.palletSize || ''}>
+                    <input
+                      type="number"
+                      className={styles.detailInput}
+                      value={editedProduct.palletSize || ''}
+                      onChange={(e) => handleInputChange('palletSize', parseInt(e.target.value) || 0)}
+                      placeholder="z.B. 120"
+                    />
+                  </AdminReadField>
                 </div>
 
                 {/* SKU */}
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>SKU</label>
-                  <input
-                    type="text"
-                    className={styles.detailInput}
-                    value={editedProduct.sku || ''}
-                    onChange={(e) => handleInputChange('sku', e.target.value)}
-                    placeholder="Automatisch generiert"
-                  />
+                  <AdminReadField value={editedProduct.sku || ''}>
+                    <input
+                      type="text"
+                      className={styles.detailInput}
+                      value={editedProduct.sku || ''}
+                      onChange={(e) => handleInputChange('sku', e.target.value)}
+                      placeholder="Automatisch generiert"
+                    />
+                  </AdminReadField>
                 </div>
 
                 {/* Artikel Nr. */}
                 <div className={styles.detailItem}>
                   <label className={styles.detailLabel}>Artikel Nr.</label>
-                  <input
-                    type="text"
-                    className={styles.detailInput}
-                    value={editedProduct.artikelNr || ''}
-                    onChange={(e) => handleInputChange('artikelNr', e.target.value)}
-                    placeholder="Eindeutige Artikelnummer"
-                  />
+                  <AdminReadField value={editedProduct.artikelNr || ''}>
+                    <input
+                      type="text"
+                      className={styles.detailInput}
+                      value={editedProduct.artikelNr || ''}
+                      onChange={(e) => handleInputChange('artikelNr', e.target.value)}
+                      placeholder="Eindeutige Artikelnummer"
+                    />
+                  </AdminReadField>
                 </div>
 
                 {/* Active Toggle */}
@@ -1028,32 +1049,38 @@ export const ProductsPage: React.FC = () => {
                         {editedProduct.isActive !== false ? 'Produkt ist aktiv und sichtbar' : 'Produkt ist deaktiviert und ausgeblendet'}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      className={`${styles.activeToggle} ${editedProduct.isActive !== false ? styles.activeToggleOn : ''}`}
-                      onClick={() => handleInputChange('isActive', editedProduct.isActive === false)}
-                    >
-                      <span className={styles.activeToggleKnob} />
-                    </button>
+                    <AdminWrite>
+                      <button
+                        type="button"
+                        className={`${styles.activeToggle} ${editedProduct.isActive !== false ? styles.activeToggleOn : ''}`}
+                        onClick={() => handleInputChange('isActive', editedProduct.isActive === false)}
+                      >
+                        <span className={styles.activeToggleKnob} />
+                      </button>
+                    </AdminWrite>
                   </div>
                 </div>
               </div>
 
               <div className={styles.modalActions}>
-                <button 
-                  className={`${styles.deleteButton} ${deleteClickedOnce ? styles.deleteConfirm : ''}`}
-                  onClick={handleDeleteClick}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? 'Löschen...' : deleteClickedOnce ? 'Nochmal klicken!' : 'Löschen'}
-                </button>
+                <AdminWrite>
+                  <button
+                    className={`${styles.deleteButton} ${deleteClickedOnce ? styles.deleteConfirm : ''}`}
+                    onClick={handleDeleteClick}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? 'Löschen...' : deleteClickedOnce ? 'Nochmal klicken!' : 'Löschen'}
+                  </button>
+                </AdminWrite>
                 <div className={styles.modalActionsRight}>
                   <button className={styles.cancelButton} onClick={handleCloseModalWithCleanup}>
                     Abbrechen
                   </button>
-                  <button className={styles.saveButton} onClick={handleSaveProduct}>
-                    Speichern
-                  </button>
+                  <AdminWrite>
+                    <button className={styles.saveButton} onClick={handleSaveProduct}>
+                      Speichern
+                    </button>
+                  </AdminWrite>
                 </div>
               </div>
             </div>

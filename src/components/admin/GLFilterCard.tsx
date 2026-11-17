@@ -1,3 +1,4 @@
+import { AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { CheckCircle, Plus, Minus, ArrowRight, ArrowsClockwise, UserMinus, X, CircleNotch } from '@phosphor-icons/react';
@@ -300,33 +301,35 @@ export const GLFilterCard: React.FC<GLFilterCardProps> = ({
       
       {/* Right Action Buttons - Fade in/out based on GL selection */}
       {selectedGL && (
-        <div className={styles.actionButtonsSection}>
-          <div className={styles.actionDivider} />
-          <div className={`${styles.actionButtons} ${isAddExpanded || isRemoveExpanded ? styles.actionButtonsExpanded : ''}`}>
-            <button 
-              className={`${styles.actionButtonAdd} ${isAddExpanded ? styles.actionButtonAddExpanded : ''} ${isRemoveExpanded ? styles.actionButtonAddHidden : ''}`}
-              onClick={() => {
-                const newExpanded = !isAddExpanded;
-                setIsAddExpanded(newExpanded);
-                if (newExpanded) setIsRemoveExpanded(false);
-                onModeChange?.(newExpanded ? 'add' : null);
-              }}
-            >
-              <Plus size={16} weight="bold" />
-            </button>
-            <button 
-              className={`${styles.actionButtonRemove} ${isRemoveExpanded ? styles.actionButtonRemoveExpanded : ''} ${isAddExpanded ? styles.actionButtonRemoveHidden : ''}`}
-              onClick={() => {
-                const newExpanded = !isRemoveExpanded;
-                setIsRemoveExpanded(newExpanded);
-                if (newExpanded) setIsAddExpanded(false);
-                onModeChange?.(newExpanded ? 'remove' : null);
-              }}
-            >
-              <Minus size={16} weight="bold" />
-            </button>
+        <AdminWrite>
+          <div className={styles.actionButtonsSection}>
+            <div className={styles.actionDivider} />
+            <div className={`${styles.actionButtons} ${isAddExpanded || isRemoveExpanded ? styles.actionButtonsExpanded : ''}`}>
+              <button
+                className={`${styles.actionButtonAdd} ${isAddExpanded ? styles.actionButtonAddExpanded : ''} ${isRemoveExpanded ? styles.actionButtonAddHidden : ''}`}
+                onClick={() => {
+                  const newExpanded = !isAddExpanded;
+                  setIsAddExpanded(newExpanded);
+                  if (newExpanded) setIsRemoveExpanded(false);
+                  onModeChange?.(newExpanded ? 'add' : null);
+                }}
+              >
+                <Plus size={16} weight="bold" />
+              </button>
+              <button
+                className={`${styles.actionButtonRemove} ${isRemoveExpanded ? styles.actionButtonRemoveExpanded : ''} ${isAddExpanded ? styles.actionButtonRemoveHidden : ''}`}
+                onClick={() => {
+                  const newExpanded = !isRemoveExpanded;
+                  setIsRemoveExpanded(newExpanded);
+                  if (newExpanded) setIsAddExpanded(false);
+                  onModeChange?.(newExpanded ? 'remove' : null);
+                }}
+              >
+                <Minus size={16} weight="bold" />
+              </button>
+            </div>
           </div>
-        </div>
+        </AdminWrite>
       )}
       
       {/* Action Logs Modal - Rendered outside via portal */}

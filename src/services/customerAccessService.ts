@@ -1,19 +1,8 @@
 import { API_BASE_URL } from '../config/database';
 
-export const CUSTOMER_PAGES = [
-  { key: 'dashboard', label: 'Dashboard' },
-  { key: 'vorbesteller', label: 'Umsatzwellen' },
-  { key: 'fotos', label: 'Fotowellen' },
-  { key: 'markets', label: 'Märkte' },
-  { key: 'gebietsleiter', label: 'Gebietsleiter' },
-  { key: 'vorverkauf', label: 'Vorverkauf' },
-  { key: 'produktersatz', label: 'Produktersatz' },
-  { key: 'nara-incentive', label: 'NaRa Incentive' },
-  { key: 'fragebogen', label: 'Fragebogen' },
-  { key: 'zeiterfassung', label: 'Zeiterfassung' },
-  { key: 'produkte', label: 'Produkte' },
-] as const;
-export type CustomerPage = (typeof CUSTOMER_PAGES)[number]['key'];
+export { ADMIN_PAGES as CUSTOMER_PAGES } from '../config/adminNavigation';
+import type { AdminPage } from '../config/adminNavigation';
+export type CustomerPage = AdminPage;
 export type CustomerPermissions = Partial<
   Record<CustomerPage, { view: boolean; export: boolean }>
 >;
@@ -31,20 +20,6 @@ export type AccountInput = Omit<
   CustomerAccount,
   'id' | 'createdAt' | 'version'
 > & { version?: number };
-export type ReportRow = Record<
-  string,
-  string | number | boolean | null | string[]
->;
-export type CustomerReport = {
-  title: string;
-  columns: {
-    key: string;
-    label: string;
-    format?: 'money' | 'date' | 'number';
-  }[];
-  rows: ReportRow[];
-  generatedAt: string;
-};
 async function checked(response: Response) {
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
@@ -78,44 +53,5 @@ export const customerAccessService = {
     return (
       await checked(await fetch(`${API_BASE_URL}/customer/me`, { signal }))
     ).json();
-  },
-  async report(
-    page: CustomerPage,
-    waveId?: string,
-    signal?: AbortSignal
-  ): Promise<CustomerReport> {
-    return (
-      await checked(
-        await fetch(
-          `${API_BASE_URL}/customer/pages/${page}${waveId ? '/waves/' + waveId : ''}`,
-          { signal }
-        )
-      )
-    ).json();
-  },
-  async image(id: string, signal?: AbortSignal): Promise<Blob> {
-    return (
-      await checked(
-        await fetch(`${API_BASE_URL}/customer/photos/${id}`, { signal })
-      )
-    ).blob();
-  },
-  async export(
-    page: CustomerPage,
-    waveId?: string,
-    query = '',
-    photos = false
-  ) {
-    const response = await checked(
-      await fetch(
-        `${API_BASE_URL}/customer/pages/${page}/${photos ? 'photos.zip' : 'export'}?${new URLSearchParams({ ...(waveId ? { waveId } : {}), ...(query ? { q: query } : {}) })}`
-      )
-    );
-    const url = URL.createObjectURL(await response.blob());
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `rover-${page}.${photos ? 'zip' : 'xlsx'}`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   },
 };

@@ -11,11 +11,10 @@ const require = createRequire(import.meta.url);
 const {
   chromium,
 } = require('/Users/kiliansternath/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
-const ExcelJS = require('../node_modules/exceljs');
 const cwd = fileURLToPath(new URL('../', import.meta.url));
 const output = cwd + 'outputs/customer-access-e2e';
 await mkdir(output, { recursive: true });
-const h = await createCustomerAccessHarness();
+const h = await createCustomerAccessHarness({actualAdminPages: true});
 const origin = 'http://127.0.0.1:5197';
 const vite = spawn(
   process.execPath,
@@ -82,6 +81,7 @@ try {
       return route.continue();
     });
     const page = await context.newPage();
+    page.setDefaultTimeout(12000);
     page.on('pageerror', (e) => errors.push(e.message));
     return page;
   };
@@ -154,8 +154,8 @@ try {
     .fill('browser-customer@example.test');
   for (const name of [
     'Dashboard: Ansehen',
-    'Umsatzwellen: Ansehen',
-    'Fotowellen: Ansehen',
+    'Vorbesteller: Ansehen',
+    'Fotos: Ansehen',
   ])
     await admin.getByRole('switch', { name, exact: true }).click();
   const [created] = await Promise.all([
@@ -216,215 +216,85 @@ try {
     'browser-customer@example.test',
     account.oneTimePassword
   );
-  await customer
-    .getByRole('heading', { name: 'Dashboard', exact: true })
-    .waitFor();
-  await customer
-    .getByRole('heading', { name: 'Zusatz-Umsatz · Herbst 2026', exact: true })
-    .waitFor();
-  assert.equal(
-    await customer
-      .getByRole('navigation', { name: 'Kundennavigation' })
-      .getByRole('button')
-      .count(),
-    3
-  );
-  assert.equal(
-    await customer.getByRole('button', { name: 'Excel exportieren' }).count(),
-    0
-  );
-  assert.equal(
-    await customer.getByRole('button', { name: 'Welle erstellen' }).count(),
-    0
-  );
-  await customer.screenshot({
-    path: output + '/customer-dashboard-desktop.png',
-    fullPage: true,
-  });
-  await customer.setViewportSize({ width: 390, height: 844 });
-  await customer.evaluate(async () => {
-    await Promise.all(
-      document.getAnimations().map((a) => a.finished.catch(() => {}))
-    );
-  });
-  await customer.screenshot({
-    path: output + '/customer-dashboard-mobile.png',
-    fullPage: true,
-  });
-  assert.equal(
-    await customer.evaluate(
-      () => document.documentElement.scrollWidth > innerWidth
-    ),
-    false
-  );
-  await customer.setViewportSize({ width: 1440, height: 1080 });
-  checks.push(
-    'new customer signs in to the actual app, sees only three permitted pages, active revenue/photo waves and no admin write or export actions; desktop and mobile fit'
-  );
-  await customer
-    .getByRole('button', { name: 'Umsatzwellen', exact: true })
-    .click();
-  await customer
-    .getByRole('button', { name: 'Buchungen ansehen', exact: false })
-    .click();
-  await customer
-    .getByRole('columnheader', { name: 'Artikelnummer', exact: true })
-    .waitFor();
-  assert.ok((await customer.locator('tbody').innerText()).includes('TEST-100'));
-  assert.equal(
-    await customer.getByRole('button', { name: 'Excel exportieren' }).count(),
-    0
-  );
-  await customer.screenshot({
-    path: output + '/customer-wave-details.png',
-    fullPage: true,
-  });
-  checks.push(
-    'wave details show frozen article/order/unit/price data with unknown prices blank and no editing controls'
-  );
+  const nav = customer.locator('aside nav');
+  await customer.getByRole('heading', {name:'Dashboard',exact:true}).waitFor();
+  await customer.getByRole('heading', {name:'Aktive Wellen',exact:true}).waitFor();
+  await eventually(async()=>!(await customer.locator('[class*=loadingCard]').count()));
+  assert.deepEqual(await nav.getByRole('button').allTextContents(),['Dashboard','Vorbesteller','Fotos']);
+  assert.equal(await customer.getByRole('button',{name:'Export',exact:true}).count(),0);
+  assert.equal(await customer.getByRole('button',{name:/Welle erstellen/}).count(),0);
+  await customer.screenshot({path:output+'/customer-dashboard-desktop.png',fullPage:true});
+  checks.push('customer uses the actual AdminPanel/AdminDashboard with the same KPI cards, filters and wave cards; only permitted pages appear in production order');
+  await customer.getByRole('button',{name:'Profilmenü öffnen'}).click();
+  assert.equal(await customer.getByRole('button',{name:'Mitarbeiter verwalten'}).count(),0);
+  assert.equal(await customer.getByRole('button',{name:'Kundenzugänge',exact:true}).count(),0);
+  await customer.keyboard.press('Escape');
+  await nav.getByRole('button',{name:'Vorbesteller',exact:true}).click();
+  await customer.getByRole('heading',{name:'Aktive Wellen',exact:true}).waitFor();
+  await customer.getByText('Zusatz-Umsatz · Herbst 2026',{exact:true}).click();
+  await customer.locator('[class*=modalOverlay]').waitFor();
+  assert.equal(await customer.getByRole('button',{name:/archivieren|Welle duplizieren|Welle bearbeiten|Quartalspreise/i}).count(),0);
+  await customer.screenshot({path:output+'/customer-wave-details.png',fullPage:true});
+  await customer.locator('[class*=closeButton]').last().click();
+  await nav.getByRole('button',{name:'Fotos',exact:true}).click();
+  await customer.locator('[class*=photoCard] img').first().waitFor();
+  await eventually(()=>customer.locator('[class*=photoCard] img').first().evaluate(el=>el.complete&&el.naturalWidth>0));
+  await customer.locator('[class*=photoCard]').first().click();
+  assert.equal(await customer.getByRole('button',{name:'Foto löschen'}).count(),0);
+  assert.equal(await customer.getByRole('button',{name:'Export',exact:true}).count(),0);
+  await customer.screenshot({path:output+'/customer-photos.png',fullPage:true});
+  await customer.locator('[class*=lightboxClose]').click();
+  checks.push('the original Vorbesteller detail modal and Fotos gallery/lightbox keep read interactions and omit all mutation actions');
+  const saveRights=async()=>{
+    const [r]=await Promise.all([admin.waitForResponse(r=>r.url().endsWith('/customer/accounts/'+account.account.id)&&r.request().method()==='PUT'),admin.getByRole('button',{name:'Änderungen speichern',exact:true}).click()]);
+    assert.equal(r.status(),200);
+    await customer.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  };
   await admin.bringToFront();
-  await admin
-    .getByRole('switch', { name: 'Umsatzwellen: Exportieren', exact: true })
-    .click();
-  const [updated] = await Promise.all([
-    admin.waitForResponse(
-      (r) =>
-        r.url().endsWith('/customer/accounts/' + account.account.id) &&
-        r.request().method() === 'PUT'
-    ),
-    admin
-      .getByRole('button', { name: 'Änderungen speichern', exact: true })
-      .click(),
-  ]);
-  assert.equal(updated.status(), 200);
-  await customer.bringToFront();
-  await customer.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await customer
-    .getByRole('button', { name: 'Umsatzwellen', exact: true })
-    .click();
-  await customer.getByRole('button', { name: 'Excel exportieren' }).waitFor();
-  const [download] = await Promise.all([
-    customer.waitForEvent('download'),
-    customer.getByRole('button', { name: 'Excel exportieren' }).click(),
-  ]);
-  await download.saveAs(output + '/synthetic-customer-export.xlsx');
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(output + '/synthetic-customer-export.xlsx');
-  assert.equal(workbook.getWorksheet('Daten').getRow(2).getCell(4).value, 230);
-  checks.push(
-    'admin enables export in the UI, existing customer session receives the updated permission and downloads real Excel with the exact synthetic EUR230 total'
-  );
-  await customer
-    .getByRole('button', { name: 'Fotowellen', exact: true })
-    .click();
-  await customer.locator('img').waitFor();
-  await eventually(() =>
-    customer.locator('img').evaluate((el) => el.complete && el.naturalWidth > 0)
-  );
-  assert.equal(
-    await customer.getByRole('button', { name: 'Excel exportieren' }).count(),
-    0
-  );
-  assert.ok(
-    (await customer.locator('img').getAttribute('src')).startsWith('blob:')
-  );
-  await customer.screenshot({
-    path: output + '/customer-photos.png',
-    fullPage: true,
-  });
-  checks.push(
-    'photo gallery loads images through authenticated blob requests, exposes no storage URL and hides bulk export without photo export rights'
-  );
+  const names=['Dashboard','Märkte','Gebietsleiter','Vorbesteller','Vorverkauf','Produktersatz','NaRa Incentive','Fragebogen','Zeiterfassung','Fotos','Produkte'];
+  for(const name of names){const control=admin.getByRole('switch',{name:name+': Ansehen',exact:true});if(await control.getAttribute('aria-checked')!=='true')await control.click();}
+  await saveRights();
+  await eventually(async()=>(await nav.getByRole('button').count())===11);
+  assert.deepEqual(await nav.getByRole('button').allTextContents(),names);
+  const failures=[];
+  customer.on('response',r=>{if(r.url().startsWith(h.base)&&r.status()>=400)failures.push({url:r.url(),status:r.status()});});
+  for(const name of names){
+    await nav.getByRole('button',{name,exact:true}).click();
+    await customer.locator('main > header').getByRole('heading',{name,exact:true}).waitFor();
+    await customer.waitForTimeout(250);
+    assert.equal(await customer.getByRole('button',{name:/^(Export|Excel Export|Fotofragen ZIP|Alle Märkte exportieren|Produkt-Update|Welle erstellen|Modul erstellen|Fragebogen erstellen|GL erstellen|Markt erstellen|Import|Speichern|Löschen)$/}).count(),0,name);
+    await customer.screenshot({path:output+'/customer-page-'+names.indexOf(name)+'.png',fullPage:true});
+  }
+  assert.deepEqual(failures,[]);
+  checks.push('all 11 real admin pages render via their original routers with synthetic PostgreSQL data, in the exact production order, with no write/export controls for a view-only customer');
   await admin.bringToFront();
-  await admin
-    .getByRole('switch', { name: 'Fotowellen: Exportieren', exact: true })
-    .click();
-  const [photoRights] = await Promise.all([
-    admin.waitForResponse(
-      (r) =>
-        r.url().endsWith('/customer/accounts/' + account.account.id) &&
-        r.request().method() === 'PUT'
-    ),
-    admin
-      .getByRole('button', { name: 'Änderungen speichern', exact: true })
-      .click(),
-  ]);
-  assert.equal(photoRights.status(), 200);
-  await customer.bringToFront();
-  await customer.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await customer
-    .getByRole('button', { name: 'Fotowellen', exact: true })
-    .click();
-  await customer
-    .getByRole('button', { name: 'Fotos herunterladen', exact: true })
-    .waitFor();
-  const [zip] = await Promise.all([
-    customer.waitForEvent('download'),
-    customer
-      .getByRole('button', { name: 'Fotos herunterladen', exact: true })
-      .click(),
-  ]);
-  await zip.saveAs(output + '/synthetic-photos.zip');
-  checks.push(
-    'photo export permission enables a real authenticated ZIP download in the browser'
-  );
-  const before = await customer.evaluate(async (base) => {
-    const r = await fetch(base + '/customer/pages/markets');
-    return r.status;
-  }, h.base);
-  assert.equal(before, 403);
+  await admin.getByRole('switch',{name:'Dashboard: Exportieren',exact:true}).click();
+  await saveRights();
+  await nav.getByRole('button',{name:'Dashboard',exact:true}).click();
+  await customer.getByRole('button',{name:'Export',exact:true}).waitFor();
+  await customer.getByRole('button',{name:'Export',exact:true}).click();
+  await customer.getByText('Wellen Vorbestellungen',{exact:false}).first().waitFor();
+  assert.equal(await customer.getByText('Markt-Historie',{exact:true}).count(),0);
+  await customer.screenshot({path:output+'/customer-export-permitted.png',fullPage:true});
+  await customer.getByRole('checkbox',{name:/Wellen Vorbestellungen/}).check();
+  const [download] = await Promise.all([customer.waitForEvent('download'),customer.getByRole('button',{name:'Export starten',exact:true}).click()]);
+  await download.saveAs(output+'/synthetic-admin-page-export.xlsx');
+  await customer.getByRole('heading',{name:'Daten Exportieren',exact:true}).waitFor({state:'hidden'});
+  checks.push('granting dashboard export in the admin editor enables the original custom export dialog; datasets without export permission remain excluded');
   await admin.bringToFront();
-  await admin
-    .getByRole('switch', { name: 'Fotowellen: Ansehen', exact: true })
-    .click();
-  await admin
-    .getByRole('button', { name: 'Änderungen speichern', exact: true })
-    .click();
-  await admin
-    .getByText(
-      'Änderungen gespeichert. Die Rechte gelten ab der nächsten Anfrage.',
-      { exact: true }
-    )
-    .waitFor();
-  const denied = await customer.evaluate(async (base) => {
-    const r = await fetch(base + '/customer/pages/fotos');
-    return r.status;
-  }, h.base);
-  assert.equal(denied, 403);
-  await customer.bringToFront();
-  await customer.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await eventually(
-    async () =>
-      (await customer
-        .getByRole('button', { name: 'Fotowellen', exact: true })
-        .count()) === 0
-  );
-  assert.equal(await customer.locator('img').count(), 0);
-  checks.push(
-    'direct requests for an ungranted page fail; revoking photo rights blocks the existing token immediately and removes the page and cached photo UI'
-  );
-  await admin.bringToFront();
-  await admin
-    .getByRole('switch', { name: 'Zugang aktiv', exact: true })
-    .click();
-  await admin
-    .getByRole('button', { name: 'Änderungen speichern', exact: true })
-    .click();
-  await admin
-    .getByText(
-      'Änderungen gespeichert. Die Rechte gelten ab der nächsten Anfrage.',
-      { exact: true }
-    )
-    .waitFor();
-  await customer.evaluate(async (base) => {
-    await fetch(base + '/customer/me');
-  }, h.base);
-  await customer
-    .getByRole('button', { name: 'Anmelden', exact: true })
-    .waitFor();
-  checks.push(
-    'deactivation invalidates access on the next real API request and returns the customer to login without needing a token expiry'
-  );
+  await admin.getByRole('switch',{name:'Dashboard: Exportieren',exact:true}).click();
+  await admin.getByRole('switch',{name:'Fotos: Ansehen',exact:true}).click();
+  await saveRights();
+  await eventually(async()=>(await nav.getByRole('button',{name:'Fotos',exact:true}).count())===0);
+  await eventually(async()=>(await customer.getByRole('button',{name:'Export',exact:true}).count())===0);
+  const denied=await customer.evaluate(async base=>(await fetch(base+'/wellen/photos')).status,h.base);
+  assert.equal(denied,403);
+  checks.push('revoking view/export rights changes the existing session and immediately blocks direct requests on the server');
+  await admin.getByRole('switch',{name:'Zugang aktiv',exact:true}).click();
+  await saveRights();
+  await customer.evaluate(async base=>{await fetch(base+'/customer/me');},h.base);
+  await customer.getByRole('button',{name:'Anmelden',exact:true}).waitFor();
+  checks.push('deactivation returns the customer to login and blocks the existing token');
   assert.deepEqual(errors, []);
   assert.deepEqual(blocked, []);
   assert.deepEqual(h.errors, []);

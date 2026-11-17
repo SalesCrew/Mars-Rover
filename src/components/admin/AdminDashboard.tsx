@@ -1,3 +1,4 @@
+import { AdminWrite, AdminReadField, useAdminAccess } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect } from 'react';
 import { Package, Storefront, Sparkle, ClockCounterClockwise, X, ShoppingCart, ArrowsLeftRight, Clock, Gift } from '@phosphor-icons/react';
 import { ChainAverageCard } from './ChainAverageCard';
@@ -60,6 +61,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) => {
+  const { canWrite } = useAdminAccess();
   // Data states
   const [chainAverages, setChainAverages] = useState<ChainAverage[]>([]);
   const [activeWaves, setActiveWaves] = useState<WaveProgress[]>([]);
@@ -659,7 +661,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
       <div className={styles.modalOverlay} onClick={() => setEditingActivity(null)}>
         <div className={styles.editModal} onClick={e => e.stopPropagation()}>
           <div className={styles.editHeader}>
-            <h3>Aktivität bearbeiten</h3>
+            <h3>{canWrite ? 'Aktivität bearbeiten' : 'Aktivität'}</h3>
             <button className={styles.closeButton} onClick={() => setEditingActivity(null)}>
               <X size={20} weight="bold" />
             </button>
@@ -733,25 +735,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
                               <span className={styles.productName}>{product.productName}</span>
                               <div className={styles.productControls}>
                                 <div className={styles.quantityControlSmall}>
-                                  <button 
-                                    className={styles.quantityBtnSmall}
-                                    onClick={() => updateProductQuantity(product.submissionId, product.quantity - 1)}
-                                  >
-                                    −
-                                  </button>
-                                  <input 
-                                    type="number" 
-                                    className={styles.quantityInputSmall}
-                                    value={product.quantity}
-                                    onChange={(e) => updateProductQuantity(product.submissionId, parseInt(e.target.value) || 0)}
-                                    min="0"
-                                  />
-                                  <button 
-                                    className={styles.quantityBtnSmall}
-                                    onClick={() => updateProductQuantity(product.submissionId, product.quantity + 1)}
-                                  >
-                                    +
-                                  </button>
+                                  <AdminWrite>
+                                    <button
+                                      className={styles.quantityBtnSmall}
+                                      onClick={() => updateProductQuantity(product.submissionId, product.quantity - 1)}
+                                    >
+                                      −
+                                    </button>
+                                  </AdminWrite>
+                                  <AdminReadField value={product.quantity}>
+                                    <input
+                                      type="number"
+                                      className={styles.quantityInputSmall}
+                                      value={product.quantity}
+                                      onChange={(e) => updateProductQuantity(product.submissionId, parseInt(e.target.value) || 0)}
+                                      min="0"
+                                    />
+                                  </AdminReadField>
+                                  <AdminWrite>
+                                    <button
+                                      className={styles.quantityBtnSmall}
+                                      onClick={() => updateProductQuantity(product.submissionId, product.quantity + 1)}
+                                    >
+                                      +
+                                    </button>
+                                  </AdminWrite>
                                 </div>
                                 <span className={styles.productValue}>
                                   €{(product.quantity * product.valuePerUnit).toFixed(2)}
@@ -791,25 +799,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
                       <div className={styles.editFieldGroup}>
                         <label className={styles.editFieldLabel}>Anzahl</label>
                         <div className={styles.quantityControl}>
-                          <button 
-                            className={styles.quantityBtn}
-                            onClick={() => setEditForm(f => ({ ...f, quantity: Math.max(0, f.quantity - 1) }))}
-                          >
-                            −
-                          </button>
-                          <input 
-                            type="number" 
-                            className={styles.quantityInput}
-                            value={editForm.quantity}
-                            onChange={(e) => setEditForm(f => ({ ...f, quantity: Math.max(0, parseInt(e.target.value) || 0) }))}
-                            min="0"
-                          />
-                          <button 
-                            className={styles.quantityBtn}
-                            onClick={() => setEditForm(f => ({ ...f, quantity: f.quantity + 1 }))}
-                          >
-                            +
-                          </button>
+                          <AdminWrite>
+                            <button
+                              className={styles.quantityBtn}
+                              onClick={() => setEditForm(f => ({ ...f, quantity: Math.max(0, f.quantity - 1) }))}
+                            >
+                              −
+                            </button>
+                          </AdminWrite>
+                          <AdminReadField value={editForm.quantity}>
+                            <input
+                              type="number"
+                              className={styles.quantityInput}
+                              value={editForm.quantity}
+                              onChange={(e) => setEditForm(f => ({ ...f, quantity: Math.max(0, parseInt(e.target.value) || 0) }))}
+                              min="0"
+                            />
+                          </AdminReadField>
+                          <AdminWrite>
+                            <button
+                              className={styles.quantityBtn}
+                              onClick={() => setEditForm(f => ({ ...f, quantity: f.quantity + 1 }))}
+                            >
+                              +
+                            </button>
+                          </AdminWrite>
                         </div>
                       </div>
                     </>
@@ -868,15 +882,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
                   <div className={styles.editFieldGroup}>
                     <label className={styles.editFieldLabel}>Grund</label>
                     <div className={styles.customDropdown}>
-                      <button 
-                        className={styles.dropdownTrigger}
-                        onClick={() => setEditForm(f => ({ ...f, isReasonDropdownOpen: !f.isReasonDropdownOpen }))}
-                      >
-                        <span>{editForm.reason || 'Grund auswählen'}</span>
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
+                      <AdminReadField value={editForm.reason}>
+                        <button
+                          className={styles.dropdownTrigger}
+                          onClick={() => setEditForm(f => ({ ...f, isReasonDropdownOpen: !f.isReasonDropdownOpen }))}
+                        >
+                          <span>{editForm.reason || 'Grund auswählen'}</span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                      </AdminReadField>
                       {editForm.isReasonDropdownOpen && (
                         <div className={styles.dropdownMenu}>
                           {['OOS', 'Listungslücke', 'Platzierung'].map(reason => (
@@ -896,13 +912,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
                   {/* Notes */}
                   <div className={styles.editFieldGroup}>
                     <label className={styles.editFieldLabel}>Notizen</label>
-                    <textarea 
-                      className={styles.notesInput}
-                      value={editForm.notes}
-                      onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))}
-                      placeholder="Optionale Notizen..."
-                      rows={3}
-                    />
+                    <AdminReadField value={editForm.notes}>
+                      <textarea
+                        className={styles.notesInput}
+                        value={editForm.notes}
+                        onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                        placeholder="Optionale Notizen..."
+                        rows={3}
+                      />
+                    </AdminReadField>
                   </div>
                 </>
               )}
@@ -910,29 +928,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onEditWave }) =>
           </div>
           
           <div className={styles.editFooter}>
-            <button 
-              className={styles.deleteButton}
-              onClick={() => {
-                handleActivityDelete(editingActivity);
-                setEditingActivity(null);
-              }}
-            >
-              Löschen
-            </button>
+            <AdminWrite>
+              <button
+                className={styles.deleteButton}
+                onClick={() => {
+                  handleActivityDelete(editingActivity);
+                  setEditingActivity(null);
+                }}
+              >
+                Löschen
+              </button>
+            </AdminWrite>
             <div className={styles.editActions}>
               <button 
                 className={styles.cancelButton}
                 onClick={() => setEditingActivity(null)}
               >
-                {editingActivity.type === 'nara_incentive' ? 'Schließen' : 'Abbrechen'}
+                {!canWrite || editingActivity.type === 'nara_incentive' ? 'Schließen' : 'Abbrechen'}
               </button>
               {editingActivity.type !== 'nara_incentive' && (
-                <button 
-                  className={styles.saveButton}
-                  onClick={handleActivityEdit}
-                >
-                  Speichern
-                </button>
+                <AdminWrite>
+                  <button
+                    className={styles.saveButton}
+                    onClick={handleActivityEdit}
+                  >
+                    Speichern
+                  </button>
+                </AdminWrite>
               )}
             </div>
           </div>

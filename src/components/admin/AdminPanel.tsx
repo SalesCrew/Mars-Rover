@@ -1,6 +1,8 @@
+import { ADMIN_PAGES, type AdminPage } from '../../config/adminNavigation';
+import { useAdminAccess, AdminWrite, AdminExport } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { House, MapPin, Users, CalendarCheck, ClipboardText, Package, Upload, X, CheckCircle, WarningCircle, ClockCounterClockwise, ArrowRight, ArrowsClockwise, UserMinus, UserPlus, CalendarPlus, Plus, Stack, SignOut, Receipt, TrendUp, DownloadSimple, Clock, Camera, Gift, Eye } from '@phosphor-icons/react';
+import { Users, CalendarCheck, Upload, X, CheckCircle, WarningCircle, ClockCounterClockwise, ArrowRight, ArrowsClockwise, UserMinus, UserPlus, CalendarPlus, Plus, Stack, SignOut, DownloadSimple, Eye } from '@phosphor-icons/react';
 import { AdminDashboard } from './AdminDashboard';
 import { MarketsPage } from './MarketsPage';
 import { GebietsleiterPage } from './GebietsleiterPage';
@@ -38,20 +40,15 @@ interface AdminPanelProps {
   onClose?: () => void;
 }
 
-type AdminPage = 'dashboard' | 'markets' | 'gebietsleiter' | 'vorbesteller' | 'vorverkauf' | 'produktersatz' | 'nara-incentive' | 'fragebogen' | 'produkte' | 'zeiterfassung' | 'fotos';
-
-interface MenuItem {
-  id: AdminPage;
-  label: string;
-  icon: React.ReactNode;
-}
-
 export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
+  const { canWrite, canView, canExport } = useAdminAccess();
   // Persist selected page to localStorage so it survives refresh
-  const [selectedPage, setSelectedPage] = useState<AdminPage>(() => {
+  const [requestedPage, setSelectedPage] = useState<AdminPage>(() => {
     const saved = localStorage.getItem('admin-selected-page');
     return (saved as AdminPage) || 'dashboard';
   });
+  const menuItems = ADMIN_PAGES.filter(page => canView(page.key)).map(page => ({ id: page.key, label: page.label, icon: <page.icon size={20} weight="regular" /> }));
+  const selectedPage = menuItems.some(page => page.id === requestedPage) ? requestedPage : menuItems[0]?.id;
   const [isExpanded, setIsExpanded] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [customerAccessOpen, setCustomerAccessOpen] = useState(false);
@@ -108,7 +105,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
 
   // Save selected page to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('admin-selected-page', selectedPage);
+    if (selectedPage) localStorage.setItem('admin-selected-page', selectedPage);
   }, [selectedPage]);
 
   // Handler for editing a wave from dashboard
@@ -132,8 +129,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
       }
     };
     
-    loadMarkets();
-  }, [importedMarkets]); // Reload when markets are imported
+    if (canWrite || selectedPage === 'gebietsleiter' || selectedPage === 'fragebogen') void loadMarkets();
+  }, [importedMarkets, canWrite, selectedPage]); // Reload when markets are imported
 
   // Fetch available GLs for export modal
   useEffect(() => {
@@ -147,8 +144,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
       }
     };
     
-    loadGLs();
-  }, []);
+    if (canWrite || (selectedPage === 'dashboard' && canExport('dashboard'))) void loadGLs();
+  }, [canWrite, selectedPage, canExport]);
 
   // Fetch history when modal opens
   useEffect(() => {
@@ -199,20 +196,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
   }, [isOpen]);
 
   if (!isOpen) return null;
-
-  const menuItems: MenuItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: <House size={20} weight="regular" /> },
-    { id: 'markets', label: 'Märkte', icon: <MapPin size={20} weight="regular" /> },
-    { id: 'gebietsleiter', label: 'Gebietsleiter', icon: <Users size={20} weight="regular" /> },
-    { id: 'vorbesteller', label: 'Vorbesteller', icon: <CalendarCheck size={20} weight="regular" /> },
-    { id: 'vorverkauf', label: 'Vorverkauf', icon: <TrendUp size={20} weight="regular" /> },
-    { id: 'produktersatz', label: 'Produktersatz', icon: <Receipt size={20} weight="regular" /> },
-    { id: 'nara-incentive', label: 'NaRa Incentive', icon: <Gift size={20} weight="regular" /> },
-    { id: 'fragebogen', label: 'Fragebogen', icon: <ClipboardText size={20} weight="regular" /> },
-    { id: 'zeiterfassung', label: 'Zeiterfassung', icon: <Clock size={20} weight="regular" /> },
-    { id: 'fotos', label: 'Fotos', icon: <Camera size={20} weight="regular" /> },
-    { id: 'produkte', label: 'Produkte', icon: <Package size={20} weight="regular" /> },
-  ];
 
   const handleMenuClick = (pageId: AdminPage) => {
     setSelectedPage(pageId);
@@ -471,13 +454,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
           </h1>
           {selectedPage === 'dashboard' && (
             <div className={styles.headerButtons}>
-              <button 
-                className={styles.exportButton}
-                onClick={() => setIsExportModalOpen(true)}
-              >
-                <DownloadSimple size={18} weight="bold" />
-                <span>Export</span>
-              </button>
+              <AdminExport page="dashboard">
+                <button
+                  className={styles.exportButton}
+                  onClick={() => setIsExportModalOpen(true)}
+                >
+                  <DownloadSimple size={18} weight="bold" />
+                  <span>Export</span>
+                </button>
+              </AdminExport>
             </div>
           )}
           {selectedPage === 'markets' && (
@@ -489,13 +474,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
                 <ClockCounterClockwise size={18} weight="bold" />
                 <span>Historie</span>
               </button>
-              <button 
-                className={styles.importButton}
-                onClick={() => setIsImportModalOpen(true)}
-              >
-                <Upload size={18} weight="bold" />
-                <span>Importieren</span>
-              </button>
+              <AdminWrite>
+                <button
+                  className={styles.importButton}
+                  onClick={() => setIsImportModalOpen(true)}
+                >
+                  <Upload size={18} weight="bold" />
+                  <span>Importieren</span>
+                </button>
+              </AdminWrite>
               <button 
                 className={styles.createMarketButton}
                 onClick={() => setIsCreateMarketModalOpen(true)}
@@ -507,71 +494,85 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
           )}
           {selectedPage === 'gebietsleiter' && (
             <div className={styles.headerButtons}>
-              <button 
-                className={styles.createGLButton}
-                onClick={() => setIsCreateGLModalOpen(true)}
-              >
-                <UserPlus size={18} weight="bold" />
-                <span>Neuen GL erstellen</span>
-              </button>
+              <AdminWrite>
+                <button
+                  className={styles.createGLButton}
+                  onClick={() => setIsCreateGLModalOpen(true)}
+                >
+                  <UserPlus size={18} weight="bold" />
+                  <span>Neuen GL erstellen</span>
+                </button>
+              </AdminWrite>
             </div>
           )}
           {selectedPage === 'vorbesteller' && (
             <div className={styles.headerButtons}>
-              <button 
-                className={styles.createWelleButton}
-                onClick={() => setIsCreateWelleModalOpen(true)}
-              >
-                <CalendarPlus size={18} weight="bold" />
-                <span>Welle erstellen</span>
-              </button>
+              <AdminWrite>
+                <button
+                  className={styles.createWelleButton}
+                  onClick={() => setIsCreateWelleModalOpen(true)}
+                >
+                  <CalendarPlus size={18} weight="bold" />
+                  <span>Welle erstellen</span>
+                </button>
+              </AdminWrite>
             </div>
           )}
           {selectedPage === 'fragebogen' && (
             <div className={styles.headerButtons}>
-              <button
-                className={styles.exportButton}
-                onClick={() => window.dispatchEvent(new CustomEvent('fragebogen:distribution-export'))}
-              >
-                <DownloadSimple size={18} weight="bold" />
-                <span>Export</span>
-              </button>
-              <button 
-                className={styles.createFragebogenButton}
-                onClick={() => setIsCreateFragebogenModalOpen(true)}
-              >
-                <Plus size={18} weight="bold" />
-                <span>Fragebogen erstellen</span>
-              </button>
-              <button 
-                className={styles.createModuleButton}
-                onClick={() => setIsCreateModuleModalOpen(true)}
-              >
-                <Stack size={18} weight="bold" />
-                <span>Modul erstellen</span>
-              </button>
+              <AdminExport page="fragebogen">
+                <button
+                  className={styles.exportButton}
+                  onClick={() => window.dispatchEvent(new CustomEvent('fragebogen:distribution-export'))}
+                >
+                  <DownloadSimple size={18} weight="bold" />
+                  <span>Export</span>
+                </button>
+              </AdminExport>
+              <AdminWrite>
+                <button
+                  className={styles.createFragebogenButton}
+                  onClick={() => setIsCreateFragebogenModalOpen(true)}
+                >
+                  <Plus size={18} weight="bold" />
+                  <span>Fragebogen erstellen</span>
+                </button>
+              </AdminWrite>
+              <AdminWrite>
+                <button
+                  className={styles.createModuleButton}
+                  onClick={() => setIsCreateModuleModalOpen(true)}
+                >
+                  <Stack size={18} weight="bold" />
+                  <span>Modul erstellen</span>
+                </button>
+              </AdminWrite>
             </div>
           )}
           {selectedPage === 'produkte' && (
             <div className={styles.headerButtons}>
-              <button 
-                className={styles.importProductsButton}
-                onClick={() => setIsProductImportModalOpen(true)}
-              >
-                <Upload size={18} weight="bold" />
-                <span>Produkte importieren</span>
-              </button>
+              <AdminWrite>
+                <button
+                  className={styles.importProductsButton}
+                  onClick={() => setIsProductImportModalOpen(true)}
+                >
+                  <Upload size={18} weight="bold" />
+                  <span>Produkte importieren</span>
+                </button>
+              </AdminWrite>
             </div>
           )}
           {selectedPage === 'fotos' && (
             <div className={styles.headerButtons}>
-              <button 
-                className={styles.exportButton}
-                onClick={() => window.dispatchEvent(new CustomEvent('fotos:export'))}
-              >
-                <DownloadSimple size={18} weight="bold" />
-                <span>Export</span>
-              </button>
+              <AdminExport page="fotos">
+                <button
+                  className={styles.exportButton}
+                  onClick={() => window.dispatchEvent(new CustomEvent('fotos:export'))}
+                >
+                  <DownloadSimple size={18} weight="bold" />
+                  <span>Export</span>
+                </button>
+              </AdminExport>
             </div>
           )}
           {selectedPage === 'zeiterfassung' && (
@@ -593,41 +594,48 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
                 </button>
               </div>
               <div className={styles.headerDivider} />
-              <button 
-                className={styles.exportButton}
-                onClick={() => setShowZeiterfassungExportModal(true)}
-              >
-                <DownloadSimple size={18} weight="bold" />
-                <span>Export</span>
-              </button>
+              <AdminExport page="zeiterfassung">
+                <button
+                  className={styles.exportButton}
+                  onClick={() => setShowZeiterfassungExportModal(true)}
+                >
+                  <DownloadSimple size={18} weight="bold" />
+                  <span>Export</span>
+                </button>
+              </AdminExport>
             </div>
           )}
           {selectedPage === 'nara-incentive' && (
             <div className={styles.headerButtons}>
-              <button
-                className={styles.exportButton}
-                onClick={() => window.dispatchEvent(new CustomEvent('nara-incentive:export'))}
-              >
-                <DownloadSimple size={18} weight="bold" />
-                <span>Export</span>
-              </button>
+              <AdminExport page="nara-incentive">
+                <button
+                  className={styles.exportButton}
+                  onClick={() => window.dispatchEvent(new CustomEvent('nara-incentive:export'))}
+                >
+                  <DownloadSimple size={18} weight="bold" />
+                  <span>Export</span>
+                </button>
+              </AdminExport>
             </div>
           )}
           {selectedPage === 'produktersatz' && (
             <div className={styles.headerButtons}>
-              <button
-                className={styles.exportButton}
-                onClick={() => window.dispatchEvent(new CustomEvent('produktersatz:export'))}
-              >
-                <DownloadSimple size={18} weight="bold" />
-                <span>Export</span>
-              </button>
+              <AdminExport page="produktersatz">
+                <button
+                  className={styles.exportButton}
+                  onClick={() => window.dispatchEvent(new CustomEvent('produktersatz:export'))}
+                >
+                  <DownloadSimple size={18} weight="bold" />
+                  <span>Export</span>
+                </button>
+              </AdminExport>
             </div>
           )}
         </header>
         
         <div className={styles.pageContent}>
-          {selectedPage === 'dashboard' && <AdminDashboard onEditWave={handleEditWaveFromDashboard} />}
+          {!selectedPage && <p>Für diesen Zugang sind noch keine Seiten freigegeben.</p>}
+          {selectedPage === 'dashboard' && <AdminDashboard onEditWave={canWrite ? handleEditWaveFromDashboard : undefined} />}
           {selectedPage === 'markets' && <MarketsPage importedMarkets={importedMarkets} isCreateModalOpen={isCreateMarketModalOpen} onCloseCreateModal={() => setIsCreateMarketModalOpen(false)} />}
           {selectedPage === 'gebietsleiter' && <GebietsleiterPage isCreateModalOpen={isCreateGLModalOpen} onCloseCreateModal={() => setIsCreateGLModalOpen(false)} allMarkets={allMarkets} />}
           {selectedPage === 'vorbesteller' && <VorbestellerPage isCreateWelleModalOpen={isCreateWelleModalOpen} onCloseCreateWelleModal={() => setIsCreateWelleModalOpen(false)} onOpenCreateWelleModal={() => setIsCreateWelleModalOpen(true)} waveIdToEdit={waveIdToEdit} onClearWaveIdToEdit={() => setWaveIdToEdit(null)} />}
@@ -1204,26 +1212,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen = true }) => {
       )}
 
       {/* Admin Accounts Modal */}
-      {profileMenuOpen && ReactDOM.createPortal(<div className={accessStyles.profileBackdrop} onClick={() => setProfileMenuOpen(false)}><div className={accessStyles.profileMenu} role="dialog" aria-label="Profilmenü" onClick={e => e.stopPropagation()}><p>{user?.firstName} {user?.lastName}</p><small>{user?.email}</small><button autoFocus onClick={() => { setProfileMenuOpen(false); setIsAdminAccountsModalOpen(true); }}><Users size={17}/> Mitarbeiter verwalten</button><button onClick={() => { setProfileMenuOpen(false); setCustomerAccessOpen(true); }}><Eye size={17}/> Kundenzugänge</button><button onClick={handleLogout}><SignOut size={17}/> Abmelden</button></div></div>,document.body)}
-      {customerAccessOpen && <CustomerAccessPanel onClose={() => { setCustomerAccessOpen(false); profileButtonRef.current?.focus(); }}/>}
+      {profileMenuOpen && ReactDOM.createPortal(
+        <div className={accessStyles.profileBackdrop} onClick={() => setProfileMenuOpen(false)}>
+          <div className={accessStyles.profileMenu} role="dialog" aria-label="Profilmenü" onClick={e => e.stopPropagation()}>
+            <p>{user?.firstName} {user?.lastName}</p>
+            <small>{user?.email}</small>
+            <AdminWrite>
+              <button autoFocus onClick={() => { setProfileMenuOpen(false); setIsAdminAccountsModalOpen(true); }}>
+                <Users size={17}/> Mitarbeiter verwalten
+              </button>
+              <button onClick={() => { setProfileMenuOpen(false); setCustomerAccessOpen(true); }}>
+                <Eye size={17}/> Kundenzugänge
+              </button>
+            </AdminWrite>
+            <button onClick={handleLogout}><SignOut size={17}/> Abmelden</button>
+          </div>
+        </div>, document.body
+      )}
+      {canWrite && customerAccessOpen && <CustomerAccessPanel onClose={() => { setCustomerAccessOpen(false); profileButtonRef.current?.focus(); }}/>}
       <AdminAccountsModal
-        isOpen={isAdminAccountsModalOpen}
+        isOpen={canWrite && isAdminAccountsModalOpen}
         onClose={() => setIsAdminAccountsModalOpen(false)}
       />
 
       {/* Export Data Modal */}
       <ExportDataModal
-        isOpen={isExportModalOpen}
+        isOpen={canExport('dashboard') && isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         availableGLs={availableGLs}
       />
 
       {/* Dev Panel - Shift+G then H to toggle */}
-      <DevPanel onCompleteNextMarket={() => console.log('Admin dev action')} />
+      <AdminWrite>
+        <DevPanel onCompleteNextMarket={() => console.log('Admin dev action')} />
+      </AdminWrite>
 
       {/* Zeiterfassung Export Picker Modal */}
       <ZeiterfassungExportModal
-        isOpen={showZeiterfassungExportModal}
+        isOpen={canExport('zeiterfassung') && showZeiterfassungExportModal}
         onClose={() => setShowZeiterfassungExportModal(false)}
         onExportZeiterfassung={() => {
           setShowZeiterfassungExportModal(false);

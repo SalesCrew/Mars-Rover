@@ -1,3 +1,4 @@
+import { AdminWrite, AdminReadField } from '../../contexts/AdminAccessContext';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { X, User, Phone, Envelope, MapPin, TrendUp, TrendDown, Plus } from '@phosphor-icons/react';
@@ -638,13 +639,15 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
             </div>
           </div>
           <div className={styles.headerActions}>
-            <button 
-              className={`${styles.deleteButton} ${deleteClickedOnce ? styles.deleteConfirm : ''}`}
-              onClick={handleDeleteClick}
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Löschen...' : deleteClickedOnce ? 'Nochmal klicken!' : 'Löschen'}
-            </button>
+            <AdminWrite>
+              <button
+                className={`${styles.deleteButton} ${deleteClickedOnce ? styles.deleteConfirm : ''}`}
+                onClick={handleDeleteClick}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Löschen...' : deleteClickedOnce ? 'Nochmal klicken!' : 'Löschen'}
+              </button>
+            </AdminWrite>
             <button className={styles.modalClose} onClick={onClose}>
               <X size={24} weight="bold" />
             </button>
@@ -673,12 +676,14 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
                   <User size={16} weight="regular" />
                   Name
                 </label>
-                <input
-                  type="text"
-                  value={editableData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  className={styles.input}
-                />
+                <AdminReadField value={editableData.name}>
+                  <input
+                    type="text"
+                    value={editableData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    className={styles.input}
+                  />
+                </AdminReadField>
               </div>
 
               <div className={styles.formGroup}>
@@ -686,32 +691,38 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
                   <MapPin size={16} weight="regular" />
                   Adresse
                 </label>
-                <input
-                  type="text"
-                  value={editableData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  className={styles.input}
-                />
+                <AdminReadField value={editableData.address}>
+                  <input
+                    type="text"
+                    value={editableData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    className={styles.input}
+                  />
+                </AdminReadField>
               </div>
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>PLZ</label>
-                  <input
-                    type="text"
-                    value={editableData.postalCode}
-                    onChange={(e) => handleInputChange('postalCode', e.target.value)}
-                    className={styles.input}
-                  />
+                  <AdminReadField value={editableData.postalCode}>
+                    <input
+                      type="text"
+                      value={editableData.postalCode}
+                      onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                      className={styles.input}
+                    />
+                  </AdminReadField>
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Ort</label>
-                  <input
-                    type="text"
-                    value={editableData.city}
-                    onChange={(e) => handleInputChange('city', e.target.value)}
-                    className={styles.input}
-                  />
+                  <AdminReadField value={editableData.city}>
+                    <input
+                      type="text"
+                      value={editableData.city}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      className={styles.input}
+                    />
+                  </AdminReadField>
                 </div>
               </div>
 
@@ -720,12 +731,14 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
                   <Phone size={16} weight="regular" />
                   Telefon
                 </label>
-                <input
-                  type="tel"
-                  value={editableData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className={styles.input}
-                />
+                <AdminReadField value={editableData.phone}>
+                  <input
+                    type="tel"
+                    value={editableData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className={styles.input}
+                  />
+                </AdminReadField>
               </div>
 
               <div className={styles.formGroup}>
@@ -733,12 +746,14 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
                   <Envelope size={16} weight="regular" />
                   Email
                 </label>
-                <input
-                  type="email"
-                  value={editableData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={styles.input}
-                />
+                <AdminReadField value={editableData.email}>
+                  <input
+                    type="email"
+                    value={editableData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className={styles.input}
+                  />
+                </AdminReadField>
               </div>
 
               <button className={styles.saveButton}>
@@ -944,13 +959,15 @@ export const GLDetailModal: React.FC<GLDetailModalProps> = ({ gl, onClose, onDel
                 </div>
                 
                 {/* Add Markets Button */}
-                <button 
-                  className={styles.addMarketsButton}
-                  onClick={() => setIsAddMarketsModalOpen(true)}
-                  title="Märkte hinzufügen"
-                >
-                  <Plus size={20} weight="bold" />
-                </button>
+                <AdminWrite>
+                  <button
+                    className={styles.addMarketsButton}
+                    onClick={() => setIsAddMarketsModalOpen(true)}
+                    title="Märkte hinzufügen"
+                  >
+                    <Plus size={20} weight="bold" />
+                  </button>
+                </AdminWrite>
               </div>
 
               {/* Markets List */}

@@ -1,3 +1,5 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
+import { AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import XLSX from 'xlsx-js-style';
@@ -45,6 +47,7 @@ const getDateKey = (dateString: string) => {
 };
 
 export const NaraIncentivePage: React.FC = () => {
+  const { canWrite, canExport } = useAdminAccess();
   const [submissions, setSubmissions] = useState<NaraIncentiveSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -175,6 +178,7 @@ export const NaraIncentivePage: React.FC = () => {
 
   // Export handler — one row per product item
   const handleExport = useCallback(() => {
+    if (!canExport('nara-incentive')) return;
     const headers = ['Datum', 'Gebietsleiter', 'Handelskette', 'Markt', 'Adresse', 'PLZ', 'Stadt', 'Produkt', 'Gewicht', 'Menge', 'Wert/Einheit (€)', 'Gesamtwert (€)'];
     const rows: (string | number)[][] = [];
     const sortedEntries = [...groupedEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -238,12 +242,12 @@ export const NaraIncentivePage: React.FC = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'NaRa Incentive');
     const today = new Date().toISOString().split('T')[0];
     XLSX.writeFile(workbook, `NaRa_Incentive_${today}.xlsx`);
-  }, [groupedEntries]);
+  }, [groupedEntries, canExport]);
 
   useEffect(() => {
-    window.addEventListener('nara-incentive:export', handleExport);
+    if (canExport('nara-incentive')) window.addEventListener('nara-incentive:export', handleExport);
     return () => window.removeEventListener('nara-incentive:export', handleExport);
-  }, [handleExport]);
+  }, [handleExport, canExport]);
 
   const selectedGL = availableGLs.find(gl => gl.id === selectedGLId);
 
@@ -337,7 +341,7 @@ export const NaraIncentivePage: React.FC = () => {
                 key={entry.key}
                 className={`${styles.entryCard} ${expandedKey === entry.key ? styles.entryCardExpanded : ''}`}
                 onClick={() => setExpandedKey(expandedKey === entry.key ? null : entry.key)}
-                onContextMenu={(e) => handleContextMenu(e, entry)}
+                onContextMenu={canWrite ? (e) => handleContextMenu(e, entry) : undefined}
               >
                 <div className={styles.entryHeader}>
                   <div className={styles.entryMain}>
@@ -415,16 +419,18 @@ export const NaraIncentivePage: React.FC = () => {
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
-            onClick={() => {
-              setEntryToDelete(contextMenu.entry);
-              setContextMenu(null);
-            }}
-          >
-            <Trash size={16} weight="bold" />
-            <span>Eintrag löschen</span>
-          </button>
+          <AdminWrite>
+            <button
+              className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
+              onClick={() => {
+                setEntryToDelete(contextMenu.entry);
+                setContextMenu(null);
+              }}
+            >
+              <Trash size={16} weight="bold" />
+              <span>Eintrag löschen</span>
+            </button>
+          </AdminWrite>
         </div>
       )}
 
@@ -462,20 +468,22 @@ export const NaraIncentivePage: React.FC = () => {
               >
                 Abbrechen
               </button>
-              <button
-                className={styles.confirmDeleteButton}
-                onClick={handleDeleteEntry}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <div className={styles.deleteSpinner} />
-                ) : (
-                  <>
-                    <Trash size={16} weight="bold" />
-                    Löschen
-                  </>
-                )}
-              </button>
+              <AdminWrite>
+                <button
+                  className={styles.confirmDeleteButton}
+                  onClick={handleDeleteEntry}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <div className={styles.deleteSpinner} />
+                  ) : (
+                    <>
+                      <Trash size={16} weight="bold" />
+                      Löschen
+                    </>
+                  )}
+                </button>
+              </AdminWrite>
             </div>
           </div>
         </div>,

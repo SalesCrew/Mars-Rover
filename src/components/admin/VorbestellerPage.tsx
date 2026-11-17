@@ -1,3 +1,5 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
+import { AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { CalendarPlus, X, CheckCircle, Package, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash, PencilSimple, Copy, Calendar, TrendUp, Clock, CheckCircle as CheckCircleFilled, Storefront, Stack, ShoppingBag, Cube, Camera, MagnifyingGlass } from '@phosphor-icons/react';
@@ -157,6 +159,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   waveIdToEdit,
   onClearWaveIdToEdit
 }) => {
+  const { canWrite } = useAdminAccess();
   // State for wellen list
   const [wellenList, setWellenList] = useState<Welle[]>([]);
   const [_isLoadingWellen, setIsLoadingWellen] = useState(true);
@@ -206,8 +209,8 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
         console.error('Error loading products:', error);
       }
     };
-    loadProducts();
-  }, []);
+    if (canWrite) void loadProducts();
+  }, [canWrite]);
 
   const [selectedWelle, setSelectedWelle] = useState<Welle | null>(null);
   const [editingWelle, setEditingWelle] = useState<Welle | null>(null);
@@ -273,7 +276,7 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
   const closeCatalogManager = useCallback(() => setCatalogManager(false), []);
   const [quarterEntries, setQuarterEntries] = useState<CatalogEntry[]>([]);
   const reloadCatalog = () => quarterCatalogService.list().then(r => setQuarterEntries(r.items));
-  useEffect(() => { void reloadCatalog().catch(() => setQuarterEntries([])); }, []);
+  useEffect(() => { if (canWrite) void reloadCatalog().catch(() => setQuarterEntries([])); }, [canWrite]);
   const selectCatalogItem = (entry: CatalogEntry) => {
     if (!catalogSelection) return;
     const meta = { catalogKey: entry.catalog_key, artikelNr: entry.artikel_nr, catalogVeSize: entry.units_per_ve,
@@ -994,16 +997,20 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 
   const renderWelleActions = (welle: Welle) => (
     <div className={styles.welleActions}>
-      <button type="button" className={styles.welleEditButton}
-        title="Welle duplizieren" aria-label={`${welle.name} duplizieren`}
-        onClick={event => { event.stopPropagation(); handleEditWelle(welle, 'duplicate'); }}>
-        <Copy size={18} weight="bold" />
-      </button>
-      <button type="button" className={styles.welleEditButton}
-        title="Welle bearbeiten" aria-label={`${welle.name} bearbeiten`}
-        onClick={event => { event.stopPropagation(); handleEditWelle(welle); }}>
-        <PencilSimple size={18} weight="bold" />
-      </button>
+      <AdminWrite>
+        <button type="button" className={styles.welleEditButton}
+          title="Welle duplizieren" aria-label={`${welle.name} duplizieren`}
+          onClick={event => { event.stopPropagation(); handleEditWelle(welle, 'duplicate'); }}>
+          <Copy size={18} weight="bold" />
+        </button>
+      </AdminWrite>
+      <AdminWrite>
+        <button type="button" className={styles.welleEditButton}
+          title="Welle bearbeiten" aria-label={`${welle.name} bearbeiten`}
+          onClick={event => { event.stopPropagation(); handleEditWelle(welle); }}>
+          <PencilSimple size={18} weight="bold" />
+        </button>
+      </AdminWrite>
     </div>
   );
 
@@ -1279,7 +1286,9 @@ export const VorbestellerPage: React.FC<VorbestellerPageProps> = ({
 
   return (
     <div className={styles.vorbestellerPage}>
-      <button type="button" className={styles.addItemButton} onClick={() => setCatalogManager(true)}>Quartalspreise und historische Bewertung</button>
+      <AdminWrite>
+        <button type="button" className={styles.addItemButton} onClick={() => setCatalogManager(true)}>Quartalspreise und historische Bewertung</button>
+      </AdminWrite>
       {catalogManager && <QuarterCatalogModal onClose={closeCatalogManager} onChanged={() => { void reloadCatalog(); }} />}
       {catalogSelection && <QuarterCatalogModal type={catalogSelection.type} onSelect={selectCatalogItem} onClose={closeCatalogSelection} />}
 

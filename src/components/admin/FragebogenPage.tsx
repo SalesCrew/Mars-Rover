@@ -1,3 +1,5 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
+import { AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect, useMemo } from 'react';
 import { TrendUp, Clock, XCircle, Stack, PencilSimple, Calendar, Users, CheckCircle as CheckCircleFilled, Question, CircleNotch, Copy, Trash, Warning } from '@phosphor-icons/react';
 import { FragebogenDetailModal } from './FragebogenDetailModal';
@@ -136,6 +138,7 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
   isCreateFragebogenModalOpen,
   onCloseCreateFragebogenModal
 }) => {
+  const { canWrite, canExport } = useAdminAccess();
 
   /** Build an API-typed question payload without implicitly replacing images. */
   const buildQuestionPayload = (
@@ -250,9 +253,9 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
 
   useEffect(() => {
     const openDistributionExport = () => setIsDistributionExportModalOpen(true);
-    window.addEventListener('fragebogen:distribution-export', openDistributionExport);
+    if (canExport('fragebogen')) window.addEventListener('fragebogen:distribution-export', openDistributionExport);
     return () => window.removeEventListener('fragebogen:distribution-export', openDistributionExport);
-  }, []);
+  }, [canExport]);
 
   useEffect(() => {
     if (!isDistributionExportModalOpen) return;
@@ -1376,7 +1379,7 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                   key={fragebogen.id}
                   className={`${styles.fragebogenCard} ${styles.fragebogenCardActive}`}
                   onClick={() => setSelectedFragebogen(fragebogen)}
-                  onContextMenu={(e) => handleFragebogenContextMenu(e, fragebogen)}
+                  onContextMenu={canWrite ? (e) => handleFragebogenContextMenu(e, fragebogen) : undefined}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className={styles.fragebogenHeader}>
@@ -1387,15 +1390,17 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                       {statusConfig.icon}
                       <span>{statusConfig.label}</span>
                     </div>
-                    <button 
-                      className={styles.fragebogenEditButton}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditFragebogen(fragebogen);
-                      }}
-                    >
-                      <PencilSimple size={18} weight="bold" />
-                    </button>
+                    <AdminWrite>
+                      <button
+                        className={styles.fragebogenEditButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditFragebogen(fragebogen);
+                        }}
+                      >
+                        <PencilSimple size={18} weight="bold" />
+                      </button>
+                    </AdminWrite>
                   </div>
 
                   <div className={styles.fragebogenContent}>
@@ -1444,7 +1449,7 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                   key={fragebogen.id}
                   className={`${styles.fragebogenCard} ${styles.fragebogenCardScheduled}`}
                   onClick={() => setSelectedFragebogen(fragebogen)}
-                  onContextMenu={(e) => handleFragebogenContextMenu(e, fragebogen)}
+                  onContextMenu={canWrite ? (e) => handleFragebogenContextMenu(e, fragebogen) : undefined}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className={styles.fragebogenHeader}>
@@ -1455,15 +1460,17 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                       {statusConfig.icon}
                       <span>{statusConfig.label}</span>
                     </div>
-                    <button 
-                      className={styles.fragebogenEditButton}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditFragebogen(fragebogen);
-                      }}
-                    >
-                      <PencilSimple size={18} weight="bold" />
-                    </button>
+                    <AdminWrite>
+                      <button
+                        className={styles.fragebogenEditButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditFragebogen(fragebogen);
+                        }}
+                      >
+                        <PencilSimple size={18} weight="bold" />
+                      </button>
+                    </AdminWrite>
                   </div>
 
                   <div className={styles.fragebogenContent}>
@@ -1512,7 +1519,7 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                   key={fragebogen.id}
                   className={`${styles.fragebogenCard} ${styles.fragebogenCardInactive}`}
                   onClick={() => setSelectedFragebogen(fragebogen)}
-                  onContextMenu={(e) => handleFragebogenContextMenu(e, fragebogen)}
+                  onContextMenu={canWrite ? (e) => handleFragebogenContextMenu(e, fragebogen) : undefined}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className={styles.fragebogenHeader}>
@@ -1523,15 +1530,17 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                       {statusConfig.icon}
                       <span>{statusConfig.label}</span>
                     </div>
-                    <button 
-                      className={styles.fragebogenEditButton}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditFragebogen(fragebogen);
-                      }}
-                    >
-                      <PencilSimple size={18} weight="bold" />
-                    </button>
+                    <AdminWrite>
+                      <button
+                        className={styles.fragebogenEditButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditFragebogen(fragebogen);
+                        }}
+                      >
+                        <PencilSimple size={18} weight="bold" />
+                      </button>
+                    </AdminWrite>
                   </div>
 
                   <div className={styles.fragebogenContent}>
@@ -1577,18 +1586,20 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
               key={module.id}
               className={styles.moduleCard}
               onClick={() => setSelectedModule(module)}
-              onContextMenu={(e) => handleContextMenu(e, module)}
+              onContextMenu={canWrite ? (e) => handleContextMenu(e, module) : undefined}
               style={{ cursor: 'pointer' }}
             >
-              <button 
-                className={styles.moduleEditButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditModule(module);
-                }}
-              >
-                <PencilSimple size={16} weight="bold" />
-              </button>
+              <AdminWrite>
+                <button
+                  className={styles.moduleEditButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditModule(module);
+                  }}
+                >
+                  <PencilSimple size={16} weight="bold" />
+                </button>
+              </AdminWrite>
               
               <div className={styles.moduleIcon}>
                 <Stack size={40} weight="regular" />
@@ -1951,20 +1962,24 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button 
-            className={styles.contextMenuItem}
-            onClick={() => handleDuplicateModule(contextMenu.module)}
-          >
-            <Copy size={16} weight="bold" />
-            <span>Modul duplizieren</span>
-          </button>
-          <button 
-            className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
-            onClick={() => handleOpenDeleteModuleModal(contextMenu.module)}
-          >
-            <Trash size={16} weight="bold" />
-            <span>Modul löschen</span>
-          </button>
+          <AdminWrite>
+            <button
+              className={styles.contextMenuItem}
+              onClick={() => handleDuplicateModule(contextMenu.module)}
+            >
+              <Copy size={16} weight="bold" />
+              <span>Modul duplizieren</span>
+            </button>
+          </AdminWrite>
+          <AdminWrite>
+            <button
+              className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
+              onClick={() => handleOpenDeleteModuleModal(contextMenu.module)}
+            >
+              <Trash size={16} weight="bold" />
+              <span>Modul löschen</span>
+            </button>
+          </AdminWrite>
         </div>
       )}
 
@@ -1980,20 +1995,24 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button 
-            className={styles.contextMenuItem}
-            onClick={() => handleDuplicateFragebogen(fragebogenContextMenu.fragebogen)}
-          >
-            <Copy size={16} weight="bold" />
-            <span>Fragebogen duplizieren</span>
-          </button>
-          <button 
-            className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
-            onClick={() => handleDeleteFragebogen(fragebogenContextMenu.fragebogen)}
-          >
-            <Trash size={16} weight="bold" />
-            <span>Fragebogen löschen</span>
-          </button>
+          <AdminWrite>
+            <button
+              className={styles.contextMenuItem}
+              onClick={() => handleDuplicateFragebogen(fragebogenContextMenu.fragebogen)}
+            >
+              <Copy size={16} weight="bold" />
+              <span>Fragebogen duplizieren</span>
+            </button>
+          </AdminWrite>
+          <AdminWrite>
+            <button
+              className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`}
+              onClick={() => handleDeleteFragebogen(fragebogenContextMenu.fragebogen)}
+            >
+              <Trash size={16} weight="bold" />
+              <span>Fragebogen löschen</span>
+            </button>
+          </AdminWrite>
         </div>
       )}
 
@@ -2053,27 +2072,31 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                 <div className={styles.deleteModalOptions}>
                   <p className={styles.optionsTitle}>Wie möchten Sie fortfahren?</p>
                   
-                  <button 
-                    className={styles.deleteOptionButton}
-                    onClick={() => handleDeleteModule(false)}
-                  >
-                    <Trash size={18} weight="bold" />
-                    <div>
-                      <span className={styles.optionTitle}>Nur Modul löschen</span>
-                      <span className={styles.optionDesc}>Fragen bleiben für spätere Verwendung erhalten</span>
-                    </div>
-                  </button>
+                  <AdminWrite>
+                    <button
+                      className={styles.deleteOptionButton}
+                      onClick={() => handleDeleteModule(false)}
+                    >
+                      <Trash size={18} weight="bold" />
+                      <div>
+                        <span className={styles.optionTitle}>Nur Modul löschen</span>
+                        <span className={styles.optionDesc}>Fragen bleiben für spätere Verwendung erhalten</span>
+                      </div>
+                    </button>
+                  </AdminWrite>
                   
-                  <button 
-                    className={`${styles.deleteOptionButton} ${styles.deleteOptionButtonDanger}`}
-                    onClick={() => handleDeleteModule(true)}
-                  >
-                    <Trash size={18} weight="fill" />
-                    <div>
-                      <span className={styles.optionTitle}>Modul und Fragen löschen</span>
-                      <span className={styles.optionDesc}>Fragen werden ebenfalls gelöscht (wenn nicht anderweitig verwendet)</span>
-                    </div>
-                  </button>
+                  <AdminWrite>
+                    <button
+                      className={`${styles.deleteOptionButton} ${styles.deleteOptionButtonDanger}`}
+                      onClick={() => handleDeleteModule(true)}
+                    >
+                      <Trash size={18} weight="fill" />
+                      <div>
+                        <span className={styles.optionTitle}>Modul und Fragen löschen</span>
+                        <span className={styles.optionDesc}>Fragen werden ebenfalls gelöscht (wenn nicht anderweitig verwendet)</span>
+                      </div>
+                    </button>
+                  </AdminWrite>
                 </div>
                 
                 <button 
@@ -2107,13 +2130,15 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
                   >
                     Zurück
                   </button>
-                  <button 
-                    className={styles.confirmDeleteButton}
-                    onClick={confirmDeleteModule}
-                  >
-                    <Trash size={18} weight="bold" />
-                    Endgültig löschen
-                  </button>
+                  <AdminWrite>
+                    <button
+                      className={styles.confirmDeleteButton}
+                      onClick={confirmDeleteModule}
+                    >
+                      <Trash size={18} weight="bold" />
+                      Endgültig löschen
+                    </button>
+                  </AdminWrite>
                 </div>
               </>
             )}
@@ -2145,20 +2170,22 @@ export const FragebogenPage: React.FC<FragebogenPageProps> = ({
               >
                 Abbrechen
               </button>
-              <button 
-                className={styles.confirmDeleteButton}
-                onClick={confirmDeleteFragebogen}
-              >
-                <Trash size={18} weight="bold" />
-                Löschen
-              </button>
+              <AdminWrite>
+                <button
+                  className={styles.confirmDeleteButton}
+                  onClick={confirmDeleteFragebogen}
+                >
+                  <Trash size={18} weight="bold" />
+                  Löschen
+                </button>
+              </AdminWrite>
             </div>
           </div>
         </div>
       )}
 
       <FragebogenDistributionExportModal
-        isOpen={isDistributionExportModalOpen}
+        isOpen={canExport('fragebogen') && isDistributionExportModalOpen}
         isExporting={isDistributionExporting}
         isLoadingItems={isLoadingDistributionItems}
         fragebogenOptions={distributionExportOptions}

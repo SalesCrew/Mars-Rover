@@ -1,3 +1,5 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
+import { AdminReadField, AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { X, CaretDown, ClockCounterClockwise, Info, Package, ShoppingCart, Storefront, ArrowsLeftRight, Spinner, Trash } from '@phosphor-icons/react';
@@ -36,6 +38,7 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
   onSave,
   onDelete
 }) => {
+  const { canWrite } = useAdminAccess();
   const [formData, setFormData] = useState<AdminMarket>(() => ({ ...market, chain: market.chain ? normalizeMarketChain(market.chain) : '' }));
   const [openDropdown, setOpenDropdown] = useState<DropdownType | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -425,12 +428,12 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
         <label className={styles.label}>{label}</label>
         <div 
           className={styles.dropdown}
-          onClick={() => handleDropdownToggle(type)}
+          onClick={canWrite ? () => handleDropdownToggle(type) : undefined}
         >
           <span className={currentValue ? styles.dropdownValue : styles.dropdownPlaceholder}>
             {currentValue || `${label} auswählen`}
           </span>
-          <CaretDown size={14} weight="bold" className={styles.dropdownIcon} />
+          {canWrite && <CaretDown size={14} weight="bold" className={styles.dropdownIcon} />}
         </div>
         {isOpen && (
           <div className={styles.dropdownMenu}>
@@ -486,12 +489,14 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
               <div className={styles.row}>
                 <div className={styles.field}>
                   <label className={styles.label}>ID</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    value={formData.internalId || ''}
-                    onChange={(e) => handleInputChange('internalId', e.target.value)}
-                  />
+                  <AdminReadField value={formData.internalId || ''}>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={formData.internalId || ''}
+                      onChange={(e) => handleInputChange('internalId', e.target.value)}
+                    />
+                  </AdminReadField>
                 </div>
                 {renderDropdown('banner', 'Banner', uniqueBanners, formData.banner, 'banner')}
               </div>
@@ -505,45 +510,53 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
               {/* Row 3: Name */}
               <div className={styles.field}>
                 <label className={styles.label}>Name</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  value={formData.name || ''}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                />
+                <AdminReadField value={formData.name || ''}>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    value={formData.name || ''}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                  />
+                </AdminReadField>
               </div>
 
               {/* Row 4: PLZ & Stadt */}
               <div className={styles.row}>
                 <div className={styles.field}>
                   <label className={styles.label}>PLZ</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    value={formData.postalCode || ''}
-                    onChange={(e) => handleInputChange('postalCode', e.target.value)}
-                  />
+                  <AdminReadField value={formData.postalCode || ''}>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={formData.postalCode || ''}
+                      onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                    />
+                  </AdminReadField>
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label}>Stadt</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    value={formData.city || ''}
-                    onChange={(e) => handleInputChange('city', e.target.value)}
-                  />
+                  <AdminReadField value={formData.city || ''}>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={formData.city || ''}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                    />
+                  </AdminReadField>
                 </div>
               </div>
 
               {/* Row 5: Straße */}
               <div className={styles.field}>
                 <label className={styles.label}>Straße</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  value={formData.address || ''}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                />
+                <AdminReadField value={formData.address || ''}>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    value={formData.address || ''}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                  />
+                </AdminReadField>
               </div>
 
               {/* Row 6: GL & GL Email */}
@@ -566,14 +579,16 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
                 {renderDropdown('status', 'Status', statusOptions, formData.isActive ? 'Aktiv' : 'Inaktiv', 'status')}
                 <div className={styles.field}>
                   <label className={styles.label}>Frequenz</label>
-                  <input
-                    type="number"
-                    className={styles.input}
-                    value={formData.frequency ?? ''}
-                    onChange={(e) => handleInputChange('frequency', e.target.value)}
-                    min="0"
-                    placeholder="z.B. 12"
-                  />
+                  <AdminReadField value={formData.frequency ?? ''}>
+                    <input
+                      type="number"
+                      className={styles.input}
+                      value={formData.frequency ?? ''}
+                      onChange={(e) => handleInputChange('frequency', e.target.value)}
+                      min="0"
+                      placeholder="z.B. 12"
+                    />
+                  </AdminReadField>
                 </div>
               </div>
 
@@ -581,36 +596,42 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
               <div className={styles.row}>
                 <div className={styles.field}>
                   <label className={styles.label}>Subgroup</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    value={formData.subgroup || ''}
-                    onChange={(e) => handleInputChange('subgroup', e.target.value)}
-                    placeholder="Subgroup eingeben"
-                  />
+                  <AdminReadField value={formData.subgroup || ''}>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={formData.subgroup || ''}
+                      onChange={(e) => handleInputChange('subgroup', e.target.value)}
+                      placeholder="Subgroup eingeben"
+                    />
+                  </AdminReadField>
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label}>Mars Fil Nr</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    value={formData.marsFil || ''}
-                    onChange={(e) => handleInputChange('marsFil', e.target.value)}
-                    placeholder="z.B. 12345"
-                  />
+                  <AdminReadField value={formData.marsFil || ''}>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={formData.marsFil || ''}
+                      onChange={(e) => handleInputChange('marsFil', e.target.value)}
+                      placeholder="z.B. 12345"
+                    />
+                  </AdminReadField>
                 </div>
               </div>
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="market-admin-comment">Admin-Kommentar</label>
-                <textarea
-                  id="market-admin-comment"
-                  className={`${styles.input} ${styles.commentInput}`}
-                  value={adminComment}
-                  onChange={(event) => setAdminComment(event.target.value)}
-                  maxLength={5000}
-                  disabled={isLoadingAdminComment || Boolean(adminCommentError)}
-                  placeholder={isLoadingAdminComment ? 'Lade Kommentar...' : 'Interne Informationen zu diesem Markt'}
-                />
+                <AdminReadField value={adminComment}>
+                  <textarea
+                    id="market-admin-comment"
+                    className={`${styles.input} ${styles.commentInput}`}
+                    value={adminComment}
+                    onChange={(event) => setAdminComment(event.target.value)}
+                    maxLength={5000}
+                    disabled={isLoadingAdminComment || Boolean(adminCommentError)}
+                    placeholder={isLoadingAdminComment ? 'Lade Kommentar...' : 'Interne Informationen zu diesem Markt'}
+                  />
+                </AdminReadField>
                 <p className={styles.commentHint}>Nur für Admins sichtbar · {adminComment.length}/5000 Zeichen</p>
                 {adminCommentError && (
                   <div className={styles.commentError} role="alert">
@@ -709,26 +730,30 @@ export const MarketDetailsModal: React.FC<MarketDetailsModalProps> = ({
         {activeTab === 'details' && (
           <div className={styles.footer}>
             {onDelete && (
-              <button 
-                className={`${styles.deleteButton} ${deleteClickCount === 1 ? styles.deleteButtonConfirm : ''}`}
-                onClick={handleDeleteClick}
-                disabled={isSaving || isDeleting}
-              >
-                <Trash size={16} weight="bold" />
-                {isDeleting ? 'Löschen...' : deleteClickCount === 1 ? 'Nochmal klicken!' : 'Löschen'}
-              </button>
+              <AdminWrite>
+                <button
+                  className={`${styles.deleteButton} ${deleteClickCount === 1 ? styles.deleteButtonConfirm : ''}`}
+                  onClick={handleDeleteClick}
+                  disabled={isSaving || isDeleting}
+                >
+                  <Trash size={16} weight="bold" />
+                  {isDeleting ? 'Löschen...' : deleteClickCount === 1 ? 'Nochmal klicken!' : 'Löschen'}
+                </button>
+              </AdminWrite>
             )}
             <div className={styles.footerRight}>
               <button className={styles.cancelButton} onClick={onClose} disabled={isSaving || isDeleting}>
                 Abbrechen
               </button>
-              <button 
-                className={`${styles.saveButton} ${isSaving ? styles.saveButtonLoading : ''}`} 
-                onClick={handleSave}
-                disabled={isSaving || isDeleting || isLoadingAdminComment || Boolean(adminCommentError)}
-              >
-                {isSaving ? 'Speichern...' : 'Speichern'}
-              </button>
+              <AdminWrite>
+                <button
+                  className={`${styles.saveButton} ${isSaving ? styles.saveButtonLoading : ''}`}
+                  onClick={handleSave}
+                  disabled={isSaving || isDeleting || isLoadingAdminComment || Boolean(adminCommentError)}
+                >
+                  {isSaving ? 'Speichern...' : 'Speichern'}
+                </button>
+              </AdminWrite>
             </div>
           </div>
         )}

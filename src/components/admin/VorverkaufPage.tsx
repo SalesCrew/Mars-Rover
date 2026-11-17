@@ -1,3 +1,4 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import XLSX from 'xlsx-js-style';
 import { MagnifyingGlass, User, Storefront, CaretDown, X, Calendar, Tag, ArrowsLeftRight } from '@phosphor-icons/react';
@@ -19,6 +20,7 @@ const reasonColors: Record<string, { bg: string; text: string }> = {
 };
 
 export const ProduktErsatzPage: React.FC = () => {
+  const { canExport } = useAdminAccess();
   const [entries, setEntries] = useState<ProduktErsatzEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,6 +93,7 @@ export const ProduktErsatzPage: React.FC = () => {
 
   // Export handler — two sheets: Entnommen and Ausgegeben, one row per product
   const handleExport = useCallback(() => {
+    if (!canExport('produktersatz')) return;
     const ptEntries = entries.filter(e => e.reason === 'Produkttausch');
     const sorted = [...ptEntries].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -181,12 +184,12 @@ export const ProduktErsatzPage: React.FC = () => {
     XLSX.utils.book_append_sheet(workbook, buildSheet(ausgegebenRows), 'Ausgegeben');
     const today = new Date().toISOString().split('T')[0];
     XLSX.writeFile(workbook, `Produkttausch_${today}.xlsx`);
-  }, [entries]);
+  }, [entries, canExport]);
 
   useEffect(() => {
-    window.addEventListener('produktersatz:export', handleExport);
+    if (canExport('produktersatz')) window.addEventListener('produktersatz:export', handleExport);
     return () => window.removeEventListener('produktersatz:export', handleExport);
-  }, [handleExport]);
+  }, [handleExport, canExport]);
 
   return (
     <div className={styles.page}>

@@ -1,3 +1,5 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
+import { AdminWrite } from '../../contexts/AdminAccessContext';
 import { hydrateWaveCatalog, quarterCatalogService } from '../../services/quarterCatalogService';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
@@ -172,6 +174,7 @@ interface GLProgress {
 type ViewMode = 'gl' | 'days';
 
 export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = ({ welle, onClose }) => {
+  const { canWrite } = useAdminAccess();
   const [progressData, setProgressData] = useState<GLProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [collapsedGLs, setCollapsedGLs] = useState<Set<string>>(new Set());
@@ -395,6 +398,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
 
   // Start editing a submission
   const startEditing = (progress: GLProgress, e: React.MouseEvent) => {
+    if (!canWrite) return;
     e.stopPropagation();
     setEditingId(progress.id);
     const units = progress.itemType === 'einzelprodukt' ? parseOrderVe(progress.ve) : null;
@@ -932,6 +936,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                           className={styles.productQuantity}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (!canWrite) return;
                             setEditingId(productEditKey);
                             setEditQuantity(product.quantity);
                           }}
@@ -982,9 +987,11 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
           <div className={styles.headerRight}>
             {!adminStep && (
               <>
-                <button className={styles.adminAddBtn} onClick={openAdminSubmit} title="Vorbesteller für GL einreichen">
-                  <Plus size={18} weight="bold" />
-                </button>
+                <AdminWrite>
+                  <button className={styles.adminAddBtn} onClick={openAdminSubmit} title="Vorbesteller für GL einreichen">
+                    <Plus size={18} weight="bold" />
+                  </button>
+                </AdminWrite>
                 {!welle.fotoOnly && (
                   <div className={styles.viewToggle}>
                     <button 

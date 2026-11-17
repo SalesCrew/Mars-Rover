@@ -1,3 +1,4 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { CaretDown, CaretRight, CaretLeft, Storefront, Car, CalendarCheck, TrendUp, Receipt, User, MagnifyingGlass, Pause, Star, FirstAidKit, House, GraduationCap, Warehouse, Path, Bed, Check, X, Trash, Warning, NavigationArrow, Airplane, CheckCircle } from '@phosphor-icons/react';
@@ -271,6 +272,7 @@ const exportToExcel = (data: string[][], filename: string) => {
 };
 
 export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }) => {
+  const { canWrite, canExport } = useAdminAccess();
   const [entries, setEntries] = useState<ZeiterfassungEntry[]>([]);
   const [zusatzEntries, setZusatzEntries] = useState<ZusatzZeiterfassungEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -464,6 +466,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
   };
 
   const startTimeEdit = (editKey: string, von: string, bis: string) => {
+    if (!canWrite) return;
     setEditingTimeId(editKey);
     const strip = (t: string) => t ? t.replace(/:00$/, '').substring(0, 5) : '';
     setEditTimeData({ von: strip(von), bis: strip(bis) });
@@ -798,11 +801,11 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       console.log('DEV: Cleared all test data');
     };
 
-    window.addEventListener('dev:addTestZeiterfassung', handleAddTestData);
-    window.addEventListener('dev:addVorbestellerSubmissions', handleAddVorbesteller);
-    window.addEventListener('dev:addVorverkaufSubmissions', handleAddVorverkauf);
-    window.addEventListener('dev:addProdukttauschSubmissions', handleAddProdukttausch);
-    window.addEventListener('dev:clearTestData', handleClearTestData);
+    if (canWrite) window.addEventListener('dev:addTestZeiterfassung', handleAddTestData);
+    if (canWrite) window.addEventListener('dev:addVorbestellerSubmissions', handleAddVorbesteller);
+    if (canWrite) window.addEventListener('dev:addVorverkaufSubmissions', handleAddVorverkauf);
+    if (canWrite) window.addEventListener('dev:addProdukttauschSubmissions', handleAddProdukttausch);
+    if (canWrite) window.addEventListener('dev:clearTestData', handleClearTestData);
 
     return () => {
       window.removeEventListener('dev:addTestZeiterfassung', handleAddTestData);
@@ -811,7 +814,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       window.removeEventListener('dev:addProdukttauschSubmissions', handleAddProdukttausch);
       window.removeEventListener('dev:clearTestData', handleClearTestData);
     };
-  }, []);
+  }, [canWrite]);
 
   // Export helper: build timeline rows for a set of market entries + zusatz + day tracking
   const buildTimelineExportRows = (
@@ -1027,9 +1030,9 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       }
     };
 
-    window.addEventListener('zeiterfassung:export', handleExport);
+    if (canExport('zeiterfassung')) window.addEventListener('zeiterfassung:export', handleExport);
     return () => window.removeEventListener('zeiterfassung:export', handleExport);
-  }, [viewMode, entries, zusatzEntries, selectedGLId]);
+  }, [viewMode, entries, zusatzEntries, selectedGLId, canExport]);
 
   // Diäten export handler
   useEffect(() => {
@@ -1648,9 +1651,9 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
       }
     };
 
-    window.addEventListener('zeiterfassung:export-diaeten', handleDiaetenExport);
+    if (canExport('zeiterfassung')) window.addEventListener('zeiterfassung:export-diaeten', handleDiaetenExport);
     return () => window.removeEventListener('zeiterfassung:export-diaeten', handleDiaetenExport);
-  }, [entries, zusatzEntries, dayTrackingData]);
+  }, [entries, zusatzEntries, dayTrackingData, canExport]);
 
   const loadGLDayDetails = async (glId: string, date: string, key: string) => {
     if (detailedEntries[key]) return; // Already loaded
@@ -2498,7 +2501,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                           <span className={styles.kmBadge}>{dayTracking.km_stand_start} km</span>
                                         )}
                                         {editingTimeId === anfahrtEditKey ? renderAnfahrtTimeEdit(anfahrtEditKey, dayTracking.day_start_time) : (
-                                          <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(anfahrtEditKey, dayTracking.day_start_time!, '')}>
+                                          <div className={`${styles.fahrzeitTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={() => startTimeEdit(anfahrtEditKey, dayTracking.day_start_time!, '')}>
                                             <span className={styles.fahrzeitTime}>
                                               {dayTracking.day_start_time} - {firstItem.startTime}
                                             </span>
@@ -2562,7 +2565,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                               return renderTimeEdit(marketEditKey, entry.besuchszeit_von || '', entry.besuchszeit_bis || '', { id: entry.id, type: 'market', label: `${entry.market.chain} ${entry.market.name}` });
                                             }
                                             return (
-                                              <div className={`${styles.marketTimeRight} ${styles.editableTime}`} onClick={(e) => { e.stopPropagation(); startTimeEdit(marketEditKey, entry.besuchszeit_von || '', entry.besuchszeit_bis || ''); }}>
+                                              <div className={`${styles.marketTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={(e) => { e.stopPropagation(); startTimeEdit(marketEditKey, entry.besuchszeit_von || '', entry.besuchszeit_bis || ''); }}>
                                                 <span className={styles.besuchszeit}>
                                                   {entry.besuchszeit_von || '--:--'} - {entry.besuchszeit_bis || '--:--'}
                                                 </span>
@@ -2626,7 +2629,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                             {zusatz.kommentar && <span style={{ color: '#64748B', fontWeight: 400, marginLeft: '8px' }}>{zusatz.kommentar}</span>}
                                           </span>
                                           {editingTimeId === zusatzEditKey ? renderTimeEdit(zusatzEditKey, zusatz.zeit_von, zusatz.zeit_bis, { id: zusatz.id, type: 'zusatz', label: zusatz.reason_label }) : (
-                                            <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(zusatzEditKey, zusatz.zeit_von, zusatz.zeit_bis)}>
+                                            <div className={`${styles.fahrzeitTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={() => startTimeEdit(zusatzEditKey, zusatz.zeit_von, zusatz.zeit_bis)}>
                                               <span className={styles.fahrzeitTime}>
                                                 {zusatz.zeit_von} - {zusatz.zeit_bis}
                                               </span>
@@ -2663,7 +2666,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                         {dayTracking.km_stand_end != null && (
                                           <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
                                         )}
-                                        <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
+                                        <div className={`${styles.fahrzeitTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
                                           <span className={styles.fahrzeitTime}>
                                             {lastItem.endTime}
                                           </span>
@@ -2683,7 +2686,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                             <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
                                           )}
                                           {editingTimeId === heimfahrtEditKey ? renderHeimfahrtTimeEdit(heimfahrtEditKey) : (
-                                            <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
+                                            <div className={`${styles.fahrzeitTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
                                               <span className={styles.fahrzeitTime}>
                                                 {lastItem.endTime} - {dayTracking.day_end_time}
                                               </span>
@@ -3083,7 +3086,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                         <span className={styles.kmBadge}>{dayTracking.km_stand_start} km</span>
                                       )}
                                       {editingTimeId === anfahrtEditKey ? renderAnfahrtTimeEdit(anfahrtEditKey, dayTracking.day_start_time) : (
-                                        <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(anfahrtEditKey, dayTracking.day_start_time!, '')}>
+                                        <div className={`${styles.fahrzeitTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={() => startTimeEdit(anfahrtEditKey, dayTracking.day_start_time!, '')}>
                                           <span className={styles.fahrzeitTime}>
                                             {dayTracking.day_start_time} - {firstItem.startTime}
                                           </span>
@@ -3144,7 +3147,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                             return renderTimeEdit(marketEditKey, entry.besuchszeit_von || '', entry.besuchszeit_bis || '', { id: entry.id, type: 'market', label: `${entry.market.chain} ${entry.market.name}` });
                                           }
                                           return (
-                                            <div className={`${styles.marketTimeRight} ${styles.editableTime}`} onClick={(e) => { e.stopPropagation(); startTimeEdit(marketEditKey, entry.besuchszeit_von || '', entry.besuchszeit_bis || ''); }}>
+                                            <div className={`${styles.marketTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={(e) => { e.stopPropagation(); startTimeEdit(marketEditKey, entry.besuchszeit_von || '', entry.besuchszeit_bis || ''); }}>
                                               <span className={styles.besuchszeit}>
                                                 {entry.besuchszeit_von || '--:--'} - {entry.besuchszeit_bis || '--:--'}
                                               </span>
@@ -3208,7 +3211,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                           {zusatz.kommentar && <span style={{ color: '#64748B', fontWeight: 400, marginLeft: '8px' }}>{zusatz.kommentar}</span>}
                                         </span>
                                         {editingTimeId === zusatzEditKey ? renderTimeEdit(zusatzEditKey, zusatz.zeit_von, zusatz.zeit_bis, { id: zusatz.id, type: 'zusatz', label: zusatz.reason_label }) : (
-                                          <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(zusatzEditKey, zusatz.zeit_von, zusatz.zeit_bis)}>
+                                          <div className={`${styles.fahrzeitTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={() => startTimeEdit(zusatzEditKey, zusatz.zeit_von, zusatz.zeit_bis)}>
                                             <span className={styles.fahrzeitTime}>
                                               {zusatz.zeit_von} - {zusatz.zeit_bis}
                                             </span>
@@ -3244,7 +3247,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                       {dayTracking.km_stand_end != null && (
                                         <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
                                       )}
-                                      <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
+                                      <div className={`${styles.fahrzeitTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
                                         <span className={styles.fahrzeitTime}>
                                           {lastItem.endTime}
                                         </span>
@@ -3264,7 +3267,7 @@ export const ZeiterfassungPage: React.FC<ZeiterfassungPageProps> = ({ viewMode }
                                           <span className={styles.kmBadge}>{dayTracking.km_stand_end} km</span>
                                         )}
                                         {editingTimeId === heimfahrtEditKey ? renderHeimfahrtTimeEdit(heimfahrtEditKey) : (
-                                          <div className={`${styles.fahrzeitTimeRight} ${styles.editableTime}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
+                                          <div className={`${styles.fahrzeitTimeRight} ${canWrite ? styles.editableTime : ''}`} onClick={() => startTimeEdit(heimfahrtEditKey, '', dayTracking.day_end_time!)}>
                                             <span className={styles.fahrzeitTime}>
                                               {lastItem.endTime} - {dayTracking.day_end_time}
                                             </span>

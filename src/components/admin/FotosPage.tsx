@@ -1,3 +1,5 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
+import { AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { Camera, CircleNotch, CaretLeft, CaretRight, Trash, X, Image as ImageIcon, DownloadSimple, CheckCircle, CaretDown, MagnifyingGlass, Funnel } from '@phosphor-icons/react';
 import { wellenService, type WellePhoto, type PhotoFacets } from '../../services/wellenService';
@@ -81,6 +83,7 @@ const PhotoCard = memo<PhotoCardProps>(({ photo, onClick, formatDate }) => {
 });
 
 export const FotosPage: React.FC = () => {
+  const { canExport } = useAdminAccess();
   const [photos, setPhotos] = useState<WellePhoto[]>([]);
   const [facets, setFacets] = useState<PhotoFacets | null>(null);
   const [facetError, setFacetError] = useState(false);
@@ -235,6 +238,7 @@ export const FotosPage: React.FC = () => {
     });
 
   const openExportModal = useCallback(() => {
+    if (!canExport('fotos')) return;
     const today = new Date().toISOString().split('T')[0];
     setZipName(`Fotos_${today}`);
     setExportSource(filterWelle ? 'fotowelle' : filterSource);
@@ -245,7 +249,7 @@ export const FotosPage: React.FC = () => {
     setExportDone(false);
     setExportProgress(0);
     setShowExportModal(true);
-  }, [filterSource, filterWelle, filterGL]);
+  }, [filterSource, filterWelle, filterGL, canExport]);
 
   useEffect(() => {
     if (exportSource !== 'fotowelle') setExportWelleId('');
@@ -271,6 +275,7 @@ export const FotosPage: React.FC = () => {
   }, [openExportDropdown]);
 
   const handleExportZip = async () => {
+    if (!canExport('fotos')) return;
     if (!zipName.trim()) return;
     setIsExporting(true);
     setExportProgress(15);
@@ -307,9 +312,9 @@ export const FotosPage: React.FC = () => {
     const handleExportEvent = () => {
       openExportModal();
     };
-    window.addEventListener('fotos:export', handleExportEvent);
+    if (canExport('fotos')) window.addEventListener('fotos:export', handleExportEvent);
     return () => window.removeEventListener('fotos:export', handleExportEvent);
-  }, [openExportModal]);
+  }, [openExportModal, canExport]);
 
   const lightboxPhoto = lightboxIndex !== null ? photos[lightboxIndex] : null;
   const lightboxSource = lightboxPhoto ? getPhotoSource(lightboxPhoto) : null;
@@ -601,17 +606,19 @@ export const FotosPage: React.FC = () => {
                 )}
               </div>
               {lightboxSource !== 'fotofragen' && (
-                <button className={styles.lightboxDelete} onClick={() => handleDelete(lightboxPhoto)}>
-                  <Trash size={14} weight="regular" style={{ marginRight: '6px' }} />
-                  Foto löschen
-                </button>
+                <AdminWrite>
+                  <button className={styles.lightboxDelete} onClick={() => handleDelete(lightboxPhoto)}>
+                    <Trash size={14} weight="regular" style={{ marginRight: '6px' }} />
+                    Foto löschen
+                  </button>
+                </AdminWrite>
               )}
             </div>
           </div>
         </div>
       )}
       {/* Export Modal */}
-      {showExportModal && (
+      {canExport('fotos') && showExportModal && (
         <div className={styles.exportOverlay} onClick={() => !isExporting && setShowExportModal(false)}>
           <div className={styles.exportModal} onClick={e => e.stopPropagation()}>
             <div className={styles.exportHeader}>

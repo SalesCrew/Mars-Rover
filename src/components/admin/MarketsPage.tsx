@@ -1,3 +1,5 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
+import { AdminExport, AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { MapPin, FunnelSimple, X, CaretDown, CaretUp, WarningCircle, SortAscending, SortDescending, LinkSimple, CheckCircle, DownloadSimple } from '@phosphor-icons/react';
 import VirtualizedAnimatedList from '../gl/VirtualizedAnimatedList';
@@ -29,6 +31,7 @@ interface MarketsPageProps {
 }
 
 export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], isCreateModalOpen = false, onCloseCreateModal }) => {
+  const { canExport } = useAdminAccess();
   const [markets, setMarkets] = useState<AdminMarket[]>([]);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -660,6 +663,7 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
   };
 
   const handleMarketFrequencyExport = async () => {
+    if (!canExport('markets')) return;
     setIsExportingMarkets(true);
     setMarketExportError(null);
     try {
@@ -947,25 +951,29 @@ export const MarketsPage: React.FC<MarketsPageProps> = ({ importedMarkets = [], 
             )}
           </div>
           <div className={styles.statsWrapper}>
-            <button
-              className={styles.marketExportButton}
-              onClick={handleMarketFrequencyExport}
-              disabled={isExportingMarkets || isLoadingMarkets}
-              title="Alle Märkte mit Ist- und Soll-Frequenz als Excel exportieren"
-            >
-              <DownloadSimple size={16} weight="bold" />
-              <span>{isExportingMarkets ? 'Exportiere…' : 'Alle Märkte exportieren'}</span>
-            </button>
+            <AdminExport page="markets">
+              <button
+                className={styles.marketExportButton}
+                onClick={handleMarketFrequencyExport}
+                disabled={isExportingMarkets || isLoadingMarkets}
+                title="Alle Märkte mit Ist- und Soll-Frequenz als Excel exportieren"
+              >
+                <DownloadSimple size={16} weight="bold" />
+                <span>{isExportingMarkets ? 'Exportiere…' : 'Alle Märkte exportieren'}</span>
+              </button>
+            </AdminExport>
             {marketExportError && <span className={styles.marketExportError} role="alert">{marketExportError}</span>}
-            <button
-              className={`${styles.backfillButton} ${!hasMarketsWithoutGLId ? styles.backfillButtonDisabled : ''}`}
-              onClick={handleBackfillGLIds}
-              disabled={isBackfilling || !hasMarketsWithoutGLId}
-              title={hasMarketsWithoutGLId ? "GL IDs anhand von Namen/E-Mail verknüpfen" : "Alle Märkte haben bereits GL IDs"}
-            >
-              <LinkSimple size={16} weight="bold" />
-              <span>{isBackfilling ? 'Verknüpfe...' : 'IDs verknüpfen'}</span>
-            </button>
+            <AdminWrite>
+              <button
+                className={`${styles.backfillButton} ${!hasMarketsWithoutGLId ? styles.backfillButtonDisabled : ''}`}
+                onClick={handleBackfillGLIds}
+                disabled={isBackfilling || !hasMarketsWithoutGLId}
+                title={hasMarketsWithoutGLId ? "GL IDs anhand von Namen/E-Mail verknüpfen" : "Alle Märkte haben bereits GL IDs"}
+              >
+                <LinkSimple size={16} weight="bold" />
+                <span>{isBackfilling ? 'Verknüpfe...' : 'IDs verknüpfen'}</span>
+              </button>
+            </AdminWrite>
             {backfillResult && (
               <span className={styles.backfillResult}>
                 ✓ {backfillResult.updated} aktualisiert

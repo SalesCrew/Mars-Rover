@@ -1,3 +1,4 @@
+import { AdminReadField, AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useEffect } from 'react';
 import { X, PencilSimple, Stack, Question, CheckCircle, Eye, CircleNotch } from '@phosphor-icons/react';
 import { FragebogenPreviewModal } from './FragebogenPreviewModal';
@@ -283,21 +284,25 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
                   {question.type === 'yesno' && (
                     <div className={styles.exportTargetControls}>
                       <label className={styles.exportTargetControl}>
-                        <input
-                          type="checkbox"
-                          checked={question.distributionsziel === true}
-                          disabled={savingTargetQuestionId === question.id}
-                          onChange={(e) => handleTargetToggle(question, 'distribution', e.target.checked)}
-                        />
+                        <AdminReadField value={(question.distributionsziel === true) ? 'Ja' : 'Nein'}>
+                          <input
+                            type="checkbox"
+                            checked={question.distributionsziel === true}
+                            disabled={savingTargetQuestionId === question.id}
+                            onChange={(e) => handleTargetToggle(question, 'distribution', e.target.checked)}
+                          />
+                        </AdminReadField>
                         <span>Distributionsziel</span>
                       </label>
                       <label className={styles.exportTargetControl}>
-                        <input
-                          type="checkbox"
-                          checked={question.qualitaetsziel === true}
-                          disabled={savingTargetQuestionId === question.id}
-                          onChange={(e) => handleTargetToggle(question, 'quality', e.target.checked)}
-                        />
+                        <AdminReadField value={(question.qualitaetsziel === true) ? 'Ja' : 'Nein'}>
+                          <input
+                            type="checkbox"
+                            checked={question.qualitaetsziel === true}
+                            disabled={savingTargetQuestionId === question.id}
+                            onChange={(e) => handleTargetToggle(question, 'quality', e.target.checked)}
+                          />
+                        </AdminReadField>
                         <span>Qualitätsziel</span>
                       </label>
                     </div>
@@ -335,19 +340,21 @@ export const ModuleDetailModal: React.FC<ModuleDetailModalProps> = ({
               <Eye size={18} weight="bold" />
               Vorschau
             </button>
-            <button 
-              className={styles.editButton}
-              onClick={() => {
-                if (onEdit && !isLoading) {
-                  onEdit(module);
-                  onClose();
-                }
-              }}
-              disabled={isLoading}
-            >
-              <PencilSimple size={18} weight="bold" />
-              Modul bearbeiten
-            </button>
+            <AdminWrite>
+              <button
+                className={styles.editButton}
+                onClick={() => {
+                  if (onEdit && !isLoading) {
+                    onEdit(module);
+                    onClose();
+                  }
+                }}
+                disabled={isLoading}
+              >
+                <PencilSimple size={18} weight="bold" />
+                Modul bearbeiten
+              </button>
+            </AdminWrite>
             <button className={styles.secondaryButton} onClick={onClose}>
               Schließen
             </button>

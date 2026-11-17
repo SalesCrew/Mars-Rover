@@ -1,3 +1,5 @@
+import { useAdminAccess } from '../../contexts/AdminAccessContext';
+import { AdminReadField, AdminExport, AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, PencilSimple, Stack, Question, Storefront, Check, MagnifyingGlass, Funnel, Archive, CheckCircle, Eye, DownloadSimple, SpinnerGap, UserCircle } from '@phosphor-icons/react';
 import { FragebogenPreviewModal } from './FragebogenPreviewModal';
@@ -63,6 +65,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
   onArchive,
   onEdit
 }) => {
+  const { canExport } = useAdminAccess();
   const [activeModuleId, setActiveModuleId] = useState<string | null>(initialModules[0]?.id || null);
   const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>('questions');
   const moduleRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -587,6 +590,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
   const [isPhotoExporting, setIsPhotoExporting] = useState(false);
 
   const handleExport = async () => {
+    if (!canExport('fragebogen')) return;
     setIsExporting(true);
     try {
       await fragebogenService.export.downloadExcel(fragebogen.id, fragebogen.name);
@@ -598,6 +602,7 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
   };
 
   const handlePhotoExport = async () => {
+    if (!canExport('fragebogen')) return;
     setIsPhotoExporting(true);
     try {
       await fragebogenService.export.downloadFotofragenZip(fragebogen.id, fragebogen.name);
@@ -626,48 +631,58 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
             }}>
               {statusConfig.label}
             </div>
-            <button 
-              className={styles.marketSelectorButton}
-              onClick={() => setIsMarketSelectorOpen(true)}
-            >
-              <Storefront size={16} weight="fill" />
-              <span>{selectedMarkets.length} {selectedMarkets.length === 1 ? 'Markt' : 'Märkte'}</span>
-            </button>
+            <AdminReadField value={`${selectedMarkets.length} Märkte`}>
+              <button
+                className={styles.marketSelectorButton}
+                onClick={() => setIsMarketSelectorOpen(true)}
+              >
+                <Storefront size={16} weight="fill" />
+                <span>{selectedMarkets.length} {selectedMarkets.length === 1 ? 'Markt' : 'Märkte'}</span>
+              </button>
+            </AdminReadField>
           </div>
           <div className={styles.headerRight}>
-            <button 
-              className={styles.marketSelectorButton}
-              onClick={() => setIsMarketSelectorOpen(true)}
-            >
-              <Storefront size={16} weight="fill" />
-              <span>{selectedMarkets.length} {selectedMarkets.length === 1 ? 'Markt' : 'Märkte'}</span>
-            </button>
-            <button
-              className={styles.exportButton}
-              onClick={handleExport}
-              disabled={isExporting || isPhotoExporting}
-              title="Excel-Export aller Einreichungen"
-            >
-              {isExporting
-                ? <SpinnerGap size={18} weight="bold" className={styles.exportSpinner} />
-                : <DownloadSimple size={18} weight="bold" />}
-              {isExporting ? 'Exportiere…' : 'Excel Export'}
-            </button>
-            <button
-              className={styles.photoExportButton}
-              onClick={handlePhotoExport}
-              disabled={isExporting || isPhotoExporting}
-              title="ZIP-Export aller Fotofragen-Bilder"
-            >
-              {isPhotoExporting
-                ? <SpinnerGap size={18} weight="bold" className={styles.exportSpinner} />
-                : <DownloadSimple size={18} weight="bold" />}
-              {isPhotoExporting ? 'Exportiere…' : 'Fotofragen ZIP'}
-            </button>
-            <button className={styles.archiveButton} onClick={handleArchiveClick}>
-              <ActionIcon size={20} weight="bold" />
-              <span>{actionButtonText}</span>
-            </button>
+            <AdminReadField value={`${selectedMarkets.length} Märkte`}>
+              <button
+                className={styles.marketSelectorButton}
+                onClick={() => setIsMarketSelectorOpen(true)}
+              >
+                <Storefront size={16} weight="fill" />
+                <span>{selectedMarkets.length} {selectedMarkets.length === 1 ? 'Markt' : 'Märkte'}</span>
+              </button>
+            </AdminReadField>
+            <AdminExport page="fragebogen">
+              <button
+                className={styles.exportButton}
+                onClick={handleExport}
+                disabled={isExporting || isPhotoExporting}
+                title="Excel-Export aller Einreichungen"
+              >
+                {isExporting
+                  ? <SpinnerGap size={18} weight="bold" className={styles.exportSpinner} />
+                  : <DownloadSimple size={18} weight="bold" />}
+                {isExporting ? 'Exportiere…' : 'Excel Export'}
+              </button>
+            </AdminExport>
+            <AdminExport page="fragebogen">
+              <button
+                className={styles.photoExportButton}
+                onClick={handlePhotoExport}
+                disabled={isExporting || isPhotoExporting}
+                title="ZIP-Export aller Fotofragen-Bilder"
+              >
+                {isPhotoExporting
+                  ? <SpinnerGap size={18} weight="bold" className={styles.exportSpinner} />
+                  : <DownloadSimple size={18} weight="bold" />}
+                {isPhotoExporting ? 'Exportiere…' : 'Fotofragen ZIP'}
+              </button>
+            </AdminExport>
+            <AdminWrite>
+              <button className={styles.archiveButton} onClick={handleArchiveClick}>
+                <ActionIcon size={20} weight="bold" />
+                <span>{actionButtonText}</span>
+              </button>
+            </AdminWrite>
             <button className={styles.closeButton} onClick={onClose}>
               <X size={24} weight="bold" />
             </button>
@@ -876,18 +891,20 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
             <Eye size={18} weight="bold" />
             Vorschau
           </button>
-          <button 
-            className={styles.editButton}
-            onClick={() => {
-              if (onEdit) {
-                onEdit(fragebogen);
-                onClose();
-              }
-            }}
-          >
-            <PencilSimple size={18} weight="bold" />
-            Fragebogen bearbeiten
-          </button>
+          <AdminWrite>
+            <button
+              className={styles.editButton}
+              onClick={() => {
+                if (onEdit) {
+                  onEdit(fragebogen);
+                  onClose();
+                }
+              }}
+            >
+              <PencilSimple size={18} weight="bold" />
+              Fragebogen bearbeiten
+            </button>
+          </AdminWrite>
           <button className={styles.secondaryButton} onClick={onClose}>
             Schließen
           </button>
@@ -1211,10 +1228,12 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                 <button className={styles.secondaryButton} onClick={handleCancelMarketSelection}>
                   Abbrechen
                 </button>
-                <button className={styles.primaryButton} onClick={handleSaveMarkets}>
-                  <Check size={18} weight="bold" />
-                  Speichern ({selectedMarkets.length})
-                </button>
+                <AdminWrite>
+                  <button className={styles.primaryButton} onClick={handleSaveMarkets}>
+                    <Check size={18} weight="bold" />
+                    Speichern ({selectedMarkets.length})
+                  </button>
+                </AdminWrite>
               </div>
             </div>
           </div>
@@ -1240,10 +1259,12 @@ export const FragebogenDetailModal: React.FC<FragebogenDetailModalProps> = ({
                 <button className={styles.confirmationCancel} onClick={handleCancelArchive}>
                   Abbrechen
                 </button>
-                <button className={styles.confirmationConfirm} onClick={handleConfirmArchive}>
-                  <ActionIcon size={18} weight="bold" />
-                  {actionButtonText}
-                </button>
+                <AdminWrite>
+                  <button className={styles.confirmationConfirm} onClick={handleConfirmArchive}>
+                    <ActionIcon size={18} weight="bold" />
+                    {actionButtonText}
+                  </button>
+                </AdminWrite>
               </div>
             </div>
           </div>

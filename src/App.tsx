@@ -1,6 +1,6 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Dashboard } from './components/gl/Dashboard';
-import { CustomerPortal } from './components/admin/CustomerPortal';
+import { AdminAccessProvider } from './contexts/AdminAccessContext';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { LoginPage } from './LoginPage';
 import { mockDashboardData } from './data/mockData';
@@ -35,13 +35,11 @@ function AppContent() {
     return <LoginPage />;
   }
 
-  // SECURITY: Only admins can access admin panel - GLs get dashboard ONLY
+  // Admins and customers share the actual admin pages; customers have read/export permissions only.
   // This is the ONLY place where role-based routing happens
-  if (user.role === 'admin') {
-    return <AdminPanel />;
+  if (user.role === 'admin' || user.role === 'customer') {
+    return <AdminAccessProvider><AdminPanel /></AdminAccessProvider>;
   }
-
-  if (user.role === 'customer') return <CustomerPortal />;
   if (user.role !== 'gl') return <LoginPage />;
 
   // GL role - show dashboard ONLY

@@ -1,3 +1,4 @@
+import { AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Calendar, CheckCircle, Package, TrendUp, Clock, CheckCircle as CheckCircleFilled, Users, Storefront, Target, CalendarBlank, Trash, Cube } from '@phosphor-icons/react';
@@ -243,13 +244,15 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
                 >
                   Abbrechen
                 </button>
-                <button
-                  className={styles.confirmDeleteBtn}
-                  onClick={handleConfirmDelete}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? 'Wird archiviert…' : 'Ja, archivieren'}
-                </button>
+                <AdminWrite>
+                  <button
+                    className={styles.confirmDeleteBtn}
+                    onClick={handleConfirmDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? 'Wird archiviert…' : 'Ja, archivieren'}
+                  </button>
+                </AdminWrite>
               </div>
             </div>
           </div>
@@ -272,13 +275,15 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
                 <span>{statusConfig.label}</span>
               </div>
               <div className={styles.headerButtons}>
-                <button 
-                  className={`${styles.deleteButton} ${deleteClickCount === 1 ? styles.deleteButtonActive : ''}`}
-                  onClick={handleDeleteClick}
-                  disabled={isDeleting}
-                >
-                  <Trash size={18} weight="bold" />
-                </button>
+                <AdminWrite>
+                  <button
+                    className={`${styles.deleteButton} ${deleteClickCount === 1 ? styles.deleteButtonActive : ''}`}
+                    onClick={handleDeleteClick}
+                    disabled={isDeleting}
+                  >
+                    <Trash size={18} weight="bold" />
+                  </button>
+                </AdminWrite>
                 <button className={styles.closeButton} onClick={onClose}>
                   <X size={20} weight="bold" />
                 </button>
