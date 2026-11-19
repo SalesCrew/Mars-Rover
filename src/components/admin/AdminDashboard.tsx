@@ -53,6 +53,7 @@ interface WaveProgress {
   assignedMarkets: number;
   participatingGLs: number;
   fotoOnly?: boolean;
+  noLimitWelle?: boolean;
   photoCount?: number;
 }
 

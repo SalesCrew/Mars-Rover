@@ -1,3 +1,4 @@
+import { showsWaveRevenue } from '../../utils/wavePresentation';
 import { useAdminAccess } from '../../contexts/AdminAccessContext';
 import { AdminWrite } from '../../contexts/AdminAccessContext';
 import { hydrateWaveCatalog, quarterCatalogService } from '../../services/quarterCatalogService';
@@ -124,6 +125,7 @@ interface WaveProgressDetailModalProps {
     goalPercentage?: number | null;
     goalValue?: number | null;
     fotoOnly?: boolean;
+    noLimitWelle?: boolean;
   };
   onClose: () => void;
 }
@@ -175,6 +177,7 @@ type ViewMode = 'gl' | 'days';
 
 export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = ({ welle, onClose }) => {
   const { canWrite } = useAdminAccess();
+  const showMonetaryValues = showsWaveRevenue(welle);
   const [progressData, setProgressData] = useState<GLProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [collapsedGLs, setCollapsedGLs] = useState<Set<string>>(new Set());
@@ -389,11 +392,6 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
   // Calculate total count for a GL's progress
   const calculateGLCount = (progresses: GLProgress[]) => {
     return progresses.reduce((sum, p) => sum + p.quantity, 0);
-  };
-
-  // Check if GL has any value-based entries
-  const hasValueEntries = (progresses: GLProgress[]) => {
-    return progresses.some(p => p.value > 0);
   };
 
   // Start editing a submission
@@ -840,7 +838,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                 <div className={styles.entryQuantity} onClick={(e) => startEditing(progress, e)}>
                   <span className={styles.quantityValue}>{progress.itemType === 'einzelprodukt' && parseOrderVe(progress.ve) && progress.quantity % (parseOrderVe(progress.ve) || 1) === 0 ? `${progress.quantity / (parseOrderVe(progress.ve) || 1)} VE` : `${progress.quantity}x`}</span>
                 </div>
-                {progress.value > 0 && (
+                {showMonetaryValues && progress.value > 0 && (
                   <div className={styles.entryValue}>
                     €{progress.value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
@@ -943,9 +941,9 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                         >
                           {product.quantity}x
                         </span>
-                        <span className={styles.productValue}>
+                        {showMonetaryValues && <span className={styles.productValue}>
                           €{product.value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
+                        </span>}
                       </>
                     )}
                   </div>
@@ -1235,7 +1233,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                           <div key={item.id} className={styles.adminItemRow}>
                             <div className={styles.adminItemRowInfo}>
                               <span className={styles.adminItemRowName}>{item.name}</span>
-                              {(item.catalogOrderPrice ?? item.itemValue ?? 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.catalogOrderPrice ?? item.itemValue ?? 0).toFixed(2)}/{item.catalogKey ? `VE (${item.catalogVeSize} Stk)` : 'Stk'}</span>}
+                              {showMonetaryValues && (item.catalogOrderPrice ?? item.itemValue ?? 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.catalogOrderPrice ?? item.itemValue ?? 0).toFixed(2)}/{item.catalogKey ? `VE (${item.catalogVeSize} Stk)` : 'Stk'}</span>}
                             </div>
                             <div className={styles.adminItemRowControls}>
                               <button onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, (p[item.id] || 0) - 1) }))} disabled={(adminItemQty[item.id] || 0) <= 0}><Minus size={14} weight="bold" /></button>
@@ -1253,7 +1251,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                           <div key={item.id} className={styles.adminItemRow}>
                             <div className={styles.adminItemRowInfo}>
                               <span className={styles.adminItemRowName}>{item.name}</span>
-                              {(item.catalogOrderPrice ?? item.itemValue ?? 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.catalogOrderPrice ?? item.itemValue ?? 0).toFixed(2)}/{item.catalogKey ? `VE (${item.catalogVeSize} Stk)` : 'Stk'}</span>}
+                              {showMonetaryValues && (item.catalogOrderPrice ?? item.itemValue ?? 0) > 0 && <span className={styles.adminItemRowValue}>€{(item.catalogOrderPrice ?? item.itemValue ?? 0).toFixed(2)}/{item.catalogKey ? `VE (${item.catalogVeSize} Stk)` : 'Stk'}</span>}
                             </div>
                             <div className={styles.adminItemRowControls}>
                               <button onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, (p[item.id] || 0) - 1) }))} disabled={(adminItemQty[item.id] || 0) <= 0}><Minus size={14} weight="bold" /></button>
@@ -1272,7 +1270,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                             <div className={styles.adminItemRowInfo}>
                               <span className={styles.adminItemRowName}>{item.name}</span>
                               {formatArticleVeMeta(item) && <span className={styles.adminItemRowMeta}>{formatArticleVeMeta(item)}</span>}
-                              {waveOrderVe(item) ? <span className={styles.adminItemRowValue}>€{Number(item.catalogOrderPrice ?? Number(item.itemValue || 0) * (waveOrderVe(item) || 0)).toFixed(2)}/VE ({waveOrderVe(item)} Stk)</span> : <span className={styles.adminItemRowValue}>VE fehlt</span>}
+                              {waveOrderVe(item) ? <span className={styles.adminItemRowValue}>{showMonetaryValues && <>€{Number(item.catalogOrderPrice ?? Number(item.itemValue || 0) * (waveOrderVe(item) || 0)).toFixed(2)}/</>}VE ({waveOrderVe(item)} Stk)</span> : <span className={styles.adminItemRowValue}>VE fehlt</span>}
                             </div>
                             <div className={styles.adminItemRowControls}>
                               <button onClick={() => setAdminItemQty(p => ({ ...p, [item.id]: Math.max(0, (p[item.id] || 0) - 1) }))} disabled={!waveOrderVe(item) || (adminItemQty[item.id] || 0) <= 0}><Minus size={14} weight="bold" /></button>
@@ -1295,7 +1293,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                                 <div key={prod.id} className={styles.adminItemRow}>
                                   <div className={styles.adminItemRowInfo}>
                                     <span className={styles.adminItemRowName}>{prod.name}</span>
-                                    <span className={styles.adminItemRowValue}>€{prod.valuePerVE.toFixed(2)}/VE</span>
+                                    <span className={styles.adminItemRowValue}>{showMonetaryValues ? `€${prod.valuePerVE.toFixed(2)}/VE` : `${prod.ve} Stk/VE`}</span>
                                   </div>
                                   <div className={styles.adminItemRowControls}>
                                     <button onClick={() => setAdminItemQty(p => ({ ...p, [qKey]: Math.max(0, (p[qKey] || 0) - 1) }))} disabled={(adminItemQty[qKey] || 0) <= 0}><Minus size={14} weight="bold" /></button>
@@ -1321,7 +1319,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                                 <div key={prod.id} className={styles.adminItemRow}>
                                   <div className={styles.adminItemRowInfo}>
                                     <span className={styles.adminItemRowName}>{prod.name}</span>
-                                    <span className={styles.adminItemRowValue}>€{prod.valuePerVE.toFixed(2)}/VE</span>
+                                    <span className={styles.adminItemRowValue}>{showMonetaryValues ? `€${prod.valuePerVE.toFixed(2)}/VE` : `${prod.ve} Stk/VE`}</span>
                                   </div>
                                   <div className={styles.adminItemRowControls}>
                                     <button onClick={() => setAdminItemQty(p => ({ ...p, [qKey]: Math.max(0, (p[qKey] || 0) - 1) }))} disabled={(adminItemQty[qKey] || 0) <= 0}><Minus size={14} weight="bold" /></button>
@@ -1342,7 +1340,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                   <div className={styles.adminStep3Summary}>
                     {adminFullWave?.fotoOnly
                       ? <span>{adminFotoPhotos.length} Foto{adminFotoPhotos.length !== 1 ? 's' : ''}</span>
-                      : <span>{adminItemsTotal.count} Artikel – €{adminItemsTotal.value.toLocaleString('de-DE', { minimumFractionDigits: 2 })}</span>}
+                      : <span>{adminItemsTotal.count} Artikel{showMonetaryValues && <> – €{adminItemsTotal.value.toLocaleString('de-DE', { minimumFractionDigits: 2 })}</>}</span>}
                   </div>
                   <button className={styles.adminContinueBtn} disabled={!canProceedStep3} onClick={() => setAdminStep(4)}>
                     Weiter
@@ -1367,7 +1365,7 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                     <span className={styles.adminSummaryValue}>
                       {adminFullWave?.fotoOnly
                         ? `${adminFotoPhotos.length} Foto${adminFotoPhotos.length !== 1 ? 's' : ''}`
-                        : `${adminItemsTotal.count} Bestelleinheiten – €${adminItemsTotal.value.toLocaleString('de-DE', { minimumFractionDigits: 2 })}`}
+                        : `${adminItemsTotal.count} Bestelleinheiten${showMonetaryValues ? ` – €${adminItemsTotal.value.toLocaleString('de-DE', { minimumFractionDigits: 2 })}` : ''}`}
                     </span>
                   </div>
                 </div>
@@ -1452,9 +1450,9 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                     <div className={styles.glTotal}>
                       <span className={styles.glTotalLabel}>Gesamt:</span>
                       <span className={styles.glTotalValue}>
-                        {hasValueEntries(progresses) 
+                        {showMonetaryValues && progresses.some(progress => progress.value > 0)
                           ? `€${calculateGLTotal(progresses).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                          : `${calculateGLCount(progresses)}x`
+                          : `${calculateGLCount(progresses)} Stk`
                         }
                       </span>
                     </div>
@@ -1486,9 +1484,9 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
                     <div className={styles.daySummary}>
                       <span className={styles.dayEntryCount}>{progresses.length} Einträge</span>
                       <span className={styles.dayTotalValue}>
-                        {hasValueEntries(progresses) 
+                        {showMonetaryValues && progresses.some(progress => progress.value > 0)
                           ? `€${calculateGLTotal(progresses).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                          : `${calculateGLCount(progresses)}x`
+                          : `${calculateGLCount(progresses)} Stk`
                         }
                       </span>
                     </div>
@@ -1529,9 +1527,9 @@ export const WaveProgressDetailModal: React.FC<WaveProgressDetailModalProps> = (
               <div className={styles.footerStat}>
                 <Package size={20} weight="bold" />
                 <div className={styles.footerStatInfo}>
-                  <span className={styles.footerStatLabel}>Gesamtwert</span>
+                  <span className={styles.footerStatLabel}>{showMonetaryValues ? 'Gesamtwert' : 'Gesamtstückzahl'}</span>
                   <span className={styles.footerStatValue}>
-                    €{progressData.reduce((sum, p) => sum + p.value, 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {showMonetaryValues ? `€${calculateGLTotal(progressData).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${calculateGLCount(progressData)} Stk`}
                   </span>
                 </div>
               </div>

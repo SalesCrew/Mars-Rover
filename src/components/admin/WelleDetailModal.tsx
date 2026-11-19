@@ -1,3 +1,4 @@
+import { showsWaveRevenue } from '../../utils/wavePresentation';
 import { AdminWrite } from '../../contexts/AdminAccessContext';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
@@ -98,6 +99,7 @@ interface WelleDetailModalProps {
 }
 
 export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClose, onDelete }) => {
+  const showMonetaryValues = showsWaveRevenue(welle);
   const [deleteClickCount, setDeleteClickCount] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -521,13 +523,13 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
                             {palette.products.map(prod => (
                               <div key={prod.id} className={styles.productRow}>
                                 <span className={styles.productName}>{prod.name}</span>
-                                <span className={styles.productValue}>€{prod.valuePerVE.toFixed(2)} × {prod.ve} VE</span>
+                                <span className={styles.productValue}>{showMonetaryValues && `€${prod.valuePerVE.toFixed(2)} × `}{prod.ve} VE</span>
                               </div>
                             ))}
                           </div>
-                          <div className={styles.itemValue}>
+                          {showMonetaryValues && <div className={styles.itemValue}>
                             Gesamtwert: €{totalValue.toLocaleString('de-DE')}
-                          </div>
+                          </div>}
                         </div>
                       </div>
                     );
@@ -562,13 +564,13 @@ export const WelleDetailModal: React.FC<WelleDetailModalProps> = ({ welle, onClo
                             {schutte.products.map(prod => (
                               <div key={prod.id} className={styles.productRow}>
                                 <span className={styles.productName}>{prod.name}</span>
-                                <span className={styles.productValue}>€{prod.valuePerVE.toFixed(2)} × {prod.ve} VE</span>
+                                <span className={styles.productValue}>{showMonetaryValues && `€${prod.valuePerVE.toFixed(2)} × `}{prod.ve} VE</span>
                               </div>
                             ))}
                           </div>
-                          <div className={styles.itemValue}>
+                          {showMonetaryValues && <div className={styles.itemValue}>
                             Gesamtwert: €{totalValue.toLocaleString('de-DE')}
-                          </div>
+                          </div>}
                         </div>
                       </div>
                     );

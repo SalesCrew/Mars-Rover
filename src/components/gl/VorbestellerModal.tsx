@@ -1,3 +1,4 @@
+import { showsWaveRevenue } from '../../utils/wavePresentation';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { X, CalendarBlank, Package, Info, MagnifyingGlass, Check, Plus, Minus, CheckCircle, TrendUp, CaretDown, CaretRight, Cube, Camera } from '@phosphor-icons/react';
 import { RingLoader } from 'react-spinners';
@@ -214,6 +215,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
 
   const selectedVorbestellerRaw = wellen.find(v => v.id === selectedCardId);
   const selectedVorbesteller = useMemo(() => selectedVorbestellerRaw ? hydrateWaveCatalog(selectedVorbestellerRaw, bookingCatalog) : undefined, [selectedVorbestellerRaw, bookingCatalog]);
+  const showMonetaryValues = showsWaveRevenue(selectedVorbesteller);
   useEffect(() => {
     let active = true;
     setBookingCatalog([]); setBookingCatalogError('');setBookingCatalogLoading(false);
@@ -339,12 +341,12 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
     const parts: string[] = [];
     if (item.catalogKey) {
       if (item.catalogPriceAvailable === false) return `Art.-Nr. ${item.artikelNr} · Preis für aktuelles Quartal fehlt`;
-      return `Art.-Nr. ${item.artikelNr} · ${item.catalogKey.includes(':display:') ? '1 Display' : `1 VE = ${item.catalogVeSize} Stück`} · €${Number(item.catalogOrderPrice || 0).toFixed(2)} / ${item.catalogKey.includes(':display:') ? 'Display' : 'VE'}`;
+      return `Art.-Nr. ${item.artikelNr} · ${item.catalogKey.includes(':display:') ? '1 Display' : `1 VE = ${item.catalogVeSize} Stück`}${showMonetaryValues ? ` · €${Number(item.catalogOrderPrice || 0).toFixed(2)} / ${item.catalogKey.includes(':display:') ? 'Display' : 'VE'}` : ''}`;
     }
     if (item.artikelNr && String(item.artikelNr).trim() !== '') {
       parts.push(`Art.-Nr. ${item.artikelNr}`);
     }
-    if (item.itemValue !== null && item.itemValue !== undefined) {
+    if (showMonetaryValues && item.itemValue !== null && item.itemValue !== undefined) {
       const units = parseOrderVe(ve);
       parts.push(`€${(Number(item.itemValue) * (units ?? 1)).toFixed(2)} / ${units ? 'VE' : 'Stück'}`);
     }
@@ -1004,40 +1006,42 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                   </div>
                 </div>
 
-                <div className={styles.successStat}>
-                  <div className={styles.successStatIcon}>
-                    <TrendUp size={20} weight="fill" />
-                  </div>
-                  <div className={styles.successStatInfo}>
-                    <div className={styles.successStatValue}>
-                      €{(() => {
-                        let totalValue = 0;
-                        if (selectedVorbesteller) {
-                          selectedVorbesteller.displays?.forEach(d => {
-                            const qty = itemQuantities[d.id] || 0;
-                            totalValue += qty * (d.itemValue || 0);
-                          });
-                          selectedVorbesteller.kartonwareItems?.forEach(k => {
-                            const qty = itemQuantities[k.id] || 0;
-                            totalValue += qty * (k.itemValue || 0);
-                          });
-                          selectedVorbesteller.einzelproduktItems?.forEach(e => {
-                            const qty = itemQuantities[e.id] || 0;
-                            totalValue += getSubmittedEinzelproduktQuantity(e, qty) * (e.itemValue || 0);
-                          });
-                        }
-                        masterProducts.forEach(product => {
-                          const qty = itemQuantities[`master-${product.id}`] || 0;
-                          totalValue += getSubmittedMasterProductQuantity(product, qty) * (product.price || 0);
-                        });
-                        // Add palette/schütte value
-                        totalValue += paletteSchutteValue;
-                        return totalValue.toFixed(2);
-                      })()}
+                {showMonetaryValues && (
+                  <div className={styles.successStat}>
+                    <div className={styles.successStatIcon}>
+                      <TrendUp size={20} weight="fill" />
                     </div>
-                    <div className={styles.successStatLabel}>Gesamtwert</div>
+                    <div className={styles.successStatInfo}>
+                      <div className={styles.successStatValue}>
+                        €{(() => {
+                          let totalValue = 0;
+                          if (selectedVorbesteller) {
+                            selectedVorbesteller.displays?.forEach(d => {
+                              const qty = itemQuantities[d.id] || 0;
+                              totalValue += qty * (d.itemValue || 0);
+                            });
+                            selectedVorbesteller.kartonwareItems?.forEach(k => {
+                              const qty = itemQuantities[k.id] || 0;
+                              totalValue += qty * (k.itemValue || 0);
+                            });
+                            selectedVorbesteller.einzelproduktItems?.forEach(e => {
+                              const qty = itemQuantities[e.id] || 0;
+                              totalValue += getSubmittedEinzelproduktQuantity(e, qty) * (e.itemValue || 0);
+                            });
+                          }
+                          masterProducts.forEach(product => {
+                            const qty = itemQuantities[`master-${product.id}`] || 0;
+                            totalValue += getSubmittedMasterProductQuantity(product, qty) * (product.price || 0);
+                          });
+                          // Add palette/schütte value
+                          totalValue += paletteSchutteValue;
+                          return totalValue.toFixed(2);
+                        })()}
+                      </div>
+                      <div className={styles.successStatLabel}>Gesamtwert</div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Details Section */}
@@ -1074,7 +1078,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                           </div>
                           <div className={styles.successDetailText}>
                             {display.name}: {qty} Stück
-                            {display.itemValue && ` (€${(qty * display.itemValue).toFixed(2)})`}
+                            {showMonetaryValues && display.itemValue && ` (€${(qty * display.itemValue).toFixed(2)})`}
                           </div>
                         </div>
                       );
@@ -1092,7 +1096,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                           </div>
                           <div className={styles.successDetailText}>
                             {item.name}: {qty} Stück
-                            {item.itemValue && ` (€${(qty * item.itemValue).toFixed(2)})`}
+                            {showMonetaryValues && item.itemValue && ` (€${(qty * item.itemValue).toFixed(2)})`}
                           </div>
                         </div>
                       );
@@ -1112,7 +1116,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                           </div>
                           <div className={styles.successDetailText}>
                             {item.name}: {formatSubmittedQuantity(qty, submittedQty, veUnits)}
-                            {item.itemValue && ` (€${(submittedQty * item.itemValue).toFixed(2)})`}
+                            {showMonetaryValues && item.itemValue && ` (€${(submittedQty * item.itemValue).toFixed(2)})`}
                           </div>
                         </div>
                       );
@@ -1146,7 +1150,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                 <Check size={14} weight="bold" />
                               </div>
                               <div className={styles.successDetailText}>
-                                {product.name}: {qty} VE (€{value.toFixed(2)})
+                                {product.name}: {qty} VE{showMonetaryValues && ` (€${value.toFixed(2)})`}
                               </div>
                             </div>
                           );
@@ -1181,7 +1185,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                 <Check size={14} weight="bold" />
                               </div>
                               <div className={styles.successDetailText}>
-                                {product.name}: {qty} VE (€{value.toFixed(2)})
+                                {product.name}: {qty} VE{showMonetaryValues && ` (€${value.toFixed(2)})`}
                               </div>
                             </div>
                           );
@@ -1191,7 +1195,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                   })}
 
                   {/* Show palette/schütte total value if applicable */}
-                  {paletteSchutteValue > 0 && (
+                  {showMonetaryValues && paletteSchutteValue > 0 && (
                     <div className={styles.successDetailRow}>
                       <div className={styles.successDetailCheck}>
                         <Check size={14} weight="bold" />
@@ -1777,7 +1781,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     <div className={styles.productName}>{product.name}</div>
                                     <div className={styles.productMeta}>
                                       {product.weight && `${product.weight}`}
-                                      {product.price > 0 && veUnits !== null && ` · €${(product.price * veUnits).toFixed(2)} / VE`}
+                                      {showMonetaryValues && product.price > 0 && veUnits !== null && ` · €${(product.price * veUnits).toFixed(2)} / VE`}
                                       {masterProductVe !== null ? ` · 1 VE = ${masterProductVe} Stück` : ' · VE fehlt – bitte beim Artikel hinterlegen lassen.'}
                                       {getProductArticleLabel(product) && (
                                         <span className={styles.articleNumber}>
@@ -1826,7 +1830,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                 {hasPalettenOrSchuetten && (
                   <>
                     {/* Progress Bar towards €600 goal */}
-                    <div className={styles.valueProgressSection}>
+                    {showMonetaryValues && <div className={styles.valueProgressSection}>
                       <div className={styles.valueProgressHeader}>
                         <div className={styles.valueProgressLabel}>Paletten & Schütten Wert</div>
                         <div className={styles.valueProgressAmount}>
@@ -1839,7 +1843,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                           style={{ width: `${Math.min(100, (paletteSchutteValue / 600) * 100)}%` }}
                         />
                       </div>
-                    </div>
+                    </div>}
 
                     {/* Paletten Section */}
                     {selectedVorbesteller?.paletteItems && selectedVorbesteller.paletteItems.filter(p =>
@@ -1871,7 +1875,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     <div className={styles.itemInfo}>
                                       <div className={styles.itemName}>{product.name}</div>
                                       <div className={styles.itemMeta}>
-                                        €{product.valuePerVE.toFixed(2)}/VE · Vorschlag/VE: {product.ve}
+                                        {showMonetaryValues && `€${product.valuePerVE.toFixed(2)}/VE · `}Vorschlag/VE: {product.ve}
                                         {product.ean && ` · EAN: ${product.ean}`}
                                       </div>
                                     </div>
@@ -1938,7 +1942,7 @@ export const VorbestellerModal: React.FC<VorbestellerModalProps> = ({ isOpen, on
                                     <div className={styles.itemInfo}>
                                       <div className={styles.itemName}>{product.name}</div>
                                       <div className={styles.itemMeta}>
-                                        €{product.valuePerVE.toFixed(2)}/VE · Vorschlag/VE: {product.ve}
+                                        {showMonetaryValues && `€${product.valuePerVE.toFixed(2)}/VE · `}Vorschlag/VE: {product.ve}
                                         {product.ean && ` · EAN: ${product.ean}`}
                                       </div>
                                     </div>

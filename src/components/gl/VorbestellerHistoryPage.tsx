@@ -1,3 +1,4 @@
+import { showsWaveRevenue } from '../../utils/wavePresentation';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   CaretDown,
@@ -36,6 +37,7 @@ interface WaveInfo {
   status: string;
   goalType: 'percentage' | 'value';
   goalValue?: number;
+  noLimitWelle?: boolean;
   currentValue?: number;
   displayCount: number;
   kartonwareCount: number;
@@ -626,6 +628,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
     }
 
     const waveDef = waveDefinitions[waveId];
+    const showMonetaryValues = showsWaveRevenue(waveDef);
     if (!waveDef) return <div className={styles.addRow}><CircleNotch size={16} className={styles.spinner} /></div>;
 
     const availableTypes = (waveDef.types || []).filter(t => {
@@ -752,7 +755,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
                 onClick={() => toggleSelectItem(prod.id, prod.name, prod.valuePerVE || 0)}
               >
                 <span className={styles.itemOptionName}>{prod.name}</span>
-                <span className={styles.itemOptionMeta}>€{prod.valuePerVE?.toFixed(2) || '0.00'}/VE</span>
+                {showMonetaryValues && <span className={styles.itemOptionMeta}>€{prod.valuePerVE?.toFixed(2) || '0.00'}/VE</span>}
                 {selectedIds.has(prod.id) && <Check size={14} weight="bold" className={styles.itemOptionCheck} />}
               </button>
             ))}
@@ -796,7 +799,7 @@ export const VorbestellerHistoryPage: React.FC = () => {
               >
                 <span className={styles.itemOptionName}>{item.name}</span>
                 {addState.itemType === 'einzelprodukt' && formatArticleVeMeta(item) ? <span className={styles.itemOptionMeta}>{formatArticleVeMeta(item)}</span> : null}
-                {addState.itemType === 'einzelprodukt' ? <span className={styles.itemOptionMeta}>{waveOrderVe(item) ? `Menge in VE · ${formatValue(Number(item.catalogOrderPrice ?? Number(item.itemValue || 0) * (waveOrderVe(item) || 0)))}/VE` : 'VE fehlt'}</span> : item.itemValue ? <span className={styles.itemOptionMeta}>{formatValue(item.itemValue)}</span> : null}
+                {addState.itemType === 'einzelprodukt' ? <span className={styles.itemOptionMeta}>{waveOrderVe(item) ? `Menge in VE${showMonetaryValues ? ` · ${formatValue(Number(item.catalogOrderPrice ?? Number(item.itemValue || 0) * (waveOrderVe(item) || 0)))}/VE` : ''}` : 'VE fehlt'}</span> : showMonetaryValues && item.itemValue ? <span className={styles.itemOptionMeta}>{formatValue(item.itemValue)}</span> : null}
                 {selectedIds.has(item.id) && <Check size={14} weight="bold" className={styles.itemOptionCheck} />}
               </button>
             ))}
@@ -849,14 +852,14 @@ export const VorbestellerHistoryPage: React.FC = () => {
                     <Plus size={14} weight="bold" />
                   </button>
                 </div>
-                {item.valuePerUnit > 0 && item.quantity > 0 && (
+                {showMonetaryValues && item.valuePerUnit > 0 && item.quantity > 0 && (
                   <span className={styles.addItemValue}>{formatValue(item.quantity * item.valuePerUnit)}</span>
                 )}
               </div>
             ))}
           </div>
           <div className={styles.addFooter}>
-            {totalValue > 0 && <span className={styles.addTotalValue}>Gesamt: {formatValue(totalValue)}</span>}
+            {showMonetaryValues && totalValue > 0 && <span className={styles.addTotalValue}>Gesamt: {formatValue(totalValue)}</span>}
             <button className={styles.addConfirm} onClick={submitAdd} disabled={saving || !hasValidItems}>
               <Check size={16} weight="bold" />
               <span>Hinzufügen</span>
@@ -1061,8 +1064,8 @@ export const VorbestellerHistoryPage: React.FC = () => {
                                           )}
                                         </div>
                                         {!hasSubs && renderQuantity(entry.id, entry.quantity, wave.id, day.date, false, entry.itemType === 'einzelprodukt' ? parseOrderVe(entry.ve) : null)}
-                                        <span className={`${styles.itemValue} ${entry.value > 0 ? styles.itemValueCash : styles.itemValueCount}`}>
-                                          {entry.value > 0 ? formatValue(entry.value) : `${entry.quantity} Stk`}
+                                        <span className={`${styles.itemValue} ${showsWaveRevenue(wave) && entry.value > 0 ? styles.itemValueCash : styles.itemValueCount}`}>
+                                          {showsWaveRevenue(wave) && entry.value > 0 ? formatValue(entry.value) : `${entry.quantity} Stk`}
                                         </span>
                                         {hasSubs && (
                                           <button className={`${styles.expandBtn} ${isItemExpanded ? styles.expandBtnOpen : ''}`} onClick={() => toggleItem(entry.id)}>
@@ -1079,8 +1082,8 @@ export const VorbestellerHistoryPage: React.FC = () => {
                                                 <div className={styles.subItem}>
                                                   <span className={styles.subItemName}>{product.name}</span>
                                                   {renderQuantity(product.id, product.quantity, wave.id, day.date, true)}
-                                                  <span className={`${styles.subItemValue} ${product.value > 0 ? styles.subItemValueCash : styles.subItemValueCount}`}>
-                                                    {product.value > 0 ? formatValue(product.value) : `${product.quantity} Stk`}
+                                                  <span className={`${styles.subItemValue} ${showsWaveRevenue(wave) && product.value > 0 ? styles.subItemValueCash : styles.subItemValueCount}`}>
+                                                    {showsWaveRevenue(wave) && product.value > 0 ? formatValue(product.value) : `${product.quantity} Stk`}
                                                   </span>
                                                 </div>
                                                 {renderDeleteConfirm(product.id, wave.id)}
